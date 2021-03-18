@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Random;
 import java.util.Set;
 import java.util.SplittableRandom;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -61,6 +62,7 @@ public class NftXchange {
 	private int numBnfs = 0;
 	private AtomicInteger nextBnf = new AtomicInteger(0);
 	private List<BackAndForth> bnfs;
+	private Random random = new Random();
 
 	public NftXchange(
 			int users,
@@ -136,7 +138,7 @@ public class NftXchange {
 		addSetupXfers(init);
 
 		init.add(getAccountBalance(treasury).logged());
-		getAccountBalanceForAllUsers(init);
+//		getAccountBalanceForAllUsers(init);
 
 		return init;
 	}
@@ -363,8 +365,10 @@ public class NftXchange {
 				var newDir = (witnessDir == Direction.COMING)
 						? Direction.GOING
 						: Direction.COMING;
-				if (dir.compareAndSet(witnessDir, newDir)) {
+				if (random.nextDouble() > 0.2 && dir.compareAndSet(witnessDir, newDir)) {
 					return xferFor(newDir);
+				} else {
+					return getAccountBalance(myCivilianNo(random.nextInt(users)));
 				}
 			}
 		}
@@ -386,6 +390,7 @@ public class NftXchange {
 					.hasKnownStatusFrom(SUCCESS, UNKNOWN, ACCOUNT_NOT_OWNER_OF_NFT)
 					.blankMemo()
 					.noLogging().deferStatusResolution();
+
 			return op;
 		}
 
