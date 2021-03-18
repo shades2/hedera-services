@@ -18,15 +18,17 @@ public class NftUseCase {
 	private final int frequency;
 	private final String useCase;
 	private final boolean swapHbars;
+	private final boolean queryBalances;
 
 	private List<NftXchange> xchanges = new ArrayList<>();
 
-	public NftUseCase(int users, int serialNos, int frequency, String useCase, boolean swapHbars) {
+	public NftUseCase(int users, int serialNos, int frequency, String useCase, boolean swapHbars, boolean queryBalances) {
 		this.users = users;
 		this.serialNos = serialNos;
 		this.frequency = frequency;
 		this.useCase = useCase;
 		this.swapHbars = swapHbars;
+		this.queryBalances = queryBalances;
 	}
 
 	public int getUsers() {
@@ -41,7 +43,8 @@ public class NftUseCase {
 					nftTypeIds.getAndIncrement(),
 					serialNos,
 					useCase,
-					swapHbars);
+					swapHbars,
+					queryBalances);
 			init.add(UtilVerbs.withOpContext((spec, opLog) -> {
 				opLog.info("Initializing {}...", xchange.getNftType());
 			}));

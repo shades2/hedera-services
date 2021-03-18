@@ -173,7 +173,8 @@ public class NftXchangeLoadProvider extends HapiApiSuite {
 				propsMap.getInteger("serialNos"),
 				propsMap.getInteger("frequency"),
 				useCase,
-				propsMap.getBoolean("swapHbar"));
+				propsMap.getBoolean("swapHbar"),
+				propsMap.getBoolean("queryBalances"));
 	}
 
 	private static void addCivilians(List<HapiSpecOperation> init, int n) {

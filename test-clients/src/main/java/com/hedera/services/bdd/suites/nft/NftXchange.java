@@ -56,6 +56,7 @@ public class NftXchange {
 	private final String nftType;
 	private final String treasury;
 	private final boolean swapHbar;
+	private final boolean queryBalances;
 	private final List<String> explicitSerialNos;
 	private final List<AtomicReference<Direction>> dirs = new ArrayList<>();
 
@@ -69,12 +70,14 @@ public class NftXchange {
 			int nftTypeId,
 			int serialNos,
 			String useCase,
-			boolean swapHbar
+			boolean swapHbar,
+			boolean queryBalances
 	) {
 		this.users = users;
 		this.nftTypeId = nftTypeId;
 		this.serialNos = serialNos;
 		this.swapHbar = swapHbar;
+		this.queryBalances = queryBalances;
 
 		nftType = nftType(useCase, nftTypeId);
 		treasury = treasury(useCase, nftTypeId);
@@ -365,10 +368,10 @@ public class NftXchange {
 				var newDir = (witnessDir == Direction.COMING)
 						? Direction.GOING
 						: Direction.COMING;
-				if (random.nextDouble() > 0.2 && dir.compareAndSet(witnessDir, newDir)) {
-					return xferFor(newDir);
-				} else {
+				if (queryBalances && random.nextDouble() < 0.3) {
 					return getAccountBalance(myCivilianNo(random.nextInt(users)));
+				} else if (dir.compareAndSet(witnessDir, newDir)) {
+					return xferFor(newDir);
 				}
 			}
 		}
