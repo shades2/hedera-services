@@ -26,9 +26,11 @@ import com.hedera.services.exceptions.InvalidTransactionException;
 import com.hedera.services.ledger.HederaLedger;
 import com.hedera.services.ledger.ids.EntityIdSource;
 import com.hedera.services.state.merkle.MerkleToken;
+import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.store.AccountStore;
 import com.hedera.services.store.CreationResult;
 import com.hedera.services.store.TypedTokenStore;
+import com.hedera.services.store.models.Account;
 import com.hedera.services.store.models.Id;
 import com.hedera.services.txns.TransitionLogic;
 import com.hedera.services.txns.validation.OptionValidator;
@@ -45,12 +47,15 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 import static com.hedera.services.state.submerkle.EntityId.fromGrpcAccountId;
+import static com.hedera.services.store.CreationResult.failure;
 import static com.hedera.services.store.CreationResult.success;
 import static com.hedera.services.txns.validation.TokenListChecks.checkKeys;
 import static com.hedera.services.txns.validation.TokenListChecks.initialSupplyAndDecimalsCheck;
 import static com.hedera.services.utils.MiscUtils.asUsableFcKey;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.FAIL_INVALID;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_AUTORENEW_ACCOUNT;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_EXPIRATION_TIME;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_PAYER_ACCOUNT_ID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_RENEWAL_PERIOD;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TREASURY_ACCOUNT_FOR_TOKEN;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
@@ -142,6 +147,7 @@ public class TokenCreateTransitionLogic implements TransitionLogic {
 		} catch (InvalidTransactionException ex) {
 			status = ex.getResponseCode();
 			abortWith(created, status);
+			return;
 		}
 
 
@@ -168,12 +174,26 @@ public class TokenCreateTransitionLogic implements TransitionLogic {
 	}
 
 	CreationResult<TokenID> createProvisionally(TokenCreateTransactionBody op) {
-		final var payerId = validateAccountId(txnCtx.activePayer());
 
-		final var treasuryId = validateAccountId(op.getTreasury());
+		try{
+			validateAccountId(txnCtx.activePayer());
+		} catch (InvalidTransactionException ex) {
+			return failure(INVALID_PAYER_ACCOUNT_ID);
+		}
+
+		Account treasuryAccount;
+		try{
+			treasuryAccount = validateAccountId(op.getTreasury());
+		} catch (InvalidTransactionException ex) {
+			return failure(INVALID_TREASURY_ACCOUNT_FOR_TOKEN);
+		}
 
 		if (op.hasAutoRenewAccount()) {
-			validateAccountId(op.getAutoRenewAccount());
+			try{
+				validateAccountId(op.getAutoRenewAccount());
+			} catch (InvalidTransactionException ex) {
+				return failure(INVALID_AUTORENEW_ACCOUNT);
+			}
 		}
 
 		var freezeKey = asUsableFcKey(op.getFreezeKey());
@@ -184,7 +204,7 @@ public class TokenCreateTransitionLogic implements TransitionLogic {
 
 		var expiry = expiryOf(op, txnCtx.consensusTime().getEpochSecond());
 
-		final TokenID pending = ids.newTokenId(payerId);
+		final TokenID pending = ids.newTokenId(txnCtx.activePayer());
 
 		MerkleToken pendingCreation = new MerkleToken(
 				expiry,
@@ -194,7 +214,7 @@ public class TokenCreateTransitionLogic implements TransitionLogic {
 				op.getName(),
 				op.getFreezeDefault(),
 				kycKey.isEmpty(),
-				fromGrpcAccountId(treasuryId));
+				new EntityId(treasuryAccount.getId()));
 
 		pendingCreation.setMemo(op.getMemo());
 		adminKey.ifPresent(pendingCreation::setAdminKey);
@@ -285,9 +305,8 @@ public class TokenCreateTransitionLogic implements TransitionLogic {
 		return OK;
 	}
 
-	private AccountID validateAccountId(AccountID id) {
-		accountStore.loadAccount(new Id(id.getShardNum(), id.getRealmNum(), id.getAccountNum()));
-		return id;
+	private Account validateAccountId(AccountID id) {
+		return accountStore.loadAccount(new Id(id.getShardNum(), id.getRealmNum(), id.getAccountNum()));
 	}
 
 	private long expiryOf(TokenCreateTransactionBody request, long now) {
