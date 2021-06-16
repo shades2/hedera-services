@@ -1365,7 +1365,8 @@ public class ServicesContext {
 								this::topics, validator(), txnCtx(), globalDynamicProperties()))),
 				/* Token */
 				entry(TokenCreate,
-						List.of(new TokenCreateTransitionLogic(validator(), tokenStore(), ledger(), txnCtx()))),
+						List.of(new TokenCreateTransitionLogic(validator(), accountStore(),
+								typedTokenStore(), ledger(), txnCtx(), ids(), globalDynamicProperties()))),
 				entry(TokenUpdate,
 						List.of(new TokenUpdateTransitionLogic(
 								validator(), tokenStore(), ledger(), txnCtx(), HederaTokenStore::affectsExpiryAtMost))),

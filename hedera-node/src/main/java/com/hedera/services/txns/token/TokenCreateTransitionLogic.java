@@ -21,10 +21,18 @@ package com.hedera.services.txns.token;
  */
 
 import com.hedera.services.context.TransactionContext;
+import com.hedera.services.context.properties.GlobalDynamicProperties;
+import com.hedera.services.exceptions.InvalidTransactionException;
 import com.hedera.services.ledger.HederaLedger;
-import com.hedera.services.store.tokens.TokenStore;
+import com.hedera.services.ledger.ids.EntityIdSource;
+import com.hedera.services.state.merkle.MerkleToken;
+import com.hedera.services.store.AccountStore;
+import com.hedera.services.store.CreationResult;
+import com.hedera.services.store.TypedTokenStore;
+import com.hedera.services.store.models.Id;
 import com.hedera.services.txns.TransitionLogic;
 import com.hedera.services.txns.validation.OptionValidator;
+import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TokenCreateTransactionBody;
 import com.hederahashgraph.api.proto.java.TokenID;
@@ -36,8 +44,11 @@ import java.util.List;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
+import static com.hedera.services.state.submerkle.EntityId.fromGrpcAccountId;
+import static com.hedera.services.store.CreationResult.success;
 import static com.hedera.services.txns.validation.TokenListChecks.checkKeys;
 import static com.hedera.services.txns.validation.TokenListChecks.initialSupplyAndDecimalsCheck;
+import static com.hedera.services.utils.MiscUtils.asUsableFcKey;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.FAIL_INVALID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_EXPIRATION_TIME;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_RENEWAL_PERIOD;
@@ -55,43 +66,57 @@ public class TokenCreateTransitionLogic implements TransitionLogic {
 	private static final Logger log = LogManager.getLogger(TokenCreateTransitionLogic.class);
 
 	private final Function<TransactionBody, ResponseCodeEnum> SEMANTIC_CHECK = this::validate;
+	private final TokenID NO_PENDING_ID = TokenID.getDefaultInstance();
 
+	private final EntityIdSource ids;
 	private final OptionValidator validator;
-	private final TokenStore store;
 	private final HederaLedger ledger;
+	private final AccountStore accountStore;
+	private final TypedTokenStore tokenStore;
 	private final TransactionContext txnCtx;
+	private final GlobalDynamicProperties dynamicProperties;
 
 	public TokenCreateTransitionLogic(
 			OptionValidator validator,
-			TokenStore store,
+			AccountStore accountStore,
+			TypedTokenStore tokenStore,
 			HederaLedger ledger,
-			TransactionContext txnCtx
+			TransactionContext txnCtx,
+			EntityIdSource ids,
+			GlobalDynamicProperties dynamicProperties
 	) {
 		this.validator = validator;
-		this.store = store;
+		this.accountStore = accountStore;
+		this.tokenStore = tokenStore;
 		this.ledger = ledger;
 		this.txnCtx = txnCtx;
+		this.ids = ids;
+		this.dynamicProperties = dynamicProperties;
 	}
 
 	@Override
-	public void doStateTransition() {
+	public void doStateTransition()  {
 		try {
+			/* --- Translate from gRPC types --- */
 			final var op = txnCtx.accessor().getTxn().getTokenCreation();
 			if (op.hasExpiry() && !validator.isValidExpiry(op.getExpiry())) {
 				txnCtx.setStatus(INVALID_EXPIRATION_TIME);
 				return;
 			}
+
+			/* -- Do business logic --- */
 			transitionFor(op);
 		} catch (Exception e) {
 			log.warn("Unhandled error while processing :: {}!", txnCtx.accessor().getSignedTxnWrapper(), e);
-			abortWith(FAIL_INVALID);
+			abortWith(NO_PENDING_ID, FAIL_INVALID);
 		}
 	}
 
 	private void transitionFor(TokenCreateTransactionBody op) {
-		var result = store.createProvisionally(op, txnCtx.activePayer(), txnCtx.consensusTime().getEpochSecond());
+		var result = createProvisionally(op);
+
 		if (result.getStatus() != OK) {
-			abortWith(result.getStatus());
+			abortWith(NO_PENDING_ID, result.getStatus());
 			return;
 		}
 
@@ -100,17 +125,26 @@ public class TokenCreateTransitionLogic implements TransitionLogic {
 			created = result.getCreated().get();
 		} else {
 			log.warn("TokenStore#createProvisionally contract broken, no created id for OK response!");
-			abortWith(FAIL_INVALID);
+			abortWith(NO_PENDING_ID, FAIL_INVALID);
 			return;
 		}
 
 		var treasury = op.getTreasury();
+		var treasuryAccount = accountStore.loadAccount(
+				new Id(treasury.getShardNum(), treasury.getRealmNum(), treasury.getAccountNum()));
+		var token = tokenStore.loadToken(
+				new Id(created.getShardNum(), created.getRealmNum(), created.getTokenNum()));
 		var status = OK;
-		status = store.associate(treasury, List.of(created));
-		if (status != OK) {
-			abortWith(status);
-			return;
+		/* --- associate the created token with its treasury --- */
+		try {
+			treasuryAccount.associateWith(List.of(token),
+					dynamicProperties.maxTokensPerAccount());
+		} catch (InvalidTransactionException ex) {
+			status = ex.getResponseCode();
+			abortWith(created, status);
 		}
+
+
 		if (op.hasFreezeKey()) {
 			status = ledger.unfreeze(treasury, created);
 		}
@@ -122,18 +156,67 @@ public class TokenCreateTransitionLogic implements TransitionLogic {
 		}
 
 		if (status != OK) {
-			abortWith(status);
+			abortWith(created, status);
 			return;
 		}
 
-		store.commitCreation();
+		accountStore.persistAccount(treasuryAccount);
+		tokenStore.persistTokenRelationship(token.newRelationshipWith(treasuryAccount));
+
 		txnCtx.setCreated(created);
 		txnCtx.setStatus(SUCCESS);
 	}
 
-	private void abortWith(ResponseCodeEnum cause) {
-		if (store.isCreationPending()) {
-			store.rollbackCreation();
+	CreationResult<TokenID> createProvisionally(TokenCreateTransactionBody op) {
+		final var payerId = validateAccountId(txnCtx.activePayer());
+
+		final var treasuryId = validateAccountId(op.getTreasury());
+
+		if (op.hasAutoRenewAccount()) {
+			validateAccountId(op.getAutoRenewAccount());
+		}
+
+		var freezeKey = asUsableFcKey(op.getFreezeKey());
+		var adminKey = asUsableFcKey(op.getAdminKey());
+		var kycKey = asUsableFcKey(op.getKycKey());
+		var wipeKey = asUsableFcKey(op.getWipeKey());
+		var supplyKey = asUsableFcKey(op.getSupplyKey());
+
+		var expiry = expiryOf(op, txnCtx.consensusTime().getEpochSecond());
+
+		final TokenID pending = ids.newTokenId(payerId);
+
+		MerkleToken pendingCreation = new MerkleToken(
+				expiry,
+				op.getInitialSupply(),
+				op.getDecimals(),
+				op.getSymbol(),
+				op.getName(),
+				op.getFreezeDefault(),
+				kycKey.isEmpty(),
+				fromGrpcAccountId(treasuryId));
+
+		pendingCreation.setMemo(op.getMemo());
+		adminKey.ifPresent(pendingCreation::setAdminKey);
+		kycKey.ifPresent(pendingCreation::setKycKey);
+		wipeKey.ifPresent(pendingCreation::setWipeKey);
+		freezeKey.ifPresent(pendingCreation::setFreezeKey);
+		supplyKey.ifPresent(pendingCreation::setSupplyKey);
+
+		if(op.hasCustomFees()) {
+			// TODO
+		}
+
+		if (op.hasAutoRenewAccount()) {
+			pendingCreation.setAutoRenewAccount(fromGrpcAccountId(op.getAutoRenewAccount()));
+			pendingCreation.setAutoRenewPeriod(op.getAutoRenewPeriod().getSeconds());
+		}
+		return success(pending);
+	}
+
+	private void abortWith(TokenID tokenID, ResponseCodeEnum cause) {
+		if (tokenID != NO_PENDING_ID) {
+			ids.reclaimLastId();
 		}
 		ledger.dropPendingTokenChanges();
 		txnCtx.setStatus(cause);
@@ -200,5 +283,16 @@ public class TokenCreateTransitionLogic implements TransitionLogic {
 		}
 
 		return OK;
+	}
+
+	private AccountID validateAccountId(AccountID id) {
+		accountStore.loadAccount(new Id(id.getShardNum(), id.getRealmNum(), id.getAccountNum()));
+		return id;
+	}
+
+	private long expiryOf(TokenCreateTransactionBody request, long now) {
+		return request.hasAutoRenewAccount()
+				? now + request.getAutoRenewPeriod().getSeconds()
+				: request.getExpiry().getSeconds();
 	}
 }
