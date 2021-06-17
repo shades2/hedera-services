@@ -101,9 +101,9 @@ public class TokenCreateSpecs extends HapiApiSuite {
 						creationValidatesFreezeDefaultWithNoFreezeKey(),
 						creationSetsCorrectExpiry(),
 						creationHappyPath(),
+						cannotCreateWithExcessiveLifetime(),
 						numAccountsAllowedIsDynamic(),
 						worksAsExpectedWithDefaultTokenId(),
-						cannotCreateWithExcessiveLifetime(),
 				}
 		);
 	}

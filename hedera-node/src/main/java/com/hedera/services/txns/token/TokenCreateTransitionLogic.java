@@ -152,6 +152,8 @@ public class TokenCreateTransitionLogic implements TransitionLogic {
 			tokenStore.addToken(token, merkleToken);
 			treasuryAccount.associateWith(List.of(token),
 					dynamicProperties.maxTokensPerAccount());
+			accountStore.persistAccount(treasuryAccount);
+			tokenStore.persistTokenRelationship(token.newRelationshipWith(treasuryAccount));
 		} catch (InvalidTransactionException ex) {
 			status = ex.getResponseCode();
 			abortWith(tokenId, status);
@@ -179,9 +181,6 @@ public class TokenCreateTransitionLogic implements TransitionLogic {
 			abortWith(tokenId, status);
 			return;
 		}
-
-		accountStore.persistAccount(treasuryAccount);
-		tokenStore.persistTokenRelationship(token.newRelationshipWith(treasuryAccount));
 
 		txnCtx.setCreatedTokenId(tokenId);
 		txnCtx.setStatus(SUCCESS);
