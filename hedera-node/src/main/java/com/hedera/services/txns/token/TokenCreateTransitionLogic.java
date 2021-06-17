@@ -28,7 +28,6 @@ import com.hedera.services.ledger.ids.EntityIdSource;
 import com.hedera.services.state.merkle.MerkleToken;
 import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.store.AccountStore;
-import com.hedera.services.store.CreationResult;
 import com.hedera.services.store.TypedTokenStore;
 import com.hedera.services.store.models.Account;
 import com.hedera.services.store.models.Id;
@@ -48,8 +47,6 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 import static com.hedera.services.state.submerkle.EntityId.fromGrpcAccountId;
-import static com.hedera.services.store.CreationResult.failure;
-import static com.hedera.services.store.CreationResult.success;
 import static com.hedera.services.txns.validation.TokenListChecks.checkKeys;
 import static com.hedera.services.txns.validation.TokenListChecks.initialSupplyAndDecimalsCheck;
 import static com.hedera.services.utils.MiscUtils.asUsableFcKey;
@@ -72,7 +69,7 @@ public class TokenCreateTransitionLogic implements TransitionLogic {
 	private static final Logger log = LogManager.getLogger(TokenCreateTransitionLogic.class);
 
 	private final Function<TransactionBody, ResponseCodeEnum> SEMANTIC_CHECK = this::validate;
-	private final TokenID NO_PENDING_ID = TokenID.getDefaultInstance();
+	private final Id NO_PENDING_ID = new Id();
 
 	private final EntityIdSource ids;
 	private final OptionValidator validator;
@@ -119,51 +116,35 @@ public class TokenCreateTransitionLogic implements TransitionLogic {
 	}
 
 	private void transitionFor(TokenCreateTransactionBody op) {
-		CreationResult<TokenID> result = failure(OK);
-
 		try{
 			validateAccountId(txnCtx.activePayer());
 		} catch (InvalidTransactionException ex) {
-			result = failure(INVALID_PAYER_ACCOUNT_ID);
+			abortWith(NO_PENDING_ID, INVALID_PAYER_ACCOUNT_ID);
+			return;
 		}
 
 		AccountID treasury = op.getTreasury();
-		Account treasuryAccount = null;
+		Account treasuryAccount;
 		try{
 			treasuryAccount = validateAccountId(treasury);
 		} catch (InvalidTransactionException ex) {
-			result = failure(INVALID_TREASURY_ACCOUNT_FOR_TOKEN);
+			abortWith(NO_PENDING_ID, INVALID_TREASURY_ACCOUNT_FOR_TOKEN);
+			return;
 		}
 
 		if (op.hasAutoRenewAccount()) {
 			try{
 				validateAccountId(op.getAutoRenewAccount());
 			} catch (InvalidTransactionException ex) {
-				result = failure(INVALID_AUTORENEW_ACCOUNT);
+				abortWith(NO_PENDING_ID, INVALID_AUTORENEW_ACCOUNT);
+				return;
 			}
 		}
 
-		Token token = null;
-		MerkleToken merkleToken = null;
+		final Id tokenId = ids.newId(treasuryAccount.getId());
+		final var token = new Token(tokenId);
+		final var merkleToken = createMerkleToken(op, treasuryAccount);
 
-		if (result.getStatus() == OK) {
-			final TokenID pending = ids.newTokenId(txnCtx.activePayer());
-			token = new Token(new Id(pending.getShardNum(), pending.getRealmNum(), pending.getTokenNum()));
-			merkleToken = createMerkleToken(op, treasuryAccount);
-			result = success(pending);
-		} else {
-			abortWith(NO_PENDING_ID, result.getStatus());
-			return;
-		}
-
-		TokenID created;
-		if (result.getCreated().isPresent()) {
-			created = result.getCreated().get();
-		} else {
-			log.warn("TokenStore#createProvisionally contract broken, no created id for OK response!");
-			abortWith(NO_PENDING_ID, FAIL_INVALID);
-			return;
-		}
 
 		var status = OK;
 		/* --- associate the created token with its treasury --- */
@@ -173,10 +154,16 @@ public class TokenCreateTransitionLogic implements TransitionLogic {
 					dynamicProperties.maxTokensPerAccount());
 		} catch (InvalidTransactionException ex) {
 			status = ex.getResponseCode();
-			abortWith(created, status);
+			abortWith(tokenId, status);
 			return;
 		}
 
+
+		TokenID created = TokenID.newBuilder()
+				.setRealmNum(tokenId.getRealm())
+				.setShardNum(tokenId.getShard())
+				.setTokenNum(tokenId.getNum())
+				.build();
 
 		if (op.hasFreezeKey()) {
 			status = ledger.unfreeze(treasury, created);
@@ -189,14 +176,14 @@ public class TokenCreateTransitionLogic implements TransitionLogic {
 		}
 
 		if (status != OK) {
-			abortWith(created, status);
+			abortWith(tokenId, status);
 			return;
 		}
 
 		accountStore.persistAccount(treasuryAccount);
 		tokenStore.persistTokenRelationship(token.newRelationshipWith(treasuryAccount));
 
-		txnCtx.setCreated(created);
+		txnCtx.setCreatedTokenId(tokenId);
 		txnCtx.setStatus(SUCCESS);
 	}
 
@@ -235,7 +222,7 @@ public class TokenCreateTransitionLogic implements TransitionLogic {
 		return pendingCreation;
 	}
 
-	private void abortWith(TokenID tokenID, ResponseCodeEnum cause) {
+	private void abortWith(Id tokenID, ResponseCodeEnum cause) {
 		if (tokenID != NO_PENDING_ID) {
 			ids.reclaimLastId();
 		}

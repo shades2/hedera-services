@@ -21,6 +21,7 @@ package com.hedera.services.ledger.ids;
  */
 
 import com.hedera.services.state.submerkle.SequenceNumber;
+import com.hedera.services.store.models.Id;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.FileID;
 import com.hederahashgraph.api.proto.java.ScheduleID;
@@ -74,5 +75,10 @@ public class SeqNoEntityIdSource implements EntityIdSource {
 	@Override
 	public void reclaimLastId() {
 		seqNo.get().decrement();
+	}
+
+	@Override
+	public Id newId(Id sponsorId) {
+		return new Id(sponsorId.getShard(), sponsorId.getRealm(), seqNo.get().getAndIncrement());
 	}
 }

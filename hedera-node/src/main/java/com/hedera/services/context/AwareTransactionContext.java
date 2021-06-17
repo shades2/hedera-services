@@ -28,6 +28,7 @@ import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.state.submerkle.ExpirableTxnRecord;
 import com.hedera.services.state.submerkle.SolidityFnResult;
 import com.hedera.services.state.submerkle.TxnId;
+import com.hedera.services.store.models.Id;
 import com.hedera.services.utils.TxnAccessor;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
@@ -37,7 +38,6 @@ import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.KeyList;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.ScheduleID;
-import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TokenTransferList;
 import com.hederahashgraph.api.proto.java.TopicID;
 import com.hederahashgraph.api.proto.java.TransactionID;
@@ -207,8 +207,8 @@ public class AwareTransactionContext implements TransactionContext {
 	}
 
 	@Override
-	public void setCreated(TokenID id) {
-		receiptConfig = receipt -> receipt.setTokenId(EntityId.fromGrpcTokenId(id));
+	public void setCreatedTokenId(Id id) {
+		receiptConfig = receipt -> receipt.setTokenId(new EntityId(id));
 	}
 
 	@Override

@@ -36,6 +36,12 @@ public class Id {
 		this.num = num;
 	}
 
+	public Id() {
+		this.shard = 0;
+		this.realm = 0;
+		this.num = 0;
+	}
+
 	public long getShard() {
 		return shard;
 	}

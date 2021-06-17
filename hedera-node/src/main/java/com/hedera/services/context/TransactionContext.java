@@ -23,6 +23,7 @@ package com.hedera.services.context;
 import com.hedera.services.legacy.core.jproto.JKey;
 import com.hedera.services.state.expiry.ExpiringEntity;
 import com.hedera.services.state.submerkle.ExpirableTxnRecord;
+import com.hedera.services.store.models.Id;
 import com.hedera.services.utils.TxnAccessor;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
@@ -30,7 +31,6 @@ import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.FileID;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.ScheduleID;
-import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TokenTransferList;
 import com.hederahashgraph.api.proto.java.TopicID;
 import com.hederahashgraph.api.proto.java.TransactionID;
@@ -172,7 +172,7 @@ public interface TransactionContext {
 	 *
 	 * @param id the created token.
 	 */
-	void setCreated(TokenID id);
+	void setCreatedTokenId(Id id);
 
 	/**
 	 * Record that the current transaction created a scheduled transaction.
