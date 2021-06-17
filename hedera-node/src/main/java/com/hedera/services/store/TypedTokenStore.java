@@ -212,6 +212,21 @@ public class TypedTokenStore {
 		transactionRecordService.includeChangesToToken(token);
 	}
 
+	/**
+	 * Add the newly created token to the token map of the Swirlds State and persist the Token.
+	 * @param token the token to save
+	 * @param merkleToken the merkleToken to add to the token map of the Swirlds State
+	 */
+	public void addToken(Token token, MerkleToken merkleToken) {
+		final var tokenId = token.getId();
+		final var merkleEntityId = new MerkleEntityId(tokenId.getShard(), tokenId.getRealm(), tokenId.getNum());
+
+		tokens.get().put(merkleEntityId, merkleToken);
+		initModelAccounts(token, merkleToken.treasury(), merkleToken.autoRenewAccount());
+		initModelFields(token, merkleToken);
+		persistToken(token);
+	}
+
 	private void validateUsable(MerkleTokenRelStatus merkleTokenRelStatus) {
 		validateTrue(merkleTokenRelStatus != null, TOKEN_NOT_ASSOCIATED_TO_ACCOUNT);
 	}

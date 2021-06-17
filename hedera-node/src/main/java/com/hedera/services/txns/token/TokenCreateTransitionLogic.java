@@ -32,6 +32,7 @@ import com.hedera.services.store.CreationResult;
 import com.hedera.services.store.TypedTokenStore;
 import com.hedera.services.store.models.Account;
 import com.hedera.services.store.models.Id;
+import com.hedera.services.store.models.Token;
 import com.hedera.services.txns.TransitionLogic;
 import com.hedera.services.txns.validation.OptionValidator;
 import com.hederahashgraph.api.proto.java.AccountID;
@@ -118,9 +119,39 @@ public class TokenCreateTransitionLogic implements TransitionLogic {
 	}
 
 	private void transitionFor(TokenCreateTransactionBody op) {
-		var result = createProvisionally(op);
+		CreationResult<TokenID> result = failure(OK);
 
-		if (result.getStatus() != OK) {
+		try{
+			validateAccountId(txnCtx.activePayer());
+		} catch (InvalidTransactionException ex) {
+			result = failure(INVALID_PAYER_ACCOUNT_ID);
+		}
+
+		AccountID treasury = op.getTreasury();
+		Account treasuryAccount = null;
+		try{
+			treasuryAccount = validateAccountId(treasury);
+		} catch (InvalidTransactionException ex) {
+			result = failure(INVALID_TREASURY_ACCOUNT_FOR_TOKEN);
+		}
+
+		if (op.hasAutoRenewAccount()) {
+			try{
+				validateAccountId(op.getAutoRenewAccount());
+			} catch (InvalidTransactionException ex) {
+				result = failure(INVALID_AUTORENEW_ACCOUNT);
+			}
+		}
+
+		Token token = null;
+		MerkleToken merkleToken = null;
+
+		if (result.getStatus() == OK) {
+			final TokenID pending = ids.newTokenId(txnCtx.activePayer());
+			token = new Token(new Id(pending.getShardNum(), pending.getRealmNum(), pending.getTokenNum()));
+			merkleToken = createMerkleToken(op, treasuryAccount);
+			result = success(pending);
+		} else {
 			abortWith(NO_PENDING_ID, result.getStatus());
 			return;
 		}
@@ -134,14 +165,10 @@ public class TokenCreateTransitionLogic implements TransitionLogic {
 			return;
 		}
 
-		var treasury = op.getTreasury();
-		var treasuryAccount = accountStore.loadAccount(
-				new Id(treasury.getShardNum(), treasury.getRealmNum(), treasury.getAccountNum()));
-		var token = tokenStore.loadToken(
-				new Id(created.getShardNum(), created.getRealmNum(), created.getTokenNum()));
 		var status = OK;
 		/* --- associate the created token with its treasury --- */
 		try {
+			tokenStore.addToken(token, merkleToken);
 			treasuryAccount.associateWith(List.of(token),
 					dynamicProperties.maxTokensPerAccount());
 		} catch (InvalidTransactionException ex) {
@@ -173,39 +200,13 @@ public class TokenCreateTransitionLogic implements TransitionLogic {
 		txnCtx.setStatus(SUCCESS);
 	}
 
-	CreationResult<TokenID> createProvisionally(TokenCreateTransactionBody op) {
-
-		try{
-			validateAccountId(txnCtx.activePayer());
-		} catch (InvalidTransactionException ex) {
-			return failure(INVALID_PAYER_ACCOUNT_ID);
-		}
-
-		Account treasuryAccount;
-		try{
-			treasuryAccount = validateAccountId(op.getTreasury());
-		} catch (InvalidTransactionException ex) {
-			return failure(INVALID_TREASURY_ACCOUNT_FOR_TOKEN);
-		}
-
-		if (op.hasAutoRenewAccount()) {
-			try{
-				validateAccountId(op.getAutoRenewAccount());
-			} catch (InvalidTransactionException ex) {
-				return failure(INVALID_AUTORENEW_ACCOUNT);
-			}
-		}
-
+	private MerkleToken createMerkleToken(TokenCreateTransactionBody op, Account treasuryAccount) {
 		var freezeKey = asUsableFcKey(op.getFreezeKey());
 		var adminKey = asUsableFcKey(op.getAdminKey());
 		var kycKey = asUsableFcKey(op.getKycKey());
 		var wipeKey = asUsableFcKey(op.getWipeKey());
 		var supplyKey = asUsableFcKey(op.getSupplyKey());
-
 		var expiry = expiryOf(op, txnCtx.consensusTime().getEpochSecond());
-
-		final TokenID pending = ids.newTokenId(txnCtx.activePayer());
-
 		MerkleToken pendingCreation = new MerkleToken(
 				expiry,
 				op.getInitialSupply(),
@@ -231,7 +232,7 @@ public class TokenCreateTransitionLogic implements TransitionLogic {
 			pendingCreation.setAutoRenewAccount(fromGrpcAccountId(op.getAutoRenewAccount()));
 			pendingCreation.setAutoRenewPeriod(op.getAutoRenewPeriod().getSeconds());
 		}
-		return success(pending);
+		return pendingCreation;
 	}
 
 	private void abortWith(TokenID tokenID, ResponseCodeEnum cause) {
