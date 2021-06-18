@@ -84,6 +84,7 @@ public class TokenDissociateTransitionLogic implements TransitionLogic {
 		final List<Token> tokens = new ArrayList<>();
 		for (final var tokenId : tokenIds) {
 			final var token = tokenStore.loadToken(tokenId);
+			tokenStore.validateRelationShip(token.getId(), account.getId());
 			tokens.add(token);
 		}
 

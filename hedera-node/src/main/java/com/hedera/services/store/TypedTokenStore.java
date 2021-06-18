@@ -35,6 +35,7 @@ import com.hedera.services.store.models.Token;
 import com.hedera.services.store.models.TokenRelationship;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
+import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TokenCreateTransactionBody;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.swirlds.fcmap.FCMap;
@@ -50,6 +51,7 @@ import static com.hedera.services.exceptions.ValidationUtils.validateTrue;
 import static com.hedera.services.state.submerkle.EntityId.fromGrpcAccountId;
 import static com.hedera.services.utils.MiscUtils.asUsableFcKey;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_FROZEN_FOR_TOKEN;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_IS_TREASURY;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_KYC_NOT_GRANTED_FOR_TOKEN;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INSUFFICIENT_TOKEN_BALANCE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_ID;
@@ -57,6 +59,7 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_F
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_KYC_KEY;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_NOT_ASSOCIATED_TO_ACCOUNT;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_WAS_DELETED;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TRANSACTION_REQUIRES_ZERO_TOKEN_BALANCES;
 
 /**
  * Loads and saves token-related entities to and from the Swirlds state, hiding
@@ -179,15 +182,51 @@ public class TypedTokenStore {
 
 	/**
 	 * Removes the given token relationship to the Swirlds state
-	 * 	 *
-	 * 	 * @param tokenRelationship
-	 * 	 * 		the token relationship to remove
+	 *
+	 * @param tokenId
+	 * @param accountId
 	 */
 	public void removeTokenRelationship(final Id tokenId, final Id accountId) {
 		final var key = new MerkleEntityAssociation(
 				accountId.getShard(), accountId.getRealm(), accountId.getNum(),
 				tokenId.getShard(), tokenId.getRealm(), tokenId.getNum());
 		tokenRels.get().remove(key);
+	}
+
+	/**
+	 * Validates the Relationship before dissociation
+	 * @param tokenId
+	 * @param accountId
+	 */
+	public void validateRelationShip(final Id tokenId, final Id accountId) {
+		final var key = new MerkleEntityAssociation(
+				accountId.getShard(), accountId.getRealm(), accountId.getNum(),
+				tokenId.getShard(), tokenId.getRealm(), tokenId.getNum());
+		final var currentTokenRels = tokenRels.get();
+		final var mutableTokenRel = currentTokenRels.getForModify(key);
+
+		final var merkleEntityId = new MerkleEntityId(tokenId.getShard(), tokenId.getRealm(), tokenId.getNum());
+		var merkleToken = tokens.get().get(merkleEntityId);
+		validateTrue(merkleToken != null, INVALID_TOKEN_ID);
+		validateTrue(mutableTokenRel != null, TOKEN_NOT_ASSOCIATED_TO_ACCOUNT);
+		final var treasury = merkleToken.treasury();
+		final var treasuryId = new Id(treasury.shard(), treasury.realm(),treasury.num());
+
+		validateFalse(treasuryId.equals(accountId), ACCOUNT_IS_TREASURY);
+
+		validateFalse(!merkleToken.isDeleted() && mutableTokenRel.isFrozen(), ACCOUNT_FROZEN_FOR_TOKEN);
+		var balance = mutableTokenRel.getBalance();
+		if(balance > 0) {
+			var expiry = Timestamp.newBuilder().setSeconds(merkleToken.expiry()).build();
+			var isExpired = accountStore.getValidator().isValidExpiry(expiry);
+			validateFalse(!merkleToken.isDeleted() && !isExpired, TRANSACTION_REQUIRES_ZERO_TOKEN_BALANCES);
+			 // transfer balance to treasury
+			final var treasuryAccount = accountStore.loadAccount(treasuryId);
+			final var token = loadToken(tokenId);
+			final var account = accountStore.loadAccount(accountId);
+			adjustTokenBalance(treasuryAccount, token, balance);
+			adjustTokenBalance(account, token, -balance);
+		}
 	}
 
 	/**
