@@ -20,7 +20,6 @@ package com.hedera.services.ledger.ids;
  * ‍
  */
 
-import com.hedera.services.store.models.Id;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.FileID;
 import com.hederahashgraph.api.proto.java.ScheduleID;
@@ -68,11 +67,4 @@ public interface EntityIdSource {
 	 * Reclaims the last id issued.
 	 */
 	void reclaimLastId();
-
-	/**
-	 * Returns the {@link Id} to use for a new entity with the given sponsor
-	 * @param sponsor the sponsor of the new entity
-	 * @return
-	 */
-	Id newId(Id sponsor);
 }

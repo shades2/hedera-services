@@ -22,6 +22,7 @@ package com.hedera.services.store;
 
 import com.hedera.services.exceptions.InvalidTransactionException;
 import com.hedera.services.ledger.accounts.BackingTokenRels;
+import com.hedera.services.legacy.core.jproto.JKey;
 import com.hedera.services.records.TransactionRecordService;
 import com.hedera.services.state.merkle.MerkleEntityAssociation;
 import com.hedera.services.state.merkle.MerkleEntityId;
@@ -33,16 +34,27 @@ import com.hedera.services.store.models.Id;
 import com.hedera.services.store.models.Token;
 import com.hedera.services.store.models.TokenRelationship;
 import com.hederahashgraph.api.proto.java.AccountID;
+import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
+import com.hederahashgraph.api.proto.java.TokenCreateTransactionBody;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.swirlds.fcmap.FCMap;
 import org.apache.commons.lang3.tuple.Pair;
 
 import javax.annotation.Nullable;
+import java.util.Optional;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static com.hedera.services.exceptions.ValidationUtils.validateFalse;
 import static com.hedera.services.exceptions.ValidationUtils.validateTrue;
+import static com.hedera.services.state.submerkle.EntityId.fromGrpcAccountId;
+import static com.hedera.services.utils.MiscUtils.asUsableFcKey;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_FROZEN_FOR_TOKEN;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_KYC_NOT_GRANTED_FOR_TOKEN;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INSUFFICIENT_TOKEN_BALANCE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_ID;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_FREEZE_KEY;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_KYC_KEY;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_NOT_ASSOCIATED_TO_ACCOUNT;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_WAS_DELETED;
 
@@ -181,10 +193,7 @@ public class TypedTokenStore {
 	 * 		if the requested token is missing, deleted, or expired and pending removal
 	 */
 	public Token loadToken(Id id) {
-		final var key = new MerkleEntityId(id.getShard(), id.getRealm(), id.getNum());
-		final var merkleToken = tokens.get().get(key);
-
-		validateUsable(merkleToken);
+		final var merkleToken = validateAndGetMerkleToken(id);
 
 		final var token = new Token(id);
 		initModelAccounts(token, merkleToken.treasury(), merkleToken.autoRenewAccount());
@@ -213,18 +222,136 @@ public class TypedTokenStore {
 	}
 
 	/**
-	 * Add the newly created token to the token map of the Swirlds State and persist the Token.
-	 * @param token the token to save
+	 *
+	 * @param token
 	 * @param merkleToken the merkleToken to add to the token map of the Swirlds State
 	 */
-	public void addToken(Token token, MerkleToken merkleToken) {
+	/**
+	 * Add the newly created token to the token map of the Swirlds State and persist the Token.
+	 * @param token the token to add
+	 * @param op The transactionBody of the TokenCreate request
+	 * @param now epoc seconds of the consensus time of TokenCreate transaction.
+	 */
+	public void addToken(Token token, TokenCreateTransactionBody op, long now) {
 		final var tokenId = token.getId();
 		final var merkleEntityId = new MerkleEntityId(tokenId.getShard(), tokenId.getRealm(), tokenId.getNum());
-
+		var merkleToken = createMerkleToken(op, token.getTreasury(), now);
 		tokens.get().put(merkleEntityId, merkleToken);
 		initModelAccounts(token, merkleToken.treasury(), merkleToken.autoRenewAccount());
 		initModelFields(token, merkleToken);
 		persistToken(token);
+	}
+
+	/**
+	 * Freeze the token for the given account
+	 * @param accountID
+	 * @param tokenID
+	 */
+	public void freeze(AccountID accountID, TokenID tokenID) {
+		var Ids = getAccountAndTokenIds(accountID, tokenID);
+		setIsFrozen(Ids[0], Ids[1], true);
+	}
+
+	/**
+	 * Unfreeze the token for the given account
+	 * @param accountID
+	 * @param tokenID
+	 */
+	public void unFreeze(AccountID accountID, TokenID tokenID) {
+		var Ids = getAccountAndTokenIds(accountID, tokenID);
+		setIsFrozen(Ids[0], Ids[1], false);
+	}
+
+	/**
+	 * Grant Kyc for the pair account <--> token
+	 * @param accountID
+	 * @param tokenID
+	 */
+	public void grantKyc(AccountID accountID, TokenID tokenID) {
+		var Ids = getAccountAndTokenIds(accountID, tokenID);
+		setHasKyc(Ids[0], Ids[1], true);
+	}
+
+	/**
+	 * Revoke Kyc for the pair account <--> token
+	 * @param accountID
+	 * @param tokenID
+	 */
+	public void revokeKyc(AccountID accountID, TokenID tokenID) {
+		var Ids = getAccountAndTokenIds(accountID, tokenID);
+		setHasKyc(Ids[0], Ids[1], false);
+	}
+
+	public void adjustTokenBalance(Account account, Token token, long adjustment) {
+		final var tokenId = token.getId();
+		final var accountId = account.getId();
+		final var merkleEntityId = new MerkleEntityId(tokenId.getShard(), tokenId.getRealm(), tokenId.getNum());
+		var merkleToken = tokens.get().get(merkleEntityId);
+
+		validateUsable(merkleToken);
+		accountStore.loadAccount(accountId);
+		var merkleTokenRelStatus =  getMerkleTokenRelStatus(accountId, tokenId);
+
+		validateFalse(merkleTokenRelStatus.isFrozen(), ACCOUNT_FROZEN_FOR_TOKEN);
+		validateTrue(merkleTokenRelStatus.isKycGranted(), ACCOUNT_KYC_NOT_GRANTED_FOR_TOKEN);
+
+		long balance = merkleTokenRelStatus.getBalance();
+		long newBalance = balance + adjustment;
+		validateTrue(newBalance >= 0, INSUFFICIENT_TOKEN_BALANCE);
+		merkleTokenRelStatus.setBalance(newBalance);
+	}
+
+	private Id[] getAccountAndTokenIds(AccountID accountID, TokenID tokenID) {
+		var token  = loadToken(new Id(tokenID.getShardNum(), tokenID.getRealmNum(), tokenID.getTokenNum()));
+		var account = accountStore.loadAccount(new Id(accountID.getShardNum(), accountID.getRealmNum(), accountID.getAccountNum()));
+		return new Id[]{account.getId(), token.getId()};
+	}
+
+	private void setHasKyc(final Id accountId, final Id tokenId, final boolean value) {
+		validateUsable(tokenId, TOKEN_HAS_NO_KYC_KEY,	MerkleToken::kycKey);
+		var merkleTokenRelStatus =  getMerkleTokenRelStatus(accountId, tokenId);
+		merkleTokenRelStatus.setKycGranted(value);
+	}
+
+	private void setIsFrozen(final Id accountId, final Id tokenId,final boolean value) {
+		validateUsable(tokenId, TOKEN_HAS_NO_FREEZE_KEY,	MerkleToken::freezeKey);
+		var merkleTokenRelStatus =  getMerkleTokenRelStatus(accountId, tokenId);
+		merkleTokenRelStatus.setFrozen(value);
+	}
+
+	private MerkleTokenRelStatus getMerkleTokenRelStatus(final Id accountId, final Id tokenId) {
+		var relationship = Pair.of(
+				AccountID.newBuilder()
+						.setShardNum(accountId.getShard())
+						.setRealmNum(accountId.getRealm())
+						.setAccountNum(accountId.getNum())
+						.build(),
+				TokenID.newBuilder()
+						.setShardNum(tokenId.getShard())
+						.setRealmNum(tokenId.getRealm())
+						.setTokenNum(tokenId.getNum())
+						.build());
+
+		return backingTokenRels.getRef(relationship);
+	}
+
+	private MerkleToken validateAndGetMerkleToken(final Id tokenId) {
+		final var merkleEntityId = new MerkleEntityId(tokenId.getShard(), tokenId.getRealm(), tokenId.getNum());
+		var merkleToken = tokens.get().get(merkleEntityId);
+
+		validateUsable(merkleToken);
+		return merkleToken;
+	}
+
+	private void validateUsable(
+			Id tokenId,
+			ResponseCodeEnum keyFailure,
+			Function<MerkleToken, Optional<JKey>> controlKeyFn
+	) {
+
+		var merkleToken = validateAndGetMerkleToken(tokenId);
+
+		validateTrue(controlKeyFn.apply(merkleToken).isEmpty(), keyFailure);
 	}
 
 	private void validateUsable(MerkleTokenRelStatus merkleTokenRelStatus) {
@@ -279,5 +406,46 @@ public class TypedTokenStore {
 						.setRealmNum(tokenId.getRealm())
 						.setTokenNum(tokenId.getNum())
 						.build()));
+	}
+
+	private MerkleToken createMerkleToken(TokenCreateTransactionBody op, Account treasuryAccount, long now) {
+		var freezeKey = asUsableFcKey(op.getFreezeKey());
+		var adminKey = asUsableFcKey(op.getAdminKey());
+		var kycKey = asUsableFcKey(op.getKycKey());
+		var wipeKey = asUsableFcKey(op.getWipeKey());
+		var supplyKey = asUsableFcKey(op.getSupplyKey());
+		var expiry = expiryOf(op, now);
+		MerkleToken pendingCreation = new MerkleToken(
+				expiry,
+				op.getInitialSupply(),
+				op.getDecimals(),
+				op.getSymbol(),
+				op.getName(),
+				op.getFreezeDefault(),
+				kycKey.isEmpty(),
+				new EntityId(treasuryAccount.getId()));
+
+		pendingCreation.setMemo(op.getMemo());
+		adminKey.ifPresent(pendingCreation::setAdminKey);
+		kycKey.ifPresent(pendingCreation::setKycKey);
+		wipeKey.ifPresent(pendingCreation::setWipeKey);
+		freezeKey.ifPresent(pendingCreation::setFreezeKey);
+		supplyKey.ifPresent(pendingCreation::setSupplyKey);
+
+		if(op.hasCustomFees()) {
+			// TODO
+		}
+
+		if (op.hasAutoRenewAccount()) {
+			pendingCreation.setAutoRenewAccount(fromGrpcAccountId(op.getAutoRenewAccount()));
+			pendingCreation.setAutoRenewPeriod(op.getAutoRenewPeriod().getSeconds());
+		}
+		return pendingCreation;
+	}
+
+	private long expiryOf(TokenCreateTransactionBody request, long now) {
+		return request.hasAutoRenewAccount()
+				? now + request.getAutoRenewPeriod().getSeconds()
+				: request.getExpiry().getSeconds();
 	}
 }
