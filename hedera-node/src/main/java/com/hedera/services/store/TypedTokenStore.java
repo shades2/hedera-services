@@ -403,7 +403,7 @@ public class TypedTokenStore {
 
 		var merkleToken = validateAndGetMerkleToken(tokenId);
 
-		validateTrue(controlKeyFn.apply(merkleToken).isEmpty(), keyFailure);
+		validateFalse(controlKeyFn.apply(merkleToken).isEmpty(), keyFailure);
 	}
 
 	private void validateUsable(MerkleTokenRelStatus merkleTokenRelStatus) {
