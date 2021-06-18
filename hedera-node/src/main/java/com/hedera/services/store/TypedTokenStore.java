@@ -178,6 +178,19 @@ public class TypedTokenStore {
 	}
 
 	/**
+	 * Removes the given token relationship to the Swirlds state
+	 * 	 *
+	 * 	 * @param tokenRelationship
+	 * 	 * 		the token relationship to remove
+	 */
+	public void removeTokenRelationship(final Id tokenId, final Id accountId) {
+		final var key = new MerkleEntityAssociation(
+				accountId.getShard(), accountId.getRealm(), accountId.getNum(),
+				tokenId.getShard(), tokenId.getRealm(), tokenId.getNum());
+		tokenRels.get().remove(key);
+	}
+
+	/**
 	 * Returns a model of the requested token, with operations that can be used to
 	 * implement business logic in a transaction.
 	 *
