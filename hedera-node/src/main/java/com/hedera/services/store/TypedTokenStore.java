@@ -189,7 +189,7 @@ public class TypedTokenStore {
 	 * @param tokenId
 	 * @param accountId
 	 */
-	public long adjustBalances(final Id tokenId, final Id accountId) {
+	public long adjustBalancesOnDissociate(final Id tokenId, final Id accountId) {
 		final var mutableTokenRel = getMerkleTokenRelStatus(accountId, tokenId, false);
 		var merkleToken = getMerkleToken(tokenId);
 
