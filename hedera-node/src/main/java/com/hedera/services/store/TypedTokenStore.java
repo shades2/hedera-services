@@ -207,19 +207,21 @@ public class TypedTokenStore {
 
 		final var merkleEntityId = new MerkleEntityId(tokenId.getShard(), tokenId.getRealm(), tokenId.getNum());
 		var merkleToken = tokens.get().get(merkleEntityId);
+
 		validateTrue(merkleToken != null, INVALID_TOKEN_ID);
 		validateTrue(mutableTokenRel != null, TOKEN_NOT_ASSOCIATED_TO_ACCOUNT);
+
 		final var treasury = merkleToken.treasury();
 		final var treasuryId = new Id(treasury.shard(), treasury.realm(),treasury.num());
 
 		validateFalse(treasuryId.equals(accountId), ACCOUNT_IS_TREASURY);
-
 		validateFalse(!merkleToken.isDeleted() && mutableTokenRel.isFrozen(), ACCOUNT_FROZEN_FOR_TOKEN);
+
 		var balance = mutableTokenRel.getBalance();
 		if(balance > 0) {
 			var expiry = Timestamp.newBuilder().setSeconds(merkleToken.expiry()).build();
-			var isExpired = accountStore.getValidator().isValidExpiry(expiry);
-			validateFalse(!merkleToken.isDeleted() && !isExpired, TRANSACTION_REQUIRES_ZERO_TOKEN_BALANCES);
+			var isTokenExpired = !accountStore.getValidator().isValidExpiry(expiry);
+			validateFalse(!merkleToken.isDeleted() && !isTokenExpired, TRANSACTION_REQUIRES_ZERO_TOKEN_BALANCES);
 			 // transfer balance to treasury
 			final var treasuryAccount = accountStore.loadAccount(treasuryId);
 			final var token = loadToken(tokenId);
@@ -245,7 +247,8 @@ public class TypedTokenStore {
 	 * 		if the requested token is missing, deleted, or expired and pending removal
 	 */
 	public Token loadToken(Id id) {
-		final var merkleToken = validateAndGetMerkleToken(id);
+		final var merkleToken = getMerkleToken(id);
+		validateTrue(merkleToken != null, INVALID_TOKEN_ID);
 
 		final var token = new Token(id);
 		initModelAccounts(token, merkleToken.treasury(), merkleToken.autoRenewAccount());
@@ -340,11 +343,12 @@ public class TypedTokenStore {
 		final var merkleEntityId = new MerkleEntityId(tokenId.getShard(), tokenId.getRealm(), tokenId.getNum());
 		var merkleToken = tokens.get().get(merkleEntityId);
 
-		validateUsable(merkleToken);
+		validateTrue(merkleToken != null, INVALID_TOKEN_ID);
+
 		accountStore.loadAccount(accountId);
 		var merkleTokenRelStatus =  getMerkleTokenRelStatus(accountId, tokenId);
 
-		validateFalse(merkleTokenRelStatus.isFrozen(), ACCOUNT_FROZEN_FOR_TOKEN);
+		validateFalse(!merkleToken.isDeleted() && merkleTokenRelStatus.isFrozen(), ACCOUNT_FROZEN_FOR_TOKEN);
 		validateTrue(merkleTokenRelStatus.isKycGranted(), ACCOUNT_KYC_NOT_GRANTED_FOR_TOKEN);
 
 		long balance = merkleTokenRelStatus.getBalance();
@@ -387,11 +391,10 @@ public class TypedTokenStore {
 		return backingTokenRels.getRef(relationship);
 	}
 
-	private MerkleToken validateAndGetMerkleToken(final Id tokenId) {
+	private MerkleToken getMerkleToken(final Id tokenId) {
 		final var merkleEntityId = new MerkleEntityId(tokenId.getShard(), tokenId.getRealm(), tokenId.getNum());
 		var merkleToken = tokens.get().get(merkleEntityId);
 
-		validateUsable(merkleToken);
 		return merkleToken;
 	}
 
@@ -401,18 +404,16 @@ public class TypedTokenStore {
 			Function<MerkleToken, Optional<JKey>> controlKeyFn
 	) {
 
-		var merkleToken = validateAndGetMerkleToken(tokenId);
+		var merkleToken = getMerkleToken(tokenId);
+
+		validateTrue(merkleToken != null, INVALID_TOKEN_ID);
+		validateFalse(merkleToken.isDeleted(), TOKEN_WAS_DELETED);
 
 		validateFalse(controlKeyFn.apply(merkleToken).isEmpty(), keyFailure);
 	}
 
 	private void validateUsable(MerkleTokenRelStatus merkleTokenRelStatus) {
 		validateTrue(merkleTokenRelStatus != null, TOKEN_NOT_ASSOCIATED_TO_ACCOUNT);
-	}
-
-	private void validateUsable(MerkleToken merkleToken) {
-		validateTrue(merkleToken != null, INVALID_TOKEN_ID);
-		validateFalse(merkleToken.isDeleted(), TOKEN_WAS_DELETED);
 	}
 
 	private void mapModelChangesToMutable(Token token, MerkleToken mutableToken) {
