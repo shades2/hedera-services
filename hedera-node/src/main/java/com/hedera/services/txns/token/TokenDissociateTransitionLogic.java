@@ -91,7 +91,7 @@ public class TokenDissociateTransitionLogic implements TransitionLogic {
 			final long balanceAdjusted = tokenStore.adjustBalancesOnDissociate(token.getId(), account.getId());
 			if(balanceAdjusted != 0) {
 				ledger.updateTokenXfers(tokenId.asGrpcToken(), token.getTreasury().getId().asGrpcAccount(), balanceAdjusted);
-				ledger.updateTokenXfers(tokenId.asGrpcToken(), account.toGrpcId(), -balanceAdjusted);
+				ledger.updateTokenXfers(tokenId.asGrpcToken(), account.getId().asGrpcAccount(), -balanceAdjusted);
 			}
 			tokens.add(token);
 		}
