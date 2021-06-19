@@ -21,6 +21,7 @@ package com.hedera.services.txns.token;
  */
 
 import com.hedera.services.context.TransactionContext;
+import com.hedera.services.ledger.HederaLedger;
 import com.hedera.services.store.AccountStore;
 import com.hedera.services.store.TypedTokenStore;
 import com.hedera.services.store.models.Id;
@@ -54,15 +55,18 @@ public class TokenDissociateTransitionLogic implements TransitionLogic {
 
 	private final AccountStore accountStore;
 	private final TypedTokenStore tokenStore;
+	private final HederaLedger ledger;
 	private final TransactionContext txnCtx;
 
 	public TokenDissociateTransitionLogic(
 			AccountStore accountStore,
 			TypedTokenStore tokenStore,
+			HederaLedger ledger,
 			TransactionContext txnCtx
 	) {
 		this.accountStore = accountStore;
 		this.tokenStore = tokenStore;
+		this.ledger = ledger;
 		this.txnCtx = txnCtx;
 	}
 
@@ -83,8 +87,12 @@ public class TokenDissociateTransitionLogic implements TransitionLogic {
 		final var account = accountStore.loadAccount(accountId);
 		final List<Token> tokens = new ArrayList<>();
 		for (final var tokenId : tokenIds) {
-			final var token = tokenStore.loadToken(tokenId);
-			tokenStore.validateRelationShip(token.getId(), account.getId());
+			final var token = tokenStore.loadToken(tokenId, false);
+			final long balanceAdjusted = tokenStore.adjustBalances(token.getId(), account.getId());
+			if(balanceAdjusted != 0) {
+				ledger.updateTokenXfers(token.toGrpcId(), token.getTreasury().toGrpcId(), balanceAdjusted);
+				ledger.updateTokenXfers(token.toGrpcId(), account.toGrpcId(), -balanceAdjusted);
+			}
 			tokens.add(token);
 		}
 

@@ -111,7 +111,7 @@ public class TypedTokenStore {
 	 * can be used to implement business logic in a transaction.
 	 *
 	 * The arguments <i>should</i> be model objects that were returned by the
-	 * {@link TypedTokenStore#loadToken(Id)} and {@link AccountStore#loadAccount(Id)}
+	 * {@link TypedTokenStore#loadToken(Id, boolean)} and {@link AccountStore#loadAccount(Id)}
 	 * methods, respectively, since it will very rarely (or never) be correct
 	 * to do business logic on a relationship whose token or account have not
 	 * been validated as usable.
@@ -132,12 +132,7 @@ public class TypedTokenStore {
 	public TokenRelationship loadTokenRelationship(Token token, Account account) {
 		final var tokenId = token.getId();
 		final var accountId = account.getId();
-		final var key = new MerkleEntityAssociation(
-				accountId.getShard(), accountId.getRealm(), accountId.getNum(),
-				tokenId.getShard(), tokenId.getRealm(), tokenId.getNum());
-		final var merkleTokenRel = tokenRels.get().get(key);
-
-		validateUsable(merkleTokenRel);
+		final var merkleTokenRel = getMerkleTokenRelStatus(accountId, tokenId, false);
 
 		final var tokenRelationship = new TokenRelationship(token, account);
 		tokenRelationship.initBalance(merkleTokenRel.getBalance());
@@ -160,9 +155,7 @@ public class TypedTokenStore {
 	public void persistTokenRelationship(TokenRelationship tokenRelationship) {
 		final var tokenId = tokenRelationship.getToken().getId();
 		final var accountId = tokenRelationship.getAccount().getId();
-		final var key = new MerkleEntityAssociation(
-				accountId.getShard(), accountId.getRealm(), accountId.getNum(),
-				tokenId.getShard(), tokenId.getRealm(), tokenId.getNum());
+		final var key = buildKey(accountId, tokenId);
 		final var currentTokenRels = tokenRels.get();
 
 		final var isNewRel = tokenRelationship.isNotYetPersisted();
@@ -187,34 +180,25 @@ public class TypedTokenStore {
 	 * @param accountId
 	 */
 	public void removeTokenRelationship(final Id tokenId, final Id accountId) {
-		final var key = new MerkleEntityAssociation(
-				accountId.getShard(), accountId.getRealm(), accountId.getNum(),
-				tokenId.getShard(), tokenId.getRealm(), tokenId.getNum());
+		final var key = buildKey(accountId, tokenId);
 		tokenRels.get().remove(key);
 	}
 
 	/**
-	 * Validates the Relationship before dissociation
+	 * Adjusts the balances that would need to be done if dissociating from an account with token balance.
 	 * @param tokenId
 	 * @param accountId
 	 */
-	public void validateRelationShip(final Id tokenId, final Id accountId) {
-		final var key = new MerkleEntityAssociation(
-				accountId.getShard(), accountId.getRealm(), accountId.getNum(),
-				tokenId.getShard(), tokenId.getRealm(), tokenId.getNum());
-		final var currentTokenRels = tokenRels.get();
-		final var mutableTokenRel = currentTokenRels.getForModify(key);
-
-		final var merkleEntityId = new MerkleEntityId(tokenId.getShard(), tokenId.getRealm(), tokenId.getNum());
-		var merkleToken = tokens.get().get(merkleEntityId);
+	public long adjustBalances(final Id tokenId, final Id accountId) {
+		final var mutableTokenRel = getMerkleTokenRelStatus(accountId, tokenId, false);
+		var merkleToken = getMerkleToken(tokenId);
 
 		validateTrue(merkleToken != null, INVALID_TOKEN_ID);
-		validateTrue(mutableTokenRel != null, TOKEN_NOT_ASSOCIATED_TO_ACCOUNT);
 
 		final var treasury = merkleToken.treasury();
 		final var treasuryId = new Id(treasury.shard(), treasury.realm(),treasury.num());
 
-		validateFalse(treasuryId.equals(accountId), ACCOUNT_IS_TREASURY);
+		validateFalse(!merkleToken.isDeleted() && treasuryId.equals(accountId), ACCOUNT_IS_TREASURY);
 		validateFalse(!merkleToken.isDeleted() && mutableTokenRel.isFrozen(), ACCOUNT_FROZEN_FOR_TOKEN);
 
 		var balance = mutableTokenRel.getBalance();
@@ -224,11 +208,15 @@ public class TypedTokenStore {
 			validateFalse(!merkleToken.isDeleted() && !isTokenExpired, TRANSACTION_REQUIRES_ZERO_TOKEN_BALANCES);
 			 // transfer balance to treasury
 			final var treasuryAccount = accountStore.loadAccount(treasuryId);
-			final var token = loadToken(tokenId);
+			final var token = loadToken(tokenId, false);
 			final var account = accountStore.loadAccount(accountId);
-			adjustTokenBalance(treasuryAccount, token, balance);
-			adjustTokenBalance(account, token, -balance);
+			if(!merkleToken.isDeleted()) {
+				/* Must be expired; return balance to treasury account. */
+				adjustTokenBalance(treasuryAccount, token, balance);
+				adjustTokenBalance(account, token, -balance);
+			}
 		}
+		return balance;
 	}
 
 	/**
@@ -242,13 +230,15 @@ public class TypedTokenStore {
 	 *
 	 * @param id
 	 * 		the token to load
+	 * @param deleteCheck
+	 * 		flag to check if the merkleToken is deleted
 	 * @return a usable model of the token
 	 * @throws InvalidTransactionException
 	 * 		if the requested token is missing, deleted, or expired and pending removal
 	 */
-	public Token loadToken(Id id) {
+	public Token loadToken(Id id, boolean deleteCheck) {
 		final var merkleToken = getMerkleToken(id);
-		validateTrue(merkleToken != null, INVALID_TOKEN_ID);
+		validateUsable(merkleToken, deleteCheck);
 
 		final var token = new Token(id);
 		initModelAccounts(token, merkleToken.treasury(), merkleToken.autoRenewAccount());
@@ -340,13 +330,12 @@ public class TypedTokenStore {
 	public void adjustTokenBalance(Account account, Token token, long adjustment) {
 		final var tokenId = token.getId();
 		final var accountId = account.getId();
-		final var merkleEntityId = new MerkleEntityId(tokenId.getShard(), tokenId.getRealm(), tokenId.getNum());
-		var merkleToken = tokens.get().get(merkleEntityId);
+		var merkleToken = getMerkleToken(tokenId);
 
 		validateTrue(merkleToken != null, INVALID_TOKEN_ID);
 
 		accountStore.loadAccount(accountId);
-		var merkleTokenRelStatus =  getMerkleTokenRelStatus(accountId, tokenId);
+		var merkleTokenRelStatus =  getMerkleTokenRelStatus(accountId, tokenId, true);
 
 		validateFalse(!merkleToken.isDeleted() && merkleTokenRelStatus.isFrozen(), ACCOUNT_FROZEN_FOR_TOKEN);
 		validateTrue(merkleTokenRelStatus.isKycGranted(), ACCOUNT_KYC_NOT_GRANTED_FOR_TOKEN);
@@ -358,44 +347,40 @@ public class TypedTokenStore {
 	}
 
 	private Id[] getAccountAndTokenIds(AccountID accountID, TokenID tokenID) {
-		var token  = loadToken(new Id(tokenID.getShardNum(), tokenID.getRealmNum(), tokenID.getTokenNum()));
+		var token  = loadToken(new Id(tokenID.getShardNum(), tokenID.getRealmNum(), tokenID.getTokenNum()), true);
 		var account = accountStore.loadAccount(new Id(accountID.getShardNum(), accountID.getRealmNum(), accountID.getAccountNum()));
 		return new Id[]{account.getId(), token.getId()};
 	}
 
 	private void setHasKyc(final Id accountId, final Id tokenId, final boolean value) {
 		validateUsable(tokenId, TOKEN_HAS_NO_KYC_KEY,	MerkleToken::kycKey);
-		var merkleTokenRelStatus =  getMerkleTokenRelStatus(accountId, tokenId);
+		var merkleTokenRelStatus =  getMerkleTokenRelStatus(accountId, tokenId, true);
 		merkleTokenRelStatus.setKycGranted(value);
 	}
 
 	private void setIsFrozen(final Id accountId, final Id tokenId,final boolean value) {
 		validateUsable(tokenId, TOKEN_HAS_NO_FREEZE_KEY,	MerkleToken::freezeKey);
-		var merkleTokenRelStatus =  getMerkleTokenRelStatus(accountId, tokenId);
+		var merkleTokenRelStatus =  getMerkleTokenRelStatus(accountId, tokenId, true);
 		merkleTokenRelStatus.setFrozen(value);
 	}
 
-	private MerkleTokenRelStatus getMerkleTokenRelStatus(final Id accountId, final Id tokenId) {
-		var relationship = Pair.of(
-				AccountID.newBuilder()
-						.setShardNum(accountId.getShard())
-						.setRealmNum(accountId.getRealm())
-						.setAccountNum(accountId.getNum())
-						.build(),
-				TokenID.newBuilder()
-						.setShardNum(tokenId.getShard())
-						.setRealmNum(tokenId.getRealm())
-						.setTokenNum(tokenId.getNum())
-						.build());
+	private MerkleTokenRelStatus getMerkleTokenRelStatus(final Id accountId, final Id tokenId, final boolean forModify) {
+		final var key = buildKey(accountId, tokenId);
+		final var currentTokenRels = tokenRels.get();
+		final var merkleTokenRelStatus = forModify ? currentTokenRels.getForModify(key) : currentTokenRels.get(key);
+		validateUsable(merkleTokenRelStatus);
+		return merkleTokenRelStatus;
+	}
 
-		return backingTokenRels.getRef(relationship);
+	private MerkleEntityAssociation buildKey(final Id accountId, final Id tokenId) {
+		return new MerkleEntityAssociation(
+				accountId.getShard(), accountId.getRealm(), accountId.getNum(),
+				tokenId.getShard(), tokenId.getRealm(), tokenId.getNum());
 	}
 
 	private MerkleToken getMerkleToken(final Id tokenId) {
 		final var merkleEntityId = new MerkleEntityId(tokenId.getShard(), tokenId.getRealm(), tokenId.getNum());
-		var merkleToken = tokens.get().get(merkleEntityId);
-
-		return merkleToken;
+		return tokens.get().get(merkleEntityId);
 	}
 
 	private void validateUsable(
@@ -414,6 +399,11 @@ public class TypedTokenStore {
 
 	private void validateUsable(MerkleTokenRelStatus merkleTokenRelStatus) {
 		validateTrue(merkleTokenRelStatus != null, TOKEN_NOT_ASSOCIATED_TO_ACCOUNT);
+	}
+
+	private void validateUsable(MerkleToken merkleToken, boolean deleteCheck) {
+		validateTrue(merkleToken != null, INVALID_TOKEN_ID);
+		validateFalse( deleteCheck && merkleToken.isDeleted(), TOKEN_WAS_DELETED);
 	}
 
 	private void mapModelChangesToMutable(Token token, MerkleToken mutableToken) {

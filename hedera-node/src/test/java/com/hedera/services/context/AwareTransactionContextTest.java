@@ -37,7 +37,6 @@ import com.hedera.services.state.submerkle.ExpirableTxnRecord;
 import com.hedera.services.state.submerkle.RichInstant;
 import com.hedera.services.state.submerkle.SolidityFnResult;
 import com.hedera.services.state.submerkle.TxnId;
-import com.hedera.services.store.models.Id;
 import com.hedera.services.utils.PlatformTxnAccessor;
 import com.hedera.services.utils.TxnAccessor;
 import com.hedera.test.extensions.LogCaptor;
@@ -123,7 +122,6 @@ class AwareTransactionContextTest {
 	private AccountID another = asAccount("1.0.300");
 	private TransferList transfers = withAdjustments(payer, -2L, created, 1L, another, 1L);
 	private TokenID tokenCreated = asToken("3.0.2");
-	private Id createdTokenId = new Id(3, 0, 2);
 	private ScheduleID scheduleCreated = asSchedule("0.0.10");
 	private TokenTransferList tokenTransfers = TokenTransferList.newBuilder()
 			.setToken(tokenCreated)
@@ -443,7 +441,7 @@ class AwareTransactionContextTest {
 	@Test
 	void getsExpectedReceiptForTokenCreation() {
 		// when:
-		subject.setCreatedTokenId(createdTokenId);
+		subject.setCreated(tokenCreated);
 		setUpBuildingExpirableTxnRecord();
 
 		record = subject.recordSoFar();

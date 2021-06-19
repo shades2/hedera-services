@@ -21,6 +21,7 @@ package com.hedera.services.txns.token;
  */
 
 import com.hedera.services.context.TransactionContext;
+import com.hedera.services.ledger.HederaLedger;
 import com.hedera.services.store.AccountStore;
 import com.hedera.services.store.TypedTokenStore;
 import com.hedera.services.store.models.Account;
@@ -81,13 +82,15 @@ class TokenDissociateTransitionLogicTest {
 	private TransactionContext txnCtx;
 	@Mock
 	private PlatformTxnAccessor accessor;
+	@Mock
+	private HederaLedger ledger;
 
 	private TransactionBody tokenDissociateTxn;
 	private TokenDissociateTransitionLogic subject;
 
 	@BeforeEach
 	private void setup() {
-		subject = new TokenDissociateTransitionLogic(accountStore, tokenStore, txnCtx);
+		subject = new TokenDissociateTransitionLogic(accountStore, tokenStore, ledger, txnCtx);
 	}
 
 	@Test
@@ -102,8 +105,8 @@ class TokenDissociateTransitionLogicTest {
 		given(modelAccount.getId()).willReturn(accountId);
 		given(firstModelToken.getId()).willReturn(firstTokenId);
 		given(secondModelToken.getId()).willReturn(secondTokenId);
-		given(tokenStore.loadToken(firstTokenId)).willReturn(firstModelToken);
-		given(tokenStore.loadToken(secondTokenId)).willReturn(secondModelToken);
+		given(tokenStore.loadToken(firstTokenId, false)).willReturn(firstModelToken);
+		given(tokenStore.loadToken(secondTokenId, false)).willReturn(secondModelToken);
 		given(firstModelToken.newRelationshipWith(modelAccount)).willReturn(firstModelTokenRel);
 		given(secondModelToken.newRelationshipWith(modelAccount)).willReturn(secondModelTokenRel);
 		// and:

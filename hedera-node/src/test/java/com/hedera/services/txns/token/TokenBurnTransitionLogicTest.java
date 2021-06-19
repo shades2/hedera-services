@@ -43,9 +43,7 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
 import static junit.framework.TestCase.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.mockito.BDDMockito.any;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.mock;
 import static org.mockito.BDDMockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -83,7 +81,7 @@ class TokenBurnTransitionLogicTest {
 		givenValidTxnCtx();
 		given(accessor.getTxn()).willReturn(tokenBurnTxn);
 		given(txnCtx.accessor()).willReturn(accessor);
-		given(store.loadToken(id)).willReturn(token);
+		given(store.loadToken(id, true)).willReturn(token);
 		given(token.getTreasury()).willReturn(treasury);
 		given(store.loadTokenRelationship(token, treasury)).willReturn(treasuryRel);
 
