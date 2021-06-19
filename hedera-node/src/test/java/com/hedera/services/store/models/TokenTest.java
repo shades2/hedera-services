@@ -24,6 +24,7 @@ import com.hedera.services.exceptions.InvalidTransactionException;
 import com.hedera.services.legacy.core.jproto.JKey;
 import com.hedera.test.factories.scenarios.TxnHandlingScenario;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
+import com.hederahashgraph.api.proto.java.TokenID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -32,7 +33,9 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INSUFFICIENT_T
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_BURN_AMOUNT;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_MINT_AMOUNT;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_SUPPLY_KEY;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class TokenTest {
 	private final JKey someKey = TxnHandlingScenario.TOKEN_SUPPLY_KT.asJKeyUnchecked();
@@ -192,6 +195,17 @@ class TokenTest {
 
 		assertNotEquals(subject, otherToken);
 		assertNotEquals(subject.hashCode(), otherToken.hashCode());
+	}
+
+	@Test
+	void toGrpcIdAsExpected() {
+		// given:
+		final var subjectGrpcId = TokenID.newBuilder().setShardNum(1).setRealmNum(2).setTokenNum(3).build();
+
+		// expect:
+		assertEquals(subjectGrpcId.getShardNum(), subject.getId().getShard());
+		assertEquals(subjectGrpcId.getRealmNum(), subject.getId().getRealm());
+		assertEquals(subjectGrpcId.getTokenNum(), subject.getId().getNum());
 	}
 
 	private void assertFailsWith(Runnable something, ResponseCodeEnum status) {

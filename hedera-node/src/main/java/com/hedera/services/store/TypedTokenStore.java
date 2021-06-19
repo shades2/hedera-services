@@ -267,11 +267,6 @@ public class TypedTokenStore {
 	}
 
 	/**
-	 *
-	 * @param token
-	 * @param merkleToken the merkleToken to add to the token map of the Swirlds State
-	 */
-	/**
 	 * Add the newly created token to the token map of the Swirlds State and persist the Token.
 	 * @param token the token to add
 	 * @param op The transactionBody of the TokenCreate request
@@ -327,6 +322,12 @@ public class TypedTokenStore {
 		setHasKyc(Ids[0], Ids[1], false);
 	}
 
+	/**
+	 * Updates the balance of the Account in tokenUnits
+	 * @param account the account to adjust the balance for
+	 * @param token the denominating Token
+	 * @param adjustment token units to tbe adjusted by. Can be negative or positive.
+	 */
 	public void adjustTokenBalance(Account account, Token token, long adjustment) {
 		final var tokenId = token.getId();
 		final var accountId = account.getId();

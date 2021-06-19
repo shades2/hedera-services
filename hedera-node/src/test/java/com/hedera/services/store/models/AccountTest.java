@@ -22,6 +22,7 @@ package com.hedera.services.store.models;
 
 import com.hedera.services.exceptions.InvalidTransactionException;
 import com.hedera.services.state.merkle.internals.CopyOnWriteIds;
+import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,6 +31,7 @@ import java.util.List;
 
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKENS_PER_ACCOUNT_LIMIT_EXCEEDED;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_ALREADY_ASSOCIATED_TO_ACCOUNT;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_NOT_ASSOCIATED_TO_ACCOUNT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -53,6 +55,17 @@ class AccountTest {
 
 		// expect:
 		assertEquals(desired, subject.toString());
+	}
+
+	@Test
+	void toGrpcIdAsExpected() {
+		// given:
+		final var subjectGrpcId = AccountID.newBuilder().setShardNum(0).setRealmNum(0).setAccountNum(12345).build();
+
+		// expect:
+		assertEquals(subjectGrpcId.getShardNum(), subject.getId().getShard());
+		assertEquals(subjectGrpcId.getRealmNum(), subject.getId().getRealm());
+		assertEquals(subjectGrpcId.getAccountNum(), subject.getId().getNum());
 	}
 
 	@Test
@@ -90,6 +103,30 @@ class AccountTest {
 
 		// expect:
 		assertEquals(expectedFinalTokens, assocTokens.toReadableIdList());
+	}
+
+	@Test
+	void dissociationWorks() {
+		// setup:
+		final var dissociatingToken = new Token(new Id(0,0,777));
+		final var expectedFinalTokens = "[0.0.666]";
+
+		// when:
+		subject.dissociateWith(List.of(dissociatingToken));
+
+		// expect:
+		assertEquals(expectedFinalTokens, assocTokens.toReadableIdList());
+	}
+
+	@Test
+	void failsOnDissociatingWithNonAssociatedToken() {
+		// setup:
+		final var dissociatingToken = new Token(new Id(0,0,786));
+
+		// expect:
+		assertFailsWith(
+				() -> subject.dissociateWith(List.of(dissociatingToken)),
+				TOKEN_NOT_ASSOCIATED_TO_ACCOUNT);
 	}
 
 	private void assertFailsWith(Runnable something, ResponseCodeEnum status) {
