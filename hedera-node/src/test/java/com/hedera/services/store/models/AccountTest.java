@@ -62,10 +62,13 @@ class AccountTest {
 		// given:
 		final var subjectGrpcId = AccountID.newBuilder().setShardNum(0).setRealmNum(0).setAccountNum(12345).build();
 
+		// when :
+		var accountGrpcId = subject.toGrpcId();
+
 		// expect:
-		assertEquals(subjectGrpcId.getShardNum(), subject.getId().getShard());
-		assertEquals(subjectGrpcId.getRealmNum(), subject.getId().getRealm());
-		assertEquals(subjectGrpcId.getAccountNum(), subject.getId().getNum());
+		assertEquals(subjectGrpcId.getShardNum(), accountGrpcId.getShardNum());
+		assertEquals(subjectGrpcId.getRealmNum(), accountGrpcId.getRealmNum());
+		assertEquals(subjectGrpcId.getAccountNum(), accountGrpcId.getAccountNum());
 	}
 
 	@Test
