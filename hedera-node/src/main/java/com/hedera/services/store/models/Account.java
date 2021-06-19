@@ -22,7 +22,6 @@ package com.hedera.services.store.models;
 
 import com.google.common.base.MoreObjects;
 import com.hedera.services.state.merkle.internals.CopyOnWriteIds;
-import com.hederahashgraph.api.proto.java.AccountID;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 
@@ -102,14 +101,6 @@ public class Account {
 
 	public CopyOnWriteIds getAssociatedTokens() {
 		return associatedTokens;
-	}
-
-	public AccountID toGrpcId() {
-		return AccountID.newBuilder()
-				.setRealmNum(id.getRealm())
-				.setShardNum(id.getShard())
-				.setAccountNum(id.getNum())
-				.build();
 	}
 
 	/* NOTE: The object methods below are only overridden to improve
