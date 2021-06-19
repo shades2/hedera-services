@@ -46,6 +46,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import static com.hedera.services.state.merkle.MerkleToken.UNUSED_KEY;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_EXPIRED_AND_PENDING_REMOVAL;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_FROZEN_FOR_TOKEN;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_KYC_NOT_GRANTED_FOR_TOKEN;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INSUFFICIENT_TOKEN_BALANCE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_ID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_FREEZE_KEY;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_KYC_KEY;
@@ -219,6 +222,61 @@ class TypedTokenStoreTest {
 	}
 
 	@Test
+	void adjustTokenBalanceWorks() {
+		// setup:
+		givenToken(merkleTokenId, merkleToken);
+		givenModifiableRelationship(miscTokenRelId, miscTokenMerkleRel);
+		given(accountStore.loadAccount(any())).willReturn(miscAccount);
+
+		// when:
+		subject.adjustTokenBalance(miscAccount, token, 100);
+
+		// then:
+		assertEquals(balance+100, miscTokenMerkleRel.getBalance());
+
+		// and When:
+		subject.adjustTokenBalance(miscAccount, token, -100);
+
+		// then:
+		assertEquals(balance, miscTokenMerkleRel.getBalance());
+	}
+
+	@Test
+	void adjustTokenBalanceFailsWhenNotEnoughTokenBalance() {
+		// setup:
+		givenToken(merkleTokenId, merkleToken);
+		givenModifiableRelationship(miscTokenRelId, miscTokenMerkleRel);
+		given(accountStore.loadAccount(any())).willReturn(miscAccount);
+
+		// then:
+		assertTokenBalanceUpdateFailsWith(INSUFFICIENT_TOKEN_BALANCE, miscAccount, token, -(balance+100));
+	}
+
+	@Test
+	void adjustTokenBalanceFailsWhenKycNotGranted() {
+		// setup:
+		givenToken(merkleTokenId, merkleToken);
+		givenModifiableRelationship(miscTokenRelId, miscTokenMerkleRel);
+		given(accountStore.loadAccount(any())).willReturn(miscAccount);
+		miscTokenMerkleRel.setKycGranted(false);
+
+		// then:
+		assertTokenBalanceUpdateFailsWith(ACCOUNT_KYC_NOT_GRANTED_FOR_TOKEN, miscAccount, token, 100);
+	}
+
+	@Test
+	void adjustTokenBalanceFailsWhenFrozenAndNotDeleted() {
+		// setup:
+		givenToken(merkleTokenId, merkleToken);
+		givenModifiableRelationship(miscTokenRelId, miscTokenMerkleRel);
+		given(accountStore.loadAccount(any())).willReturn(miscAccount);
+		miscTokenMerkleRel.setFrozen(true);
+
+		// then:
+		assertTokenBalanceUpdateFailsWith(ACCOUNT_FROZEN_FOR_TOKEN, miscAccount, token, 100);
+	}
+
+	@Test
 	void freezeAndGrantKycOperationsWork() {
 		// setup:
 		final var accountID = miscAccount.getId().asGrpcAccount();
@@ -282,6 +340,11 @@ class TypedTokenStoreTest {
 
 	private void assertTokenLoadFailsWith(ResponseCodeEnum status) {
 		var ex = assertThrows(InvalidTransactionException.class, () -> subject.loadToken(tokenId, true));
+		assertEquals(status, ex.getResponseCode());
+	}
+
+	private void assertTokenBalanceUpdateFailsWith(ResponseCodeEnum status, Account account, Token token, long adjustment) {
+		var ex = assertThrows(InvalidTransactionException.class, () -> subject.adjustTokenBalance(account, token, adjustment));
 		assertEquals(status, ex.getResponseCode());
 	}
 
