@@ -246,7 +246,7 @@ public class TypedTokenStore {
 	}
 
 	/**
-	 * Returns a model of the requested token, with operations that can be used to
+	 * Returns a model of the requested token which is possibly deleted, with operations that can be used to
 	 * implement business logic in a transaction.
 	 *
 	 * <b>IMPORTANT:</b> Changes to the returned model are not automatically persisted

@@ -22,16 +22,9 @@ package com.hedera.services.txns.token;
 
 import com.google.protobuf.ByteString;
 import com.hedera.services.context.TransactionContext;
-import com.hedera.services.context.properties.GlobalDynamicProperties;
-import com.hedera.services.exceptions.InvalidTransactionException;
 import com.hedera.services.ledger.HederaLedger;
-import com.hedera.services.ledger.ids.EntityIdSource;
-import com.hedera.services.store.AccountStore;
 import com.hedera.services.store.CreationResult;
-import com.hedera.services.store.TypedTokenStore;
-import com.hedera.services.store.models.Account;
-import com.hedera.services.store.models.Id;
-import com.hedera.services.store.models.Token;
+import com.hedera.services.store.tokens.TokenStore;
 import com.hedera.services.txns.validation.OptionValidator;
 import com.hedera.services.utils.PlatformTxnAccessor;
 import com.hedera.test.factories.scenarios.TxnHandlingScenario;
@@ -45,14 +38,10 @@ import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.FAIL_INVALID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_ADMIN_KEY;
@@ -77,16 +66,13 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_SYMBOL_T
 import static junit.framework.TestCase.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.BDDMockito.any;
 import static org.mockito.BDDMockito.anyList;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.mock;
 import static org.mockito.BDDMockito.never;
 import static org.mockito.BDDMockito.verify;
-import static org.mockito.Mockito.doThrow;
 
-@ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT)
 class TokenCreateTransitionLogicTest {
 	long thisSecond = 1_234_567L;
 	private Instant now = Instant.ofEpochSecond(thisSecond);
@@ -94,77 +80,91 @@ class TokenCreateTransitionLogicTest {
 	private long initialSupply = 1_000_000L;
 	private String memo = "...descending into thin air, where no arms / outstretch to catch her";
 	private AccountID payer = IdUtils.asAccount("1.2.3");
-	private Id payerId = new Id(payer.getShardNum(), payer.getRealmNum(), payer.getAccountNum());
 	private AccountID treasury = IdUtils.asAccount("1.2.4");
-	private Id treasuryId = new Id(treasury.getShardNum(), treasury.getRealmNum(), treasury.getAccountNum());
-	private AccountID renewAccountID = IdUtils.asAccount("1.2.5");
-	private Id renewAccountId = new Id(renewAccountID.getShardNum(), renewAccountID.getRealmNum(), renewAccountID.getAccountNum());
+	private AccountID renewAccount = IdUtils.asAccount("1.2.5");
 	private TokenID created = IdUtils.asToken("1.2.666");
-	private Id createdId = new Id(created.getShardNum(), created.getRealmNum(), created.getTokenNum());
-	private Token createdToken = new Token(createdId);
 	final private Key key = SignedTxnFactory.DEFAULT_PAYER_KT.asKey();
-	final private CreationResult INVALID_ADMIN_KEY_FAILURE = CreationResult.failure(INVALID_ADMIN_KEY);
-	final private CreationResult MISSING_TOKEN_IN_RESULT = CreationResult.failure(OK);
 	private TransactionBody tokenCreateTxn;
 
-
-	@Mock
 	private OptionValidator validator;
-	@Mock
+	private TokenStore store;
 	private HederaLedger ledger;
-	@Mock
-	private TypedTokenStore tokenStore;
-	@Mock
-	private AccountStore accountStore;
-	@Mock
 	private TransactionContext txnCtx;
-	@Mock
 	private PlatformTxnAccessor accessor;
-	@Mock
-	private  EntityIdSource ids;
-	@Mock
-	private GlobalDynamicProperties dynamicProperties;
-	@Mock
-	private Account payerAccount;
-	@Mock
-	private Account treasuryAccount;
-	@Mock
-	private Account renewAccount;
-
 
 	private TokenCreateTransitionLogic subject;
 
 	@BeforeEach
 	private void setup() {
+		validator = mock(OptionValidator.class);
+		store = mock(TokenStore.class);
+		ledger = mock(HederaLedger.class);
+		accessor = mock(PlatformTxnAccessor.class);
+
+		txnCtx = mock(TransactionContext.class);
 		given(txnCtx.activePayer()).willReturn(payer);
 		given(txnCtx.consensusTime()).willReturn(Instant.now());
-		given(accountStore.loadAccount(payerId)).willReturn(payerAccount);
-		given(accountStore.loadAccount(treasuryId)).willReturn(treasuryAccount);
-		given(treasuryAccount.getId()).willReturn(treasuryId);
-		given(accountStore.loadAccount(renewAccountId)).willReturn(renewAccount);
-		given(tokenStore.loadToken(createdId)).willReturn(createdToken);
-		given(dynamicProperties.maxTokensPerAccount()).willReturn(20);
-		given(ids.newId(treasuryId)).willReturn(createdId);
 		withAlwaysValidValidator();
 
-		subject = new TokenCreateTransitionLogic(validator, accountStore, tokenStore, ledger, txnCtx, ids, dynamicProperties);
+		subject = new TokenCreateTransitionLogic(validator, store, ledger, txnCtx);
 	}
 
 	@Test
 	void setsFailInvalidIfUnhandledException() {
 		givenValidTxnCtx();
 		// and:
-		doThrow(IllegalStateException.class).when(ids).newId(treasuryId);
+		given(store.createProvisionally(tokenCreateTxn.getTokenCreation(), payer, thisSecond))
+				.willThrow(IllegalStateException.class);
 
 		// when:
 		subject.doStateTransition();
 
 		// then:
-		verify(txnCtx, never()).setCreatedTokenId(createdId);
+		verify(txnCtx, never()).setCreated(created);
 		verify(txnCtx).setStatus(FAIL_INVALID);
 		// and:
-		verify(accountStore, never()).persistAccount(treasuryAccount);
-		verify(ids, never()).reclaimLastId();
+		verify(store, never()).commitCreation();
+		verify(store).rollbackCreation();
+		verify(ledger).dropPendingTokenChanges();
+	}
+
+	@Test
+	void abortsIfCreationFails() {
+		givenValidTxnCtx();
+		// and:
+		given(store.createProvisionally(tokenCreateTxn.getTokenCreation(), payer, thisSecond))
+				.willReturn(CreationResult.failure(INVALID_ADMIN_KEY));
+
+		// when:
+		subject.doStateTransition();
+
+		// then:
+		verify(txnCtx, never()).setCreated(created);
+		verify(txnCtx).setStatus(INVALID_ADMIN_KEY);
+		// and:
+		verify(store, never()).commitCreation();
+		verify(store).rollbackCreation();
+		verify(ledger).dropPendingTokenChanges();
+	}
+
+	@Test
+	void abortsIfTokenIdIsMissingInTheResult() {
+		givenValidTxnCtx();
+		CreationResult<TokenID> result = mock(CreationResult.class);
+
+		// and:
+		given(store.createProvisionally(tokenCreateTxn.getTokenCreation(), payer, thisSecond))
+				.willReturn(result);
+		given(result.getStatus()).willReturn(OK);
+		given(result.getCreated()).willReturn(Optional.empty());
+
+		// when:
+		subject.doStateTransition();
+
+		// then:
+		verify(txnCtx).setStatus(FAIL_INVALID);
+		verify(store, never()).commitCreation();
+		verify(store).rollbackCreation();
 		verify(ledger).dropPendingTokenChanges();
 	}
 
@@ -177,7 +177,7 @@ class TokenCreateTransitionLogicTest {
 		subject.doStateTransition();
 
 		// then:
-		verify(txnCtx, never()).setCreatedTokenId(createdId);
+		verify(txnCtx, never()).setCreated(created);
 		verify(txnCtx).setStatus(INVALID_EXPIRATION_TIME);
 	}
 
@@ -185,6 +185,9 @@ class TokenCreateTransitionLogicTest {
 	void abortsIfAdjustmentFailsDueToTokenLimitPerAccountExceeded() {
 		givenValidTxnCtx();
 		// and:
+		given(store.createProvisionally(tokenCreateTxn.getTokenCreation(), payer, thisSecond))
+				.willReturn(CreationResult.success(created));
+		given(store.associate(any(), anyList())).willReturn(OK);
 		given(ledger.unfreeze(treasury, created)).willReturn(OK);
 		given(ledger.adjustTokenBalance(treasury, created, initialSupply))
 				.willReturn(TOKENS_PER_ACCOUNT_LIMIT_EXCEEDED);
@@ -193,11 +196,11 @@ class TokenCreateTransitionLogicTest {
 		subject.doStateTransition();
 
 		// then:
-		verify(txnCtx, never()).setCreatedTokenId(createdId);
+		verify(txnCtx, never()).setCreated(created);
 		verify(txnCtx).setStatus(TOKENS_PER_ACCOUNT_LIMIT_EXCEEDED);
 		// and:
-		verify(accountStore, never()).persistAccount(treasuryAccount);
-		verify(ids).reclaimLastId();
+		verify(store, never()).commitCreation();
+		verify(store).rollbackCreation();
 		verify(ledger).dropPendingTokenChanges();
 	}
 
@@ -205,18 +208,19 @@ class TokenCreateTransitionLogicTest {
 	void abortsIfAssociationFails() {
 		givenValidTxnCtx(false, true);
 		// and:
-		doThrow(new InvalidTransactionException(TOKENS_PER_ACCOUNT_LIMIT_EXCEEDED))
-				.when(treasuryAccount).associateWith(anyList(), anyInt());
+		given(store.createProvisionally(tokenCreateTxn.getTokenCreation(), payer, thisSecond))
+				.willReturn(CreationResult.success(created));
+		given(store.associate(any(), anyList())).willReturn(TOKENS_PER_ACCOUNT_LIMIT_EXCEEDED);
 
 		// when:
 		subject.doStateTransition();
 
 		// then:
-		verify(txnCtx, never()).setCreatedTokenId(createdId);
-		verify(txnCtx, never()).setStatus(SUCCESS);
+		verify(txnCtx, never()).setCreated(created);
+		verify(txnCtx).setStatus(TOKENS_PER_ACCOUNT_LIMIT_EXCEEDED);
 		// and:
-		verify(accountStore, never()).persistAccount(treasuryAccount);
-		verify(ids).reclaimLastId();
+		verify(store, never()).commitCreation();
+		verify(store).rollbackCreation();
 		verify(ledger).dropPendingTokenChanges();
 	}
 
@@ -224,17 +228,20 @@ class TokenCreateTransitionLogicTest {
 	void abortsIfUnfreezeFails() {
 		givenValidTxnCtx(false, true);
 		// and:
+		given(store.createProvisionally(tokenCreateTxn.getTokenCreation(), payer, thisSecond))
+				.willReturn(CreationResult.success(created));
+		given(store.associate(any(), anyList())).willReturn(OK);
 		given(ledger.unfreeze(treasury, created)).willReturn(TOKENS_PER_ACCOUNT_LIMIT_EXCEEDED);
 
 		// when:
 		subject.doStateTransition();
 
 		// then:
-		verify(txnCtx, never()).setCreatedTokenId(createdId);
+		verify(txnCtx, never()).setCreated(created);
 		verify(txnCtx).setStatus(TOKENS_PER_ACCOUNT_LIMIT_EXCEEDED);
 		// and:
-		verify(accountStore, never()).persistAccount(treasuryAccount);
-		verify(ids).reclaimLastId();
+		verify(store, never()).commitCreation();
+		verify(store).rollbackCreation();
 		verify(ledger).dropPendingTokenChanges();
 	}
 
@@ -242,29 +249,35 @@ class TokenCreateTransitionLogicTest {
 	void followsHappyPathWithAllKeys() {
 		givenValidTxnCtx(true, true);
 		// and:
+		given(store.createProvisionally(tokenCreateTxn.getTokenCreation(), payer, thisSecond))
+				.willReturn(CreationResult.success(created));
 		given(ledger.unfreeze(treasury, created)).willReturn(OK);
 		given(ledger.grantKyc(treasury, created)).willReturn(OK);
 		given(ledger.adjustTokenBalance(treasury, created, initialSupply))
 				.willReturn(OK);
+		given(store.associate(treasury, List.of(created))).willReturn(OK);
 
 		// when:
 		subject.doStateTransition();
 
 		// then:
-		verify(treasuryAccount).associateWith(List.of(createdToken), 20);
+		verify(store).associate(treasury, List.of(created));
 		verify(ledger).unfreeze(treasury, created);
 		verify(ledger).grantKyc(treasury, created);
 		// and:
-		verify(txnCtx).setCreatedTokenId(createdId);
+		verify(txnCtx).setCreated(created);
 		verify(txnCtx).setStatus(SUCCESS);
 		// and:
-		verify(accountStore).persistAccount(treasuryAccount);
+		verify(store).commitCreation();
 	}
 
 	@Test
 	void doesntUnfreezeIfNoKeyIsPresent() {
 		givenValidTxnCtx(true, false);
 		// and:
+		given(store.createProvisionally(tokenCreateTxn.getTokenCreation(), payer, thisSecond))
+				.willReturn(CreationResult.success(created));
+		given(store.associate(any(), anyList())).willReturn(OK);
 		given(ledger.grantKyc(treasury, created)).willReturn(OK);
 		given(ledger.adjustTokenBalance(treasury, created, initialSupply))
 				.willReturn(OK);
@@ -276,16 +289,19 @@ class TokenCreateTransitionLogicTest {
 		verify(ledger, never()).unfreeze(treasury, created);
 		verify(ledger).grantKyc(treasury, created);
 		// and:
-		verify(txnCtx).setCreatedTokenId(createdId);
+		verify(txnCtx).setCreated(created);
 		verify(txnCtx).setStatus(SUCCESS);
 		// and:
-		verify(accountStore).persistAccount(treasuryAccount);
+		verify(store).commitCreation();
 	}
 
 	@Test
 	void doesntGrantKycIfNoKeyIsPresent() {
 		givenValidTxnCtx(false, true);
 		// and:
+		given(store.createProvisionally(tokenCreateTxn.getTokenCreation(), payer, thisSecond))
+				.willReturn(CreationResult.success(created));
+		given(store.associate(any(), anyList())).willReturn(OK);
 		given(ledger.unfreeze(treasury, created)).willReturn(OK);
 		given(ledger.adjustTokenBalance(treasury, created, initialSupply))
 				.willReturn(OK);
@@ -297,10 +313,10 @@ class TokenCreateTransitionLogicTest {
 		verify(ledger).unfreeze(treasury, created);
 		verify(ledger, never()).grantKyc(treasury, created);
 		// and:
-		verify(txnCtx).setCreatedTokenId(createdId);
+		verify(txnCtx).setCreated(created);
 		verify(txnCtx).setStatus(SUCCESS);
 		// and:
-		verify(accountStore).persistAccount(treasuryAccount);
+		verify(store).commitCreation();
 	}
 
 	@Test
@@ -491,7 +507,7 @@ class TokenCreateTransitionLogicTest {
 						.setDecimals(decimals)
 						.setTreasury(treasury)
 						.setAdminKey(key)
-						.setAutoRenewAccount(renewAccountID)
+						.setAutoRenewAccount(renewAccount)
 						.setExpiry(expiry));
 		if (withFreeze) {
 			builder.getTokenCreationBuilder().setFreezeKey(TxnHandlingScenario.TOKEN_FREEZE_KT.asKey());
@@ -503,7 +519,7 @@ class TokenCreateTransitionLogicTest {
 		given(accessor.getTxn()).willReturn(tokenCreateTxn);
 		given(txnCtx.accessor()).willReturn(accessor);
 		given(txnCtx.consensusTime()).willReturn(now);
-//		given(store.isCreationPending()).willReturn(true);
+		given(store.isCreationPending()).willReturn(true);
 		given(validator.isValidExpiry(expiry)).willReturn(true);
 	}
 

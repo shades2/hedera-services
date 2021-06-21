@@ -1387,8 +1387,7 @@ public class ServicesContext {
 								this::topics, validator(), txnCtx(), globalDynamicProperties()))),
 				/* Token */
 				entry(TokenCreate,
-						List.of(new TokenCreateTransitionLogic(validator(), accountStore(),
-								typedTokenStore(), ledger(), txnCtx(), ids(), globalDynamicProperties()))),
+						List.of(new TokenCreateTransitionLogic(validator(), tokenStore(), ledger(), txnCtx()))),
 				entry(TokenUpdate,
 						List.of(new TokenUpdateTransitionLogic(
 								validator(), tokenStore(), ledger(), txnCtx(), HederaTokenStore::affectsExpiryAtMost))),
@@ -1412,7 +1411,7 @@ public class ServicesContext {
 						List.of(new TokenAssociateTransitionLogic(
 								accountStore(), typedTokenStore(), txnCtx(), globalDynamicProperties()))),
 				entry(TokenDissociateFromAccount,
-						List.of(new TokenDissociateTransitionLogic(accountStore(), typedTokenStore(), txnCtx()))),
+						List.of(new TokenDissociateTransitionLogic(accountStore(), typedTokenStore(), ledger(), txnCtx()))),
 				/* Schedule */
 				entry(ScheduleCreate,
 						List.of(new ScheduleCreateTransitionLogic(
