@@ -245,6 +245,23 @@ public class TypedTokenStore {
 		return token;
 	}
 
+	/**
+	 * Returns a model of the requested token, with operations that can be used to
+	 * implement business logic in a transaction.
+	 *
+	 * <b>IMPORTANT:</b> Changes to the returned model are not automatically persisted
+	 * to state! The altered model must be passed to {@link TypedTokenStore#persistToken(Token)}
+	 * in order for its changes to be applied to the Swirlds state, and included in the
+	 * {@link com.hedera.services.state.submerkle.ExpirableTxnRecord} for the active transaction.
+	 *
+	 * @param id
+	 *		the token to load
+	 * @return a usable model of the token
+	 * @throws InvalidTransactionException
+	 *		if the requested token is missing, deleted, or expired and pending removal
+	 * @param id
+	 * @return
+	 */
 	public Token loadPossiblyDeletedToken(Id id) {
 		final var merkleToken = getMerkleToken(id);
 		validateUsable(merkleToken, false);
