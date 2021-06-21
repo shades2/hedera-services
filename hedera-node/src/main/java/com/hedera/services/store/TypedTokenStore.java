@@ -111,7 +111,7 @@ public class TypedTokenStore {
 	 * can be used to implement business logic in a transaction.
 	 *
 	 * The arguments <i>should</i> be model objects that were returned by the
-	 * {@link TypedTokenStore#loadToken(Id, boolean)} and {@link AccountStore#loadAccount(Id)}
+	 * {@link TypedTokenStore#loadToken(Id)} and {@link AccountStore#loadAccount(Id)}
 	 * methods, respectively, since it will very rarely (or never) be correct
 	 * to do business logic on a relationship whose token or account have not
 	 * been validated as usable.
@@ -208,7 +208,7 @@ public class TypedTokenStore {
 			validateFalse(!merkleToken.isDeleted() && !isTokenExpired, TRANSACTION_REQUIRES_ZERO_TOKEN_BALANCES);
 			 // transfer balance to treasury
 			final var treasuryAccount = accountStore.loadAccount(treasuryId);
-			final var token = loadToken(tokenId, false);
+			final var token = loadPossiblyDeletedToken(tokenId);
 			final var account = accountStore.loadAccount(accountId);
 			if(!merkleToken.isDeleted()) {
 				/* Must be expired; return balance to treasury account. */
@@ -230,15 +230,24 @@ public class TypedTokenStore {
 	 *
 	 * @param id
 	 * 		the token to load
-	 * @param deleteCheck
-	 * 		flag to check if the merkleToken is deleted
 	 * @return a usable model of the token
 	 * @throws InvalidTransactionException
 	 * 		if the requested token is missing, deleted, or expired and pending removal
 	 */
-	public Token loadToken(Id id, boolean deleteCheck) {
+	public Token loadToken(Id id) {
 		final var merkleToken = getMerkleToken(id);
-		validateUsable(merkleToken, deleteCheck);
+		validateUsable(merkleToken, true);
+
+		final var token = new Token(id);
+		initModelAccounts(token, merkleToken.treasury(), merkleToken.autoRenewAccount());
+		initModelFields(token, merkleToken);
+
+		return token;
+	}
+
+	public Token loadPossiblyDeletedToken(Id id) {
+		final var merkleToken = getMerkleToken(id);
+		validateUsable(merkleToken, false);
 
 		final var token = new Token(id);
 		initModelAccounts(token, merkleToken.treasury(), merkleToken.autoRenewAccount());
@@ -348,7 +357,7 @@ public class TypedTokenStore {
 	}
 
 	private Id[] getAccountAndTokenIds(AccountID accountID, TokenID tokenID) {
-		var token  = loadToken(new Id(tokenID.getShardNum(), tokenID.getRealmNum(), tokenID.getTokenNum()), true);
+		var token  = loadToken(new Id(tokenID.getShardNum(), tokenID.getRealmNum(), tokenID.getTokenNum()));
 		var account = accountStore.loadAccount(new Id(accountID.getShardNum(), accountID.getRealmNum(), accountID.getAccountNum()));
 		return new Id[]{account.getId(), token.getId()};
 	}
