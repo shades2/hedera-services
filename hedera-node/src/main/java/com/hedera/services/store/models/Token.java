@@ -61,6 +61,7 @@ public class Token {
 	private Account autoRenewAccount;
 	private boolean hasAdminKey;
 	private boolean isDeleted;
+	private long expiry;
 
 	public Token(Id id) {
 		this.id = id;
@@ -184,6 +185,14 @@ public class Token {
 
 	public void setIsDeleted(final boolean deleted) {
 		isDeleted = deleted;
+	}
+
+	public long getExpiry() {
+		return expiry;
+	}
+
+	public void setExpiry(final long expiry) {
+		this.expiry = expiry;
 	}
 
 	public void setHasAdminKey(final boolean hasAdminKey) {
