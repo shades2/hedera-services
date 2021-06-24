@@ -1411,7 +1411,7 @@ public class ServicesContext {
 				entry(TokenRevokeKycFromAccount,
 						List.of(new TokenRevokeKycTransitionLogic(tokenStore(), ledger(), txnCtx()))),
 				entry(TokenDelete,
-						List.of(new TokenDeleteTransitionLogic(tokenStore(), txnCtx()))),
+						List.of(new TokenDeleteTransitionLogic(typedTokenStore(), txnCtx()))),
 				entry(TokenMint,
 						List.of(new TokenMintTransitionLogic(typedTokenStore(), txnCtx()))),
 				entry(TokenBurn,

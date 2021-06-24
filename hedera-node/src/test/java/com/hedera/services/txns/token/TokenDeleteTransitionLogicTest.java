@@ -21,44 +21,50 @@ package com.hedera.services.txns.token;
  */
 
 import com.hedera.services.context.TransactionContext;
-import com.hedera.services.store.tokens.TokenStore;
+import com.hedera.services.exceptions.InvalidTransactionException;
+import com.hedera.services.store.TypedTokenStore;
+import com.hedera.services.store.models.Id;
+import com.hedera.services.store.models.Token;
 import com.hedera.services.utils.PlatformTxnAccessor;
 import com.hedera.test.utils.IdUtils;
-import com.hederahashgraph.api.proto.java.AccountID;
+import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TokenDeleteTransactionBody;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.FAIL_INVALID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_ID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.SUCCESS;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_IS_IMMUTABLE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_WAS_DELETED;
 import static junit.framework.TestCase.assertTrue;
+import static org.junit.Assert.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.mockito.BDDMockito.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.mock;
 import static org.mockito.BDDMockito.verify;
+import static org.mockito.Mockito.doThrow;
 
 class TokenDeleteTransitionLogicTest {
-	private TokenID tokenId = IdUtils.asToken("0.0.12345");
-	private AccountID account = IdUtils.asAccount("0.0.54321");
+	private long tokenNum = 12345L;
+	private TokenID tokenID = IdUtils.asToken("0.0." + tokenNum);
+	private Id tokenId = new Id(0,0,tokenNum);
 
-	private TokenStore tokenStore;
+	private TypedTokenStore tokenStore;
 	private TransactionContext txnCtx;
 	private PlatformTxnAccessor accessor;
+	private Token token;
 
 	private TransactionBody tokenDeleteTxn;
 	private TokenDeleteTransitionLogic subject;
 
 	@BeforeEach
 	private void setup() {
-		tokenStore = mock(TokenStore.class);
+		tokenStore = mock(TypedTokenStore.class);
 		accessor = mock(PlatformTxnAccessor.class);
+		token = mock(Token.class);
 
 		txnCtx = mock(TransactionContext.class);
 
@@ -69,40 +75,43 @@ class TokenDeleteTransitionLogicTest {
 	public void capturesInvalidDelete() {
 		givenValidTxnCtx();
 		// and:
-		given(tokenStore.delete(tokenId)).willReturn(INVALID_TOKEN_ID);
+		doThrow(new InvalidTransactionException(INVALID_TOKEN_ID)).when(tokenStore).loadToken(tokenId);
 
-		// when:
-		subject.doStateTransition();
-
-		// then:
-		verify(txnCtx).setStatus(INVALID_TOKEN_ID);
+		// verify:
+		assertFailsWith(() -> subject.doStateTransition(), INVALID_TOKEN_ID);
 	}
 
 	@Test
 	public void capturesInvalidDeletionDueToAlreadyDeleted() {
 		givenValidTxnCtx();
 		// and:
-		given(tokenStore.delete(tokenId)).willReturn(TOKEN_WAS_DELETED);
+		doThrow(new InvalidTransactionException(TOKEN_WAS_DELETED)).when(tokenStore).loadToken(tokenId);
 
-		// when:
-		subject.doStateTransition();
+		// verify:
+		assertFailsWith(() -> subject.doStateTransition(), TOKEN_WAS_DELETED);
+	}
 
-		// then:
-		verify(txnCtx).setStatus(TOKEN_WAS_DELETED);
+	@Test
+	public void capturesInvalidDeletionOfImmutableToken() {
+		givenValidTxnCtx();
+		// and:
+		doThrow(new InvalidTransactionException(TOKEN_IS_IMMUTABLE)).when(tokenStore).loadToken(tokenId);
+
+		// verify:
+		assertFailsWith(() -> subject.doStateTransition(), TOKEN_IS_IMMUTABLE);
 	}
 
 	@Test
 	public void followsHappyPath() {
 		givenValidTxnCtx();
-		// and:
-		given(tokenStore.delete(tokenId)).willReturn(OK);
 
 		// when:
 		subject.doStateTransition();
 
 		// then:
-		verify(tokenStore).delete(tokenId);
-		verify(txnCtx).setStatus(SUCCESS);
+		verify(tokenStore).loadToken(tokenId);
+		verify(token).delete();
+		verify(tokenStore).persistToken(token);
 	}
 
 	@Test
@@ -112,19 +121,6 @@ class TokenDeleteTransitionLogicTest {
 		// expect:
 		assertTrue(subject.applicability().test(tokenDeleteTxn));
 		assertFalse(subject.applicability().test(TransactionBody.getDefaultInstance()));
-	}
-
-	@Test
-	public void setsFailInvalidIfUnhandledException() {
-		givenValidTxnCtx();
-		// and:
-		given(tokenStore.delete(any())).willThrow(IllegalArgumentException.class);
-
-		// when:
-		subject.doStateTransition();
-
-		// then:
-		verify(txnCtx).setStatus(FAIL_INVALID);
 	}
 
 	@Test
@@ -143,13 +139,19 @@ class TokenDeleteTransitionLogicTest {
 		assertEquals(INVALID_TOKEN_ID, subject.semanticCheck().apply(tokenDeleteTxn));
 	}
 
+	private void assertFailsWith(Runnable something, ResponseCodeEnum status) {
+		var ex = assertThrows(InvalidTransactionException.class, something::run);
+		assertEquals(status, ex.getResponseCode());
+	}
+
 	private void givenValidTxnCtx() {
 		tokenDeleteTxn = TransactionBody.newBuilder()
 				.setTokenDeletion(TokenDeleteTransactionBody.newBuilder()
-						.setToken(tokenId))
+						.setToken(tokenID))
 				.build();
 		given(accessor.getTxn()).willReturn(tokenDeleteTxn);
 		given(txnCtx.accessor()).willReturn(accessor);
+		given(tokenStore.loadToken(tokenId)).willReturn(token);
 	}
 
 	private void givenMissingToken() {

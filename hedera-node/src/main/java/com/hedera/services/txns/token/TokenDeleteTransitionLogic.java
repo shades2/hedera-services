@@ -21,7 +21,8 @@ package com.hedera.services.txns.token;
  */
 
 import com.hedera.services.context.TransactionContext;
-import com.hedera.services.store.tokens.TokenStore;
+import com.hedera.services.store.TypedTokenStore;
+import com.hedera.services.store.models.Id;
 import com.hedera.services.txns.TransitionLogic;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TokenDeleteTransactionBody;
@@ -32,10 +33,8 @@ import org.apache.logging.log4j.Logger;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.FAIL_INVALID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_ID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.SUCCESS;
 
 /**
  * Provides the state transition for token deletion.
@@ -47,27 +46,32 @@ public class TokenDeleteTransitionLogic implements TransitionLogic {
 
 	private final Function<TransactionBody, ResponseCodeEnum> SEMANTIC_CHECK = this::validate;
 
-	private final TokenStore store;
+	private final TypedTokenStore tokenStore;
 	private final TransactionContext txnCtx;
 
 	public TokenDeleteTransitionLogic(
-			TokenStore store,
+			TypedTokenStore tokenStore,
 			TransactionContext txnCtx
 	) {
-		this.store = store;
+		this.tokenStore = tokenStore;
 		this.txnCtx = txnCtx;
 	}
 
 	@Override
 	public void doStateTransition() {
-		try {
-			var op = txnCtx.accessor().getTxn().getTokenDeletion();
-			var outcome = store.delete(op.getToken());
-			txnCtx.setStatus((outcome == OK) ? SUCCESS : outcome);
-		} catch (Exception e) {
-			log.warn("Unhandled error while processing :: {}!", txnCtx.accessor().getSignedTxnWrapper(), e);
-			txnCtx.setStatus(FAIL_INVALID);
-		}
+		/* --- Translate from gRPC types --- */
+		final var op = txnCtx.accessor().getTxn().getTokenDeletion();
+		final var grpcId = op.getToken();
+		final var tokenId = new Id(grpcId.getShardNum(), grpcId.getRealmNum(), grpcId.getTokenNum());
+
+		/* --- Load the model objects --- */
+		var token = tokenStore.loadToken(tokenId);
+
+		/* --- Do the business logic --- */
+		token.delete();
+
+		/* --- Persist the updated models --- */
+		tokenStore.persistToken(token);
 	}
 
 	@Override

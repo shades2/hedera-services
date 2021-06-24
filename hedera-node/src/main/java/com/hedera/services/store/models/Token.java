@@ -33,6 +33,7 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INSUFFICIENT_T
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_BURN_AMOUNT;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_MINT_AMOUNT;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_SUPPLY_KEY;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_IS_IMMUTABLE;
 
 /**
  * Encapsulates the state and operations of a Hedera token.
@@ -58,6 +59,8 @@ public class Token {
 	private boolean frozenByDefault;
 	private Account treasury;
 	private Account autoRenewAccount;
+	private boolean hasAdminKey;
+	private boolean isDeleted;
 
 	public Token(Id id) {
 		this.id = id;
@@ -82,6 +85,14 @@ public class Token {
 		}
 		newRel.setKycGranted(!hasKycKey());
 		return newRel;
+	}
+
+	/**
+	 * Set the token as deleted
+	 */
+	public void delete() {
+		validateTrue(hasAdminKey, TOKEN_IS_IMMUTABLE);
+		isDeleted = true;
 	}
 
 	private void changeSupply(TokenRelationship treasuryRel, long amount, ResponseCodeEnum negSupplyCode) {
@@ -165,6 +176,18 @@ public class Token {
 
 	public Id getId() {
 		return id;
+	}
+
+	public boolean isDeleted() {
+		return isDeleted;
+	}
+
+	public void setIsDeleted(final boolean deleted) {
+		isDeleted = deleted;
+	}
+
+	public void setHasAdminKey(final boolean hasAdminKey) {
+		this.hasAdminKey = hasAdminKey;
 	}
 
 	/* NOTE: The object methods below are only overridden to improve

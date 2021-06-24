@@ -32,6 +32,7 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INSUFFICIENT_T
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_BURN_AMOUNT;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_MINT_AMOUNT;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_SUPPLY_KEY;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_IS_IMMUTABLE;
 import static org.junit.jupiter.api.Assertions.*;
 
 class TokenTest {
@@ -184,6 +185,14 @@ class TokenTest {
 		assertEquals(initialSupply + mintAmount, subject.getTotalSupply());
 		assertEquals(+mintAmount, treasuryRel.getBalanceChange());
 		assertEquals(initialTreasuryBalance + mintAmount, treasuryRel.getBalance());
+	}
+
+	@Test
+	void cannotDeleteImmutableToken() {
+		// given:
+		subject.setHasAdminKey(false);
+
+		assertFailsWith(() -> subject.delete(), TOKEN_IS_IMMUTABLE);
 	}
 
 	@Test

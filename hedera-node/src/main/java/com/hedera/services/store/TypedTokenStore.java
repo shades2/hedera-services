@@ -229,6 +229,7 @@ public class TypedTokenStore {
 		mutableToken.setTreasury(new EntityId(token.getTreasury().getId()));
 		mutableToken.setTotalSupply(token.getTotalSupply());
 		mutableToken.setAccountsFrozenByDefault(token.isFrozenByDefault());
+		mutableToken.setDeleted(token.isDeleted());
 	}
 
 	private void initModelAccounts(Token token, EntityId _treasuryId, @Nullable EntityId _autoRenewId) {
@@ -248,6 +249,8 @@ public class TypedTokenStore {
 		token.setFreezeKey(immutableToken.getFreezeKey());
 		token.setSupplyKey(immutableToken.getSupplyKey());
 		token.setFrozenByDefault(immutableToken.accountsAreFrozenByDefault());
+		token.setIsDeleted(immutableToken.isDeleted());
+		token.setHasAdminKey(immutableToken.hasAdminKey());
 	}
 
 	private void alertTokenBackingStoreOfNew(TokenRelationship newRel) {
