@@ -47,7 +47,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.mock;
 import static org.mockito.BDDMockito.verify;
 
-public class TokenMintUsageTest {
+class TokenMintUsageTest {
 	long now = 1_234_567L;
 	int numSigs = 3, sigSize = 100, numPayerKeys = 1;
 	SigUsage sigUsage = new SigUsage(numSigs, sigSize, numPayerKeys);
@@ -73,7 +73,7 @@ public class TokenMintUsageTest {
 	}
 
 	@Test
-	public void createsExpectedDelta() {
+	void createsExpectedDelta() {
 		givenOp();
 		// and:
 		subject = TokenMintUsage.newEstimate(txn, sigUsage);
@@ -92,7 +92,7 @@ public class TokenMintUsageTest {
 	}
 
 	@Test
-	public void createsExpectedDeltaForUnique() {
+	void createsExpectedDeltaForUnique() {
 		op = TokenMintTransactionBody.newBuilder()
 				.setToken(id)
 				.addAllMetadata(List.of(ByteString.copyFromUtf8("memo")))

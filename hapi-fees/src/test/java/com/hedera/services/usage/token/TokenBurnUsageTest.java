@@ -63,7 +63,7 @@ public class TokenBurnUsageTest {
 	TokenBurnUsage subject;
 
 	@BeforeEach
-	public void setUp() throws Exception {
+	void setUp() throws Exception {
 		base = mock(TxnUsageEstimator.class);
 		given(base.get()).willReturn(A_USAGES_MATRIX);
 
@@ -94,7 +94,7 @@ public class TokenBurnUsageTest {
 	}
 
 	@Test
-	public void createsExpectedDeltaForUnique() {
+	void createsExpectedDeltaForUnique() {
 		op = TokenBurnTransactionBody.newBuilder()
 				.setToken(id)
 				.addAllSerialNumbers(List.of(1L, 2L, 3L))

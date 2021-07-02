@@ -37,7 +37,7 @@ import static com.hederahashgraph.fee.FeeBuilder.BASIC_ENTITY_ID_SIZE;
 import static com.hederahashgraph.fee.FeeBuilder.BASIC_QUERY_RES_HEADER;
 import static org.junit.Assert.assertEquals;
 
-public class TokenGetInfoUsageTest {
+class TokenGetInfoUsageTest {
 	Optional<Key> aKey = Optional.of(KeyUtils.A_COMPLEX_KEY);
 	String memo = "Hope";
 	String name = "WhyWhyWhyWHY";
@@ -52,7 +52,7 @@ public class TokenGetInfoUsageTest {
 	}
 
 	@Test
-	public void assessesEverything() {
+	void assessesEverything() {
 		// given:
 		subject.givenCurrentAdminKey(aKey)
 				.givenCurrentFreezeKey(aKey)

@@ -6,7 +6,7 @@ package com.hedera.services.usage.token.entities;
  * ​
  * Copyright (C) 2018 - 2021 Hedera Hashgraph, LLC
  * ​
- * Licensed under the Apache License, Version 2.0 (the "License");
+ * Licensed under the Apache License, Version 2.0 (the "License")
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
@@ -28,11 +28,11 @@ public enum NftEntitySizes {
 	NFT_ENTITY_SIZES;
 
 	public long fixedBytesInNftRepr() {
-		/* { creation time } */
+		/* creation time  */
 		return BASIC_RICH_INSTANT_SIZE // creation time
-				/* { tokenID, accountID } */
+				/* tokenID, accountID */
 				+ 2 * BASIC_ENTITY_ID_SIZE
-				/* { serialNum } */
+				/* serialNum */
 				+ LONG_SIZE;
 	}
 }
