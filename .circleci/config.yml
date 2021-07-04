@@ -1903,7 +1903,7 @@ workflows:
             branches:
               only:
 #                - master
-                - 01733-M-Reconn-MerkleSyncException
+#                - 01733-M-Reconn-MerkleSyncException
     jobs:
       - build-platform-and-services
       - jrs-regression:
@@ -1927,7 +1927,7 @@ workflows:
             branches:
               only:
 #                - master
-                - 01733-M-Reconn-MerkleSyncException
+#                - 01733-M-Reconn-MerkleSyncException
     jobs:
       - build-platform-and-services
       - jrs-regression:
