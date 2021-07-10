@@ -1851,7 +1851,7 @@ workflows:
   GCP-Daily-Services-Comp-Restart-Performance-Random-40N-6C:
     triggers:
       - schedule:
-          cron: "* * * * *"
+          cron: "* 1 * * *"
           filters:
             branches:
               only:
@@ -2221,8 +2221,8 @@ workflows:
             context: SonarCloud
             filters:
               branches:
-                ignore:
-                  - NONE
+              only:
+                - master
             workflow-name: "Continuous-integration"
         - sonar-check:
             context: SonarCloud
