@@ -1848,14 +1848,13 @@ workflows:
             - attach_workspace:
                 at: /
 
-  GCP-Daily-Services-Comp-Restart-Performance-Random-6N-6C:
+  GCP-Daily-Services-Comp-Restart-Performance-Random-40N-6C:
     triggers:
       - schedule:
-          cron: "40 4 * * *"
           filters:
             branches:
               only:
-                - master
+                - perf-test-40-node-service
     jobs:
       - build-platform-and-services
       - jrs-regression:
@@ -1863,7 +1862,7 @@ workflows:
           regression_path: /swirlds-platform/regression
           result_path: results/6N_6C/Performance
           config_type: "daily"
-          workflow-name: "GCP-Daily-Services-Comp-Restart-Performance-Random-6N-6C"
+          workflow-name: "GCP-Daily-Services-Comp-Restart-Performance-Random-40N-6C"
           requires:
             - build-platform-and-services
           pre-steps:
@@ -2499,6 +2498,7 @@ jobs:
             cd /; GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" \
             git clone ssh://git@services-jrs-regression/swirlds/swirlds-platform.git;
             cd /swirlds-platform;
+            git checkout -b perf-test-40-node-service
             sed -i -e 's/github.com/services-jrs-regression/g' .gitmodules;
             git submodule update --init --recursive --checkout;
             cd regression;
