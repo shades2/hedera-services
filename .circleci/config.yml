@@ -1607,12 +1607,12 @@ workflows:
   GCP-Create-Large-Volume-NFTs-SavedState:
     triggers:
       - schedule:
-          cron: "03 16 * * *"
+          cron: "08 16 * * *"
           filters:
             branches:
               only:
 #                - <branch-name-for-test>
-                - with-onRelease-override
+                - new-with-onRelease-override
     jobs:
       - build-platform-and-services
       - jrs-regression:
@@ -2250,7 +2250,7 @@ workflows:
               branches:
                 ignore:
                   - NONE
-                  - with-onRelease-override
+                  - new-with-onRelease-override
             workflow-name: "Continuous-integration"
         - sonar-check:
             context: SonarCloud
