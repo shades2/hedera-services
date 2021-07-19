@@ -189,6 +189,22 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 	}
 
 	@Override
+	protected void onRelease() {
+		if (uniqueTokenAssociations != null) {
+			uniqueTokenAssociations.release();
+		}
+		if (uniqueOwnershipAssociations != null) {
+			uniqueOwnershipAssociations.release();
+		}
+	}
+
+	@Override
+	public void archive() {
+		uniqueTokenAssociations.release();
+		uniqueOwnershipAssociations.release();
+	}
+
+	@Override
 	public void genesisInit(Platform platform, AddressBook addressBook) {
 		this.init(platform, addressBook);
 	}
