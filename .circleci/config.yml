@@ -1612,7 +1612,7 @@ workflows:
             branches:
               only:
 #                - <branch-name-for-test>
-                - new-with-onRelease-override
+                - X-new-with-onRelease-override
     jobs:
       - build-platform-and-services
       - jrs-regression:
