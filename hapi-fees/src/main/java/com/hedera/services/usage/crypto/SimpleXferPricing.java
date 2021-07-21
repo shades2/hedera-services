@@ -4,6 +4,26 @@ import com.hederahashgraph.api.proto.java.ExchangeRate;
 import com.hederahashgraph.api.proto.java.FeeComponents;
 import com.hederahashgraph.api.proto.java.FeeData;
 
+/**
+ * A stand-alone bare-bones CryptoTransfer fee calculator for ℏ-only and token-only transfers.
+ *
+ * At construction, requires the active exchange rate and a pair of {@link FeeData} prices to use,
+ * one for an ℏ-only transfer and the other for a token-only transfer. If any of these are not
+ * given, uses:
+ * <ol>
+ *     <li>For the exchange rate, 1ℏ <-> 15¢.</li>
+ *     <li>For the resource prices, the prices to be set during upgrade to Services Release 0.16.0.</li>
+ * </ol>
+ *
+ * Treats all contributions to resource usage other than the memo length as constant. In particular,
+ * assumes the following:
+ * <ol>
+ *     <li>The transfer moves ℏ or units of a single HTS token, but not both.</li>
+ *     <li>Only two account balances are changed.</li>
+ *     <li>The paying account is also the sender.</li>
+ *     <li>The paying account is linked to a single Ed25519 key.</li>
+ * </ol>
+ */
 public class SimpleXferPricing {
 	private static final int SIG_COUNT = 1;
 	private static final int SIG_MAP_SIZE = 71;
@@ -19,6 +39,10 @@ public class SimpleXferPricing {
 	private final FeeData tokenOnlyPrices;
 	private final ExchangeRate activeRate;
 
+	public SimpleXferPricing() {
+		this(R0160_HBAR_ONLY_PRICES, R0160_TOKEN_ONLY_PRICES, DEFAULT_EXCHANGE_RATE);
+	}
+
 	public SimpleXferPricing(ExchangeRate activeRate) {
 		this(R0160_HBAR_ONLY_PRICES, R0160_TOKEN_ONLY_PRICES, activeRate);
 	}
@@ -29,10 +53,22 @@ public class SimpleXferPricing {
 		this.activeRate = activeRate;
 	}
 
+	/**
+	 * Returns the fee calculated for a simple ℏ transfer as described above, with the given memo length.
+	 *
+	 * @param memoLength the length of the memo in the ℏ transfer
+	 * @return the computed fee
+	 */
 	public long feeInTbForHbarOnly(int memoLength)	{
 		return tbFeeGiven(hbarOnlyPrices, bptForHbarOnly(memoLength), rbhForHbarOnly(memoLength));
 	}
 
+	/**
+	 * Returns the fee calculated for a simple token transfer as described above, with the given memo length.
+	 *
+	 * @param memoLength the length of the memo in the token transfer
+	 * @return the computed fee
+	 */
 	public long feeInTbForTokenOnly(int memoLength)	{
 		return tbFeeGiven(tokenOnlyPrices, bptForTokenOnly(memoLength), rbhForTokenOnly(memoLength));
 	}
@@ -118,5 +154,10 @@ public class SimpleXferPricing {
 			.setServicedata(FeeComponents.newBuilder()
 					.setConstant(159670382L)
 					.setRbh(170L))
+			.build();
+
+	private static final ExchangeRate DEFAULT_EXCHANGE_RATE = ExchangeRate.newBuilder()
+			.setHbarEquiv(1)
+			.setCentEquiv(15)
 			.build();
 }
