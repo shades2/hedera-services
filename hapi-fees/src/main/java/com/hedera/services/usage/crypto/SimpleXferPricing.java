@@ -26,7 +26,7 @@ import com.hederahashgraph.api.proto.java.FeeData;
  */
 public class SimpleXferPricing {
 	private static final int SIG_COUNT = 1;
-	private static final int SIG_MAP_SIZE = 71;
+	private static final int SIG_MAP_SIZE = 78;
 	private static final int NUM_PAYER_ED25519_KEYS = 1;
 	private static final long TOKEN_ID_SIZE = 24;
 	private static final long RECORD_LIFETIME = 180;
