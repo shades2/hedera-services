@@ -1690,7 +1690,7 @@ workflows:
   GCP-Daily-Services-Crypto-Restart-4N-1C:
     triggers:
       - schedule:
-          cron: "10 17 * * *"
+          cron: "30 23 * * *"
           filters:
             branches:
               only:
@@ -1713,7 +1713,7 @@ workflows:
   GCP-Daily-Services-Account-Balances-client-validation-6N-1C:
     triggers:
       - schedule:
-          cron: "0 18 * * *"
+          cron: "30 23 * * *"
           filters:
             branches:
               only:
@@ -1809,7 +1809,7 @@ workflows:
   GCP-Daily-Services-Recovery-4N-1C:
     triggers:
       - schedule:
-          cron: "0 18 * * *"
+          cron: "15 23 * * *"
           filters:
             branches:
               only:
@@ -1879,7 +1879,7 @@ workflows:
   GCP-Daily-Services-Comp-Restart-Performance-Random-6N-6C:
     triggers:
       - schedule:
-          cron: "30 18 * * *"
+          cron: "36 22 * * *"
           filters:
             branches:
               only:
@@ -1926,7 +1926,7 @@ workflows:
   GCP-Daily-Services-Comp-Reconnect-6N-1C:
     triggers:
       - schedule:
-          cron: "30 18 * * *"
+          cron: "0 23 * * *"
           filters:
             branches:
               only:
@@ -1949,7 +1949,7 @@ workflows:
   GCP-Daily-Services-Comp-Reconnect-Correctness-6N-1C:
     triggers:
       - schedule:
-          cron: "30 18 * * *"
+          cron: "36 22 * * *"
           filters:
             branches:
               only:
@@ -2946,7 +2946,7 @@ jobs:
         default: "hedera-regression-test"
       slack_summary_channel:
         type: string
-        default: "hedera-regression-test"
+        default: "hedera-regression-summary"
       workflow-name:
         type: string
         default: ""
