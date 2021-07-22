@@ -1713,7 +1713,7 @@ workflows:
   GCP-Daily-Services-Account-Balances-client-validation-6N-1C:
     triggers:
       - schedule:
-          cron: "36 20 * * *"
+          cron: "53 21 * * *"
           filters:
             branches:
               only:
