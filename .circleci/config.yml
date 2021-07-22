@@ -1582,7 +1582,7 @@ workflows:
   GCP-Daily-Services-Comp-NetError-4N-1C:
     triggers:
       - schedule:
-          cron: "10 17 * * *"
+          cron: "0 4 * * *"
           filters:
             branches:
               only:
@@ -1635,7 +1635,7 @@ workflows:
   GCP-Daily-Services-Crypto-Migration-5N-1C:
     triggers:
       - schedule:
-          cron: "10 17 * * *"
+          cron: "30 3 * * *"
           filters:
             branches:
               only:
@@ -1690,7 +1690,7 @@ workflows:
   GCP-Daily-Services-Crypto-Restart-4N-1C:
     triggers:
       - schedule:
-          cron: "30 23 * * *"
+          cron: "0 4 * * *"
           filters:
             branches:
               only:
@@ -1713,7 +1713,7 @@ workflows:
   GCP-Daily-Services-Account-Balances-client-validation-6N-1C:
     triggers:
       - schedule:
-          cron: "30 23 * * *"
+          cron: "10 4 * * *"
           filters:
             branches:
               only:
@@ -1809,7 +1809,7 @@ workflows:
   GCP-Daily-Services-Recovery-4N-1C:
     triggers:
       - schedule:
-          cron: "15 23 * * *"
+          cron: "0 3 * * *"
           filters:
             branches:
               only:
@@ -1879,7 +1879,7 @@ workflows:
   GCP-Daily-Services-Comp-Restart-Performance-Random-6N-6C:
     triggers:
       - schedule:
-          cron: "36 22 * * *"
+          cron: "30 2 * * *"
           filters:
             branches:
               only:
@@ -1926,7 +1926,7 @@ workflows:
   GCP-Daily-Services-Comp-Reconnect-6N-1C:
     triggers:
       - schedule:
-          cron: "0 23 * * *"
+          cron: "0 3 * * *"
           filters:
             branches:
               only:
@@ -1949,7 +1949,7 @@ workflows:
   GCP-Daily-Services-Comp-Reconnect-Correctness-6N-1C:
     triggers:
       - schedule:
-          cron: "36 22 * * *"
+          cron: "36 2 * * *"
           filters:
             branches:
               only:
@@ -2530,7 +2530,7 @@ jobs:
             cd /swirlds-platform;
             sed -i -e 's/github.com/services-jrs-regression/g' .gitmodules;
             git submodule update --init --recursive --checkout;
-            cd regression;
+            cd regression; git checkout 01397-PTT-Integration-for-services-regression
             cd ..;
             mvn --no-transfer-progress clean install -DskipTests;
 
