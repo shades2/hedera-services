@@ -1586,7 +1586,7 @@ workflows:
           filters:
             branches:
               only:
-                - 1849-for-1397-PTT-Integration
+                - X-1849-for-1397-PTT-Integration
     jobs:
       - build-platform-and-services
       - jrs-regression:
@@ -1639,7 +1639,7 @@ workflows:
           filters:
             branches:
               only:
-                - 1849-for-1397-PTT-Integration
+                - X-1849-for-1397-PTT-Integration
     jobs:
       - build-platform-and-services
       - update-start-up-key:
@@ -1694,7 +1694,7 @@ workflows:
           filters:
             branches:
               only:
-                - 1849-for-1397-PTT-Integration
+                - X-1849-for-1397-PTT-Integration
     jobs:
       - build-platform-and-services
       - jrs-regression:
@@ -1717,7 +1717,7 @@ workflows:
           filters:
             branches:
               only:
-                - 1849-for-1397-PTT-Integration
+                - X-1849-for-1397-PTT-Integration
     jobs:
       - build-platform-and-services
       - jrs-regression:
@@ -1813,7 +1813,7 @@ workflows:
           filters:
             branches:
               only:
-                - 1849-for-1397-PTT-Integration
+                - X-1849-for-1397-PTT-Integration
     jobs:
       - build-platform-and-services
       - jrs-regression:
@@ -1883,7 +1883,7 @@ workflows:
           filters:
             branches:
               only:
-                - 1849-for-1397-PTT-Integration
+                - X-1849-for-1397-PTT-Integration
     jobs:
       - build-platform-and-services
       - jrs-regression:
@@ -1930,7 +1930,7 @@ workflows:
           filters:
             branches:
               only:
-                - 1849-for-1397-PTT-Integration
+                - X-1849-for-1397-PTT-Integration
     jobs:
       - build-platform-and-services
       - jrs-regression:
@@ -1953,7 +1953,7 @@ workflows:
           filters:
             branches:
               only:
-                - 1849-for-1397-PTT-Integration
+                - X-1849-for-1397-PTT-Integration
     jobs:
       - build-platform-and-services
       - jrs-regression:
