@@ -45,6 +45,7 @@ public class MerkleNetworkContext extends AbstractMerkleLeaf {
 
 	static final int UNRECORDED_STATE_VERSION = -1;
 
+	static final int RELEASE_0130_VERSION = 2;
 	static final int RELEASE_0140_VERSION = 3;
 	static final int RELEASE_0150_VERSION = 4;
 	static final int MERKLE_VERSION = RELEASE_0150_VERSION;
@@ -210,7 +211,9 @@ public class MerkleNetworkContext extends AbstractMerkleLeaf {
 		seqNo.deserialize(in);
 		midnightRates = in.readSerializable(true, ratesSupplier);
 
-		readCongestionControlData(in);
+		if (version >= RELEASE_0130_VERSION) {
+			readCongestionControlData(in);
+		}
 
 		if (version >= RELEASE_0140_VERSION) {
 			whenVersionHigherOrEqualTo0140(in);
