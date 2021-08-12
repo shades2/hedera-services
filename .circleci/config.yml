@@ -1633,13 +1633,13 @@ workflows:
   # This workflow will be running normally in master branch on a daily basis
 
   GCP-Daily-Services-Crypto-Migration-7N-1C:
-    triggers:
-      - schedule:
-          cron: "45 5 * * *"
-          filters:
-            branches:
-              only:
-                - master
+#    triggers:
+#      - schedule:
+#          cron: "45 5 * * *"
+#          filters:
+#            branches:
+#              only:
+#                - master
     jobs:
       - build-platform-and-services
       - jrs-regression:
@@ -2507,6 +2507,7 @@ jobs:
             sed -i -e 's/github.com/services-jrs-regression/g' .gitmodules;
             git submodule update --init --recursive --checkout;
             cd regression;
+            git checkout ani-test-create4NstateForCI;
             cd ..;
             mvn --no-transfer-progress clean install -DskipTests;
 
