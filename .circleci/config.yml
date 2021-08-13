@@ -2504,9 +2504,11 @@ jobs:
             cd /; GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" \
             git clone ssh://git@services-jrs-regression/swirlds/swirlds-platform.git;
             cd /swirlds-platform;
+            git checkout ani-test;
             sed -i -e 's/github.com/services-jrs-regression/g' .gitmodules;
             git submodule update --init --recursive --checkout;
             cd regression;
+            git checkout ani-test-LargeNstateInSmallN;
             cd ..;
             mvn --no-transfer-progress clean install -DskipTests;
 
