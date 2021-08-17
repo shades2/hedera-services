@@ -39,6 +39,8 @@ import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.TokenTransferList;
 import com.hederahashgraph.api.proto.java.TransferList;
 import com.swirlds.fcmap.FCMap;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -49,6 +51,7 @@ import static com.hedera.services.state.submerkle.EntityId.fromGrpcScheduleId;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.FAIL_INVALID;
 
 public class ExpiringCreations implements EntityCreator {
+	private static final Logger log = LogManager.getLogger(ExpiringCreations.class);
 	private RecordCache recordCache;
 
 	private final ExpiryManager expiries;
@@ -88,7 +91,7 @@ public class ExpiringCreations implements EntityCreator {
 		} else {
 			recordCache.trackForExpiry(expiringRecord);
 		}
-
+		log.info("txn Record : " + expiringRecord);
 		return expiringRecord;
 	}
 
