@@ -2248,6 +2248,7 @@ workflows:
               branches:
                 ignore:
                   - NONE
+                  - handle-art-bottleneck
             workflow-name: "Continuous-integration"
         - sonar-check:
             context: SonarCloud

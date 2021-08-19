@@ -244,7 +244,8 @@ public class BootstrapProperties implements PropertySource {
 			"tokens.nfts.maxQueryRange",
 			"tokens.nfts.mintThrottleScaleFactor",
 			"tokens.nfts.useTreasuryWildcards",
-			"consensus.message.maxBytesAllowed"
+			"consensus.message.maxBytesAllowed",
+			"handleSleep.micros"
 	);
 
 	static final Set<String> NODE_PROPS = Set.of(
@@ -395,6 +396,7 @@ public class BootstrapProperties implements PropertySource {
 			entry("stats.runningAvgHalfLifeSecs", AS_DOUBLE),
 			entry("stats.speedometerHalfLifeSecs", AS_DOUBLE),
 			entry("consensus.message.maxBytesAllowed", AS_INT),
-			entry("tokens.nfts.areEnabled", AS_BOOLEAN)
+			entry("tokens.nfts.areEnabled", AS_BOOLEAN),
+			entry("handleSleep.micros", AS_INT)
 	);
 }

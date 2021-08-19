@@ -94,6 +94,11 @@ public class AwareProcessLogic implements ProcessLogic {
 	@Override
 	public void incorporateConsensusTxn(SwirldTransaction platformTxn, Instant consensusTime, long submittingMember) {
 		try {
+			long delay = ctx.globalDynamicProperties().handleSleepMicros() * 1_000L;
+			long start = System.nanoTime();
+			while (System.nanoTime() - start < delay)
+				; // Pass
+
 			final var accessor = ctx.expandHandleSpan().accessorFor(platformTxn);
 			Instant effectiveConsensusTime = consensusTime;
 			if (accessor.canTriggerTxn()) {

@@ -81,6 +81,7 @@ public class GlobalDynamicProperties {
 	private int maxXferBalanceChanges;
 	private int maxCustomFeeDepth;
 	private ThrottleReqOpsScaleFactor nftMintScaleFactor;
+	private int handleSleepMicros;
 
 	public GlobalDynamicProperties(
 			HederaNumbers hederaNums,
@@ -147,6 +148,7 @@ public class GlobalDynamicProperties {
 		maxXferBalanceChanges = properties.getIntProperty("ledger.xferBalanceChanges.maxLen");
 		maxCustomFeeDepth = properties.getIntProperty("tokens.maxCustomFeeDepth");
 		nftMintScaleFactor = properties.getThrottleScaleFactor("tokens.nfts.mintThrottleScaleFactor");
+		handleSleepMicros = properties.getIntProperty("handleSleep.micros");
 	}
 
 	public int maxTokensPerAccount() {
@@ -331,5 +333,9 @@ public class GlobalDynamicProperties {
 
 	public ThrottleReqOpsScaleFactor nftMintScaleFactor() {
 		return nftMintScaleFactor;
+	}
+
+	public int handleSleepMicros() {
+		return handleSleepMicros;
 	}
 }
