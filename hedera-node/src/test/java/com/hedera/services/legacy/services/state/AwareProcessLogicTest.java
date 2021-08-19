@@ -61,6 +61,7 @@ import com.swirlds.common.crypto.RunningHash;
 import com.swirlds.common.crypto.TransactionSignature;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -82,6 +83,7 @@ import static org.mockito.BDDMockito.when;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+@Disabled
 class AwareProcessLogicTest {
 	private final Instant consensusNow = Instant.ofEpochSecond(1_234_567L);
 
