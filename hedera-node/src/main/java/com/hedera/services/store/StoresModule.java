@@ -36,7 +36,6 @@ import com.hedera.services.store.schedule.HederaScheduleStore;
 import com.hedera.services.store.schedule.ScheduleStore;
 import com.hedera.services.store.tokens.HederaTokenStore;
 import com.hedera.services.store.tokens.TokenStore;
-import com.hedera.services.store.tokens.annotations.AreFcotmrQueriesDisabled;
 import com.hedera.services.store.tokens.annotations.AreTreasuryWildcardsEnabled;
 import com.hedera.services.store.tokens.views.ConfigDrivenUniqTokenViewFactory;
 import com.hedera.services.store.tokens.views.UniqTokenViewFactory;
@@ -96,12 +95,6 @@ public abstract class StoresModule {
 				new ChangeSummaryManager<>());
 		tokenRelsLedger.setKeyToString(BackingTokenRels::readableTokenRel);
 		return tokenRelsLedger;
-	}
-
-	@Provides
-	@AreFcotmrQueriesDisabled
-	public static boolean provideAreFcotmrQueriesDisabled(@CompositeProps PropertySource properties) {
-		return !properties.getBooleanProperty("tokens.nfts.areQueriesEnabled");
 	}
 
 	@Provides

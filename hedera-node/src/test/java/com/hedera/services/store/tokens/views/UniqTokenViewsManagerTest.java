@@ -50,7 +50,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 @ExtendWith(MockitoExtension.class)
@@ -66,60 +65,6 @@ class UniqTokenViewsManagerTest {
 	private FCMap<MerkleUniqueTokenId, MerkleUniqueToken> realNfts;
 
 	private UniqTokenViewsManager subject;
-
-	@Test
-	void everythingNoopsWithTreasuryTrackingSubject() {
-		setupNoopTreasuryTrackingSubject();
-
-		// expect:
-		assertFalse(subject.isInTransaction());
-		assertTrue(subject.isUsingTreasuryWildcards());
-
-		// and when:
-		subject.begin();
-		subject.commit();
-		subject.rollback();
-		// and:
-		subject.rebuildNotice(null, null);
-		subject.mintNotice(null, null);
-		subject.wipeNotice(null, null);
-		subject.burnNotice(null, null);
-		subject.exchangeNotice(null, null, null);
-		subject.treasuryExitNotice(null, null, null);
-		subject.treasuryReturnNotice(null, null, null);
-
-		// then:
-		verifyNoInteractions(nftsByType);
-		verifyNoInteractions(nftsByOwner);
-		verifyNoInteractions(treasuryNftsByType);
-	}
-
-	@Test
-	void everythingNoopsWithNonTreasuryTrackingSubject() {
-		setupNoopNonTreasuryTrackingSubject();
-
-		// expect:
-		assertFalse(subject.isInTransaction());
-		assertFalse(subject.isUsingTreasuryWildcards());
-
-		// and when:
-		subject.begin();
-		subject.commit();
-		subject.rollback();
-		// and:
-		subject.rebuildNotice(null, null);
-		subject.mintNotice(null, null);
-		subject.wipeNotice(null, null);
-		subject.burnNotice(null, null);
-		subject.exchangeNotice(null, null, null);
-		subject.treasuryExitNotice(null, null, null);
-		subject.treasuryReturnNotice(null, null, null);
-
-		// then:
-		verifyNoInteractions(nftsByType);
-		verifyNoInteractions(nftsByOwner);
-		verifyNoInteractions(treasuryNftsByType);
-	}
 
 	@Test
 	void beginWorks() {
@@ -479,22 +424,12 @@ class UniqTokenViewsManagerTest {
 
 	private void setupTreasuryTrackingSubject() {
 		subject = new UniqTokenViewsManager(
-				() -> nftsByType, () -> nftsByOwner, () -> treasuryNftsByType, false, true);
+				() -> nftsByType, () -> nftsByOwner, () -> treasuryNftsByType, true);
 	}
 
 	private void setupNonTreasuryTrackingSubject() {
 		subject = new UniqTokenViewsManager(
-				() -> nftsByType, () -> nftsByOwner, () -> treasuryNftsByType, false, false);
-	}
-
-	private void setupNoopTreasuryTrackingSubject() {
-		subject = new UniqTokenViewsManager(
-				() -> nftsByType, () -> nftsByOwner, () -> treasuryNftsByType, true, true);
-	}
-
-	private void setupNoopNonTreasuryTrackingSubject() {
-		subject = new UniqTokenViewsManager(
-				() -> nftsByType, () -> nftsByOwner, () -> treasuryNftsByType, true, false);
+				() -> nftsByType, () -> nftsByOwner, () -> treasuryNftsByType, false);
 	}
 
 	private UniqTokenViewsManager.PendingChange change(

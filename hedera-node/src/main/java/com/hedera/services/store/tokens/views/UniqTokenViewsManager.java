@@ -28,7 +28,6 @@ import com.hedera.services.state.merkle.MerkleToken;
 import com.hedera.services.state.merkle.MerkleUniqueToken;
 import com.hedera.services.state.merkle.MerkleUniqueTokenId;
 import com.hedera.services.state.submerkle.EntityId;
-import com.hedera.services.store.tokens.annotations.AreFcotmrQueriesDisabled;
 import com.hedera.services.store.tokens.annotations.AreTreasuryWildcardsEnabled;
 import com.hedera.services.store.tokens.views.internals.PermHashInteger;
 import com.swirlds.fchashmap.FCOneToManyRelation;
@@ -68,7 +67,6 @@ import static java.util.concurrent.CompletableFuture.runAsync;
 public class UniqTokenViewsManager {
 	private static final Logger log = LogManager.getLogger(UniqTokenViewsManager.class);
 
-	private final boolean doNoops;
 	private final Supplier<FCOneToManyRelation<PermHashInteger, Long>> nftsByType;
 	private final Supplier<FCOneToManyRelation<PermHashInteger, Long>> nftsByOwner;
 	private final Supplier<FCOneToManyRelation<PermHashInteger, Long>> treasuryNftsByType;
@@ -85,7 +83,6 @@ public class UniqTokenViewsManager {
 			@NftsByType Supplier<FCOneToManyRelation<PermHashInteger, Long>> nftsByType,
 			@NftsByOwner Supplier<FCOneToManyRelation<PermHashInteger, Long>> nftsByOwner,
 			@TreasuryNftsByType Supplier<FCOneToManyRelation<PermHashInteger, Long>> treasuryNftsByType,
-			@AreFcotmrQueriesDisabled boolean doNoops,
 			@AreTreasuryWildcardsEnabled boolean useWildcards
 	) {
 		this.nftsByType = nftsByType;
@@ -95,7 +92,6 @@ public class UniqTokenViewsManager {
 		} else {
 			this.treasuryNftsByType = null;
 		}
-		this.doNoops = doNoops;
 	}
 
 	/**
@@ -116,10 +112,6 @@ public class UniqTokenViewsManager {
 			FCMap<MerkleEntityId, MerkleToken> tokens,
 			FCMap<MerkleUniqueTokenId, MerkleUniqueToken> nfts
 	) {
-		if (doNoops) {
-			return;
-		}
-
 		final CompletableFuture<Void> futureRebuild = allOf(rebuildFutures(tokens, nfts));
 
 		futureRebuild.join();
@@ -135,10 +127,6 @@ public class UniqTokenViewsManager {
 	 * 		the treasury that received the new NFT
 	 */
 	public void mintNotice(MerkleUniqueTokenId nftId, EntityId treasury) {
-		if (doNoops) {
-			return;
-		}
-
 		final var tokenId = nftId.tokenId();
 		nftsByType.get().associate(asPhi(tokenId.identityCode()), nftId.identityCode());
 		if (isUsingTreasuryWildcards()) {
@@ -158,10 +146,6 @@ public class UniqTokenViewsManager {
 	 * 		the account that was wiped
 	 */
 	public void wipeNotice(MerkleUniqueTokenId nftId, EntityId fromAccount) {
-		if (doNoops) {
-			return;
-		}
-
 		/* The treasury account cannot be wiped, so both cases are the same */
 		nftsByType.get().disassociate(asPhi(nftId.tokenId().identityCode()), nftId.identityCode());
 		nftsByOwner.get().disassociate(asPhi(fromAccount.identityCode()), nftId.identityCode());
@@ -177,10 +161,6 @@ public class UniqTokenViewsManager {
 	 * 		the treasury of the burned NFT's token type
 	 */
 	public void burnNotice(MerkleUniqueTokenId nftId, EntityId treasury) {
-		if (doNoops) {
-			return;
-		}
-
 		final var tokenId = nftId.tokenId();
 		nftsByType.get().disassociate(asPhi(tokenId.identityCode()), nftId.identityCode());
 		if (isUsingTreasuryWildcards()) {
@@ -202,10 +182,6 @@ public class UniqTokenViewsManager {
 	 * 		the new owner
 	 */
 	public void exchangeNotice(MerkleUniqueTokenId nftId, EntityId prevOwner, EntityId newOwner) {
-		if (doNoops) {
-			return;
-		}
-
 		changeOrStage(NFTS_BY_OWNER, prevOwner.identityCode(), nftId.identityCode(), false);
 		changeOrStage(NFTS_BY_OWNER, newOwner.identityCode(), nftId.identityCode(), true);
 	}
@@ -223,10 +199,6 @@ public class UniqTokenViewsManager {
 	 * 		the new owner
 	 */
 	public void treasuryExitNotice(MerkleUniqueTokenId nftId, EntityId treasury, EntityId newOwner) {
-		if (doNoops) {
-			return;
-		}
-
 		if (isUsingTreasuryWildcards()) {
 			changeOrStage(TREASURY_NFTS_BY_TYPE, nftId.tokenId().identityCode(), nftId.identityCode(), false);
 		} else {
@@ -248,10 +220,6 @@ public class UniqTokenViewsManager {
 	 * 		the relevant treasury
 	 */
 	public void treasuryReturnNotice(MerkleUniqueTokenId nftId, EntityId prevOwner, EntityId treasury) {
-		if (doNoops) {
-			return;
-		}
-
 		changeOrStage(NFTS_BY_OWNER, prevOwner.identityCode(), nftId.identityCode(), false);
 		if (isUsingTreasuryWildcards()) {
 			changeOrStage(TREASURY_NFTS_BY_TYPE, nftId.tokenId().identityCode(), nftId.identityCode(), true);
@@ -274,18 +242,10 @@ public class UniqTokenViewsManager {
 
 	/* --- Transactional semantics --- */
 	public boolean isInTransaction() {
-		if (doNoops) {
-			return false;
-		}
-
 		return inTxn;
 	}
 
 	public void begin() {
-		if (doNoops) {
-			return;
-		}
-
 		if (inTxn) {
 			throw new IllegalStateException("Manager already in transaction");
 		}
@@ -293,10 +253,6 @@ public class UniqTokenViewsManager {
 	}
 
 	public void rollback() {
-		if (doNoops) {
-			return;
-		}
-
 		if (!inTxn) {
 			throw new IllegalStateException("Manager not in transaction");
 		}
@@ -305,10 +261,6 @@ public class UniqTokenViewsManager {
 	}
 
 	public void commit() {
-		if (doNoops) {
-			return;
-		}
-
 		if (!inTxn) {
 			throw new IllegalStateException("Manager not in transaction");
 		}
