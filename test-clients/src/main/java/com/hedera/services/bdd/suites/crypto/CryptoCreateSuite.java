@@ -55,6 +55,7 @@ import static com.hedera.services.bdd.spec.transactions.TxnVerbs.fileCreate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.fileUpdate;
 import static com.hedera.services.bdd.spec.transactions.crypto.HapiCryptoTransfer.tinyBarsFromTo;
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.validateChargedUsd;
+import static com.hedera.services.bdd.spec.utilops.UtilVerbs.validateChargedUsdWithin;
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.withOpContext;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.AUTORENEW_DURATION_NOT_IN_RANGE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.BAD_ENCODING;
@@ -81,20 +82,98 @@ public class CryptoCreateSuite extends HapiApiSuite {
 
 	private List<HapiApiSpec> negativeTests() {
 		return List.of(
-				createAnAccountEmptyThresholdKey(),
-				createAnAccountEmptyKeyList(),
-				createAnAccountEmptyNestedKey(),
-				createAnAccountInvalidKeyList(),
-				createAnAccountInvalidNestedKeyList(),
-				createAnAccountInvalidThresholdKey(),
-				createAnAccountInvalidNestedThresholdKey(),
-				createAnAccountThresholdKeyWithInvalidThreshold(),
-				createAnAccountInvalidED25519(),
-				syntaxChecksAreAsExpected(),
-				xferRequiresCrypto(),
-				usdFeeAsExpected(),
-				maxAutoAssociationSpec()
+//				createAnAccountEmptyThresholdKey(),
+//				createAnAccountEmptyKeyList(),
+//				createAnAccountEmptyNestedKey(),
+//				createAnAccountInvalidKeyList(),
+//				createAnAccountInvalidNestedKeyList(),
+//				createAnAccountInvalidThresholdKey(),
+//				createAnAccountInvalidNestedThresholdKey(),
+//				createAnAccountThresholdKeyWithInvalidThreshold(),
+//				createAnAccountInvalidED25519(),
+//				syntaxChecksAreAsExpected(),
+//				xferRequiresCrypto(),
+//				usdFeeAsExpected(),
+				maxAutoAssociationSpec(),
+				checkPrice()
 		);
+	}
+
+	private HapiApiSpec checkPrice() {
+		return defaultHapiSpec("checkPrice")
+				.given(
+						cryptoCreate("payer")
+								.balance(ONE_HUNDRED_HBARS)
+				)
+				.when(
+						cryptoCreate("user0")
+								.balance(0L)
+								.via("txn")
+								.memo("")
+								.entityMemo("")
+								.autoRenewSecs(THREE_MONTHS_IN_SECONDS)
+								.signedBy("payer")
+								.payingWith("payer")
+								.via("create0"),
+						cryptoCreate("user1")
+								.balance(0L)
+								.via("txn")
+								.memo("")
+								.entityMemo("")
+								.autoRenewSecs(THREE_MONTHS_IN_SECONDS)
+								.signedBy("payer")
+								.payingWith("payer")
+								.maxAutomaticTokenAssociations(1)
+								.via("create1"),
+						cryptoCreate("user2")
+								.balance(0L)
+								.via("txn")
+								.memo("")
+								.entityMemo("")
+								.autoRenewSecs(THREE_MONTHS_IN_SECONDS)
+								.signedBy("payer")
+								.payingWith("payer")
+								.maxAutomaticTokenAssociations(2)
+								.via("create2"),
+						cryptoCreate("user10")
+								.balance(0L)
+								.via("txn")
+								.memo("")
+								.entityMemo("")
+								.autoRenewSecs(THREE_MONTHS_IN_SECONDS)
+								.signedBy("payer")
+								.payingWith("payer")
+								.maxAutomaticTokenAssociations(10)
+								.via("create10"),
+						cryptoCreate("user20")
+								.balance(0L)
+								.via("txn")
+								.memo("")
+								.entityMemo("")
+								.autoRenewSecs(THREE_MONTHS_IN_SECONDS)
+								.signedBy("payer")
+								.payingWith("payer")
+								.maxAutomaticTokenAssociations(20)
+								.via("create20"),
+						cryptoCreate("user100")
+								.balance(0L)
+								.via("txn")
+								.memo("")
+								.entityMemo("")
+								.autoRenewSecs(THREE_MONTHS_IN_SECONDS)
+								.signedBy("payer")
+								.payingWith("payer")
+								.maxAutomaticTokenAssociations(100)
+								.via("create100")
+				)
+				.then(
+						validateChargedUsdWithin("create0", 0.05, 100.0),
+						validateChargedUsdWithin("create1", 0.05, 100.0),
+						validateChargedUsdWithin("create2", 0.05, 100.0),
+						validateChargedUsdWithin("create10", 0.05, 100.0),
+						validateChargedUsdWithin("create20", 0.05, 100.0),
+						validateChargedUsdWithin("create100", 0.05, 100.0)
+				);
 	}
 
 	private HapiApiSpec maxAutoAssociationSpec() {

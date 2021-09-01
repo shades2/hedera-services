@@ -634,6 +634,10 @@ public class UtilVerbs {
 					/ record.getReceipt().getExchangeRate().getCurrentRate().getHbarEquiv()
 					* record.getReceipt().getExchangeRate().getCurrentRate().getCentEquiv()
 					/ 100;
+			System.out.println(String.format(
+					"actually charged %s for %s txn",
+					CryptoTransferSuite.sdec(actualUsdCharged, 6),
+					txn));
 			assertEquals(
 					expectedUsd,
 					actualUsdCharged,

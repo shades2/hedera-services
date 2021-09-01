@@ -41,6 +41,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static com.hedera.services.bdd.spec.HapiApiSpec.customHapiSpec;
 import static com.hedera.services.bdd.spec.HapiApiSpec.defaultHapiSpec;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getAccountBalance;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getAccountInfo;
@@ -52,6 +53,7 @@ import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoDelete;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.fileUpdate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.tokenCreate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.tokenDelete;
+import static com.hedera.services.bdd.spec.transactions.TxnVerbs.tokenFeeScheduleUpdate;
 import static com.hedera.services.bdd.spec.transactions.token.CustomFeeSpecs.fixedHbarFee;
 import static com.hedera.services.bdd.spec.transactions.token.CustomFeeSpecs.fixedHbarFeeInheritingRoyaltyCollector;
 import static com.hedera.services.bdd.spec.transactions.token.CustomFeeSpecs.fixedHtsFee;
@@ -118,35 +120,79 @@ public class TokenCreateSpecs extends HapiApiSuite {
 	@Override
 	protected List<HapiApiSpec> getSpecsInSuite() {
 		return List.of(new HapiApiSpec[] {
-						creationValidatesNonFungiblePrechecks(),
-						creationValidatesMaxSupply(),
-						creationValidatesMemo(),
-						creationValidatesName(),
-						creationValidatesSymbol(),
-						treasuryHasCorrectBalance(),
-						creationRequiresAppropriateSigs(),
-						creationRequiresAppropriateSigsHappyPath(),
-						initialSupplyMustBeSane(),
-						creationYieldsExpectedToken(),
-						creationSetsExpectedName(),
-						creationValidatesTreasuryAccount(),
-						autoRenewValidationWorks(),
-						creationWithoutKYCSetsCorrectStatus(),
-						creationValidatesExpiry(),
-						creationValidatesFreezeDefaultWithNoFreezeKey(),
-						creationSetsCorrectExpiry(),
-						creationHappyPath(),
-						numAccountsAllowedIsDynamic(),
-						worksAsExpectedWithDefaultTokenId(),
-						cannotCreateWithExcessiveLifetime(),
-						validateNewTokenAssociations(),
-						/* HIP-18 */
-						onlyValidCustomFeeScheduleCanBeCreated(),
-						feeCollectorSigningReqsWorkForTokenCreate(),
-						createsFungibleInfiniteByDefault(),
-						baseCreationsHaveExpectedPrices(),
+//						creationValidatesNonFungiblePrechecks(),
+//						creationValidatesMaxSupply(),
+//						creationValidatesMemo(),
+//						creationValidatesName(),
+//						creationValidatesSymbol(),
+//						treasuryHasCorrectBalance(),
+//						creationRequiresAppropriateSigs(),
+//						creationRequiresAppropriateSigsHappyPath(),
+//						initialSupplyMustBeSane(),
+//						creationYieldsExpectedToken(),
+//						creationSetsExpectedName(),
+//						creationValidatesTreasuryAccount(),
+//						autoRenewValidationWorks(),
+//						creationWithoutKYCSetsCorrectStatus(),
+//						creationValidatesExpiry(),
+//						creationValidatesFreezeDefaultWithNoFreezeKey(),
+//						creationSetsCorrectExpiry(),
+//						creationHappyPath(),
+//						numAccountsAllowedIsDynamic(),
+//						worksAsExpectedWithDefaultTokenId(),
+//						cannotCreateWithExcessiveLifetime(),
+//						validateNewTokenAssociations(),
+//						/* HIP-18 */
+//						onlyValidCustomFeeScheduleCanBeCreated(),
+//						feeCollectorSigningReqsWorkForTokenCreate(),
+//						createsFungibleInfiniteByDefault(),
+//						baseCreationsHaveExpectedPrices(),
+						testIssue2088()
 				}
 		);
+	}
+
+	private HapiApiSpec testIssue2088() {
+		final var civilian = "NonExemptPayer";
+		final var uniqueWithFees = "uniqueWithFees";
+		final var adminKey = "adminKey";
+		final var supplyKey = "supplyKey";
+		final var customFeeKey = "customFeeKey";
+
+		return customHapiSpec("testIssue2088")
+				.withProperties(Map.of(
+						"nodes", "35.231.208.148",
+						"default.payer.pemKeyLoc", "/Users/anighanta/IdeaProjects/hashgraph/hedera-services/test-clients/src/main/resource/previewtestnet-account2-P1WUX2Xla2wFslpoPTN39avz.pem",
+						"default.payer.pemKeyPassphrase", "P1WUX2Xla2wFslpoPTN39avz"
+				))
+				.given(
+						cryptoCreate(civilian).balance(ONE_HUNDRED_HBARS),
+						cryptoCreate(TOKEN_TREASURY).balance(0L),
+						newKeyNamed(adminKey),
+						newKeyNamed(supplyKey),
+						newKeyNamed(customFeeKey)
+				)
+				.when(
+						tokenCreate(uniqueWithFees)
+								.payingWith(civilian)
+								.blankMemo()
+								.name("012345678912")
+								.symbol("ABCD")
+								.initialSupply(0L)
+								.tokenType(NON_FUNGIBLE_UNIQUE)
+								.treasury(TOKEN_TREASURY)
+								.autoRenewPeriod(THREE_MONTHS_IN_SECONDS)
+								.adminKey(adminKey)
+								.supplyKey(supplyKey)
+								.feeScheduleKey(customFeeKey)
+								.via(txnFor(uniqueWithFees))
+				)
+				.then(
+						getTokenInfo(uniqueWithFees).logged(),
+						tokenFeeScheduleUpdate(uniqueWithFees)
+								.withCustom(fixedHbarFee(ONE_HBAR, TOKEN_TREASURY)),
+						getTokenInfo(uniqueWithFees).logged()
+				);
 	}
 
 	private HapiApiSpec validateNewTokenAssociations() {
