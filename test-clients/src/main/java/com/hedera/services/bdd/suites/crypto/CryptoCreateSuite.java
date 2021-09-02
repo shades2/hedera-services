@@ -36,6 +36,7 @@ import org.apache.logging.log4j.Logger;
 import java.util.List;
 import java.util.Map;
 
+import static com.hedera.services.bdd.spec.HapiApiSpec.customHapiSpec;
 import static com.hedera.services.bdd.spec.HapiApiSpec.defaultHapiSpec;
 import static com.hedera.services.bdd.spec.keys.ControlForKey.forKey;
 import static com.hedera.services.bdd.spec.keys.KeyShape.SIMPLE;
@@ -94,8 +95,8 @@ public class CryptoCreateSuite extends HapiApiSuite {
 //				syntaxChecksAreAsExpected(),
 //				xferRequiresCrypto(),
 //				usdFeeAsExpected(),
-				maxAutoAssociationSpec(),
-				checkPrice()
+				maxAutoAssociationSpec()
+//				checkPrice()
 		);
 	}
 
@@ -181,7 +182,12 @@ public class CryptoCreateSuite extends HapiApiSuite {
 		final int maxAutoAssociations = 100;
 		final int ADVENTUROUS_NETWORK = 1_000;
 		final String user = "user";
-		return defaultHapiSpec("MaxAutoAssociationSpec")
+		return customHapiSpec("MaxAutoAssociationSpec")
+				.withProperties(Map.of(
+						"nodes", "35.231.208.148",
+						"default.payer.pemKeyLoc", "/Users/anighanta/IdeaProjects/hashgraph/hedera-services/test-clients/src/main/resource/previewtestnet-account2-P1WUX2Xla2wFslpoPTN39avz.pem",
+						"default.payer.pemKeyPassphrase", "P1WUX2Xla2wFslpoPTN39avz"
+				))
 				.given(
 						fileUpdate(APP_PROPERTIES)
 								.payingWith(ADDRESS_BOOK_CONTROL)
