@@ -25,11 +25,11 @@ import com.hedera.services.legacy.core.jproto.JKey;
 import com.hedera.services.legacy.core.jproto.JKeyList;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.state.merkle.MerkleAccountTokens;
-import com.hedera.services.state.merkle.MerkleToken;
 import com.hedera.services.state.merkle.internals.CopyOnWriteIds;
 import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.state.submerkle.ExpirableTxnRecord;
 import com.hedera.test.factories.txns.SignedTxnFactory;
+import com.hedera.test.utils.TxnUtils;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
@@ -171,16 +171,18 @@ class MerkleAccountPropertyTest {
 		account.setAlreadyUsedAutomaticAssociations(origAlreadyUsedAutoAssociations);
 		// and:
 		var adminKey = TOKEN_ADMIN_KT.asJKeyUnchecked();
-		var unfrozenToken = new MerkleToken(
+		var unfrozenToken = TxnUtils.typicalToken(
 				Long.MAX_VALUE, 100, 1,
-				"UnfrozenToken", "UnfrozenTokenName", false, true,
+				"UnfrozenToken", "UnfrozenTokenName",
 				new EntityId(1, 2, 3));
+		unfrozenToken.setAccountsKycGrantedByDefault(true);
 		unfrozenToken.setFreezeKey(adminKey);
 		unfrozenToken.setKycKey(adminKey);
-		var frozenToken = new MerkleToken(
+		var frozenToken = TxnUtils.typicalToken(
 				Long.MAX_VALUE, 100, 1,
-				"FrozenToken", "FrozenTokenName", true, false,
+				"FrozenToken", "FrozenTokenName",
 				new EntityId(1, 2, 3));
+		frozenToken.setAccountsFrozenByDefault(true);
 		frozenToken.setFreezeKey(adminKey);
 		frozenToken.setKycKey(adminKey);
 

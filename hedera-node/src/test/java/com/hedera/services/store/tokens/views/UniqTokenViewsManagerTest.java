@@ -26,6 +26,7 @@ import com.hedera.services.state.merkle.MerkleUniqueToken;
 import com.hedera.services.state.merkle.MerkleUniqueTokenId;
 import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.store.tokens.views.internals.PermHashInteger;
+import com.hedera.test.utils.TxnUtils;
 import com.swirlds.common.constructable.ClassConstructorPair;
 import com.swirlds.common.constructable.ConstructableRegistry;
 import com.swirlds.common.constructable.ConstructableRegistryException;
@@ -514,14 +515,18 @@ class UniqTokenViewsManagerTest {
 	private final MerkleUniqueTokenId aOneNftId = new MerkleUniqueTokenId(aTokenId, 1L);
 	private final MerkleUniqueTokenId bOneNftId = new MerkleUniqueTokenId(bTokenId, 1L);
 	private final MerkleUniqueTokenId missingTokenNftId = new MerkleUniqueTokenId(cTokenId, 666L);
-	private final MerkleToken aToken = new MerkleToken(
+	private final MerkleToken aToken = TxnUtils.typicalToken(
 			1_234_567L, 1_234L, 1,
 			"Hi", "EVERYBODY",
-			false, true, firstOwner);
-	private final MerkleToken bToken = new MerkleToken(
+			firstOwner);
+	private final MerkleToken bToken = TxnUtils.typicalToken(
 			1_234_567L, 1_234L, 1,
 			"Bye", "YOU",
-			false, true, secondOwner);
+			secondOwner);
+	{
+		aToken.setAccountsKycGrantedByDefault(true);
+		bToken.setAccountsKycGrantedByDefault(true);
+	}
 	private byte[] someMeta = "SOMETHING".getBytes(StandardCharsets.UTF_8);
 	private byte[] otherMeta = "ELSE".getBytes(StandardCharsets.UTF_8);
 	private final MerkleUniqueToken firstOwnedANft = new MerkleUniqueToken(MISSING_ENTITY_ID, someMeta,

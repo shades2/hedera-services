@@ -190,7 +190,7 @@ public class BaseHederaLedgerTestHelper {
 
 		frozenToken = mock(MerkleToken.class);
 		given(frozenToken.freezeKey()).willReturn(Optional.of(freezeKey));
-		given(frozenToken.accountsAreFrozenByDefault()).willReturn(true);
+		given(frozenToken.frozenByDefault()).willReturn(true);
 		token = mock(MerkleToken.class);
 		given(token.freezeKey()).willReturn(Optional.empty());
 

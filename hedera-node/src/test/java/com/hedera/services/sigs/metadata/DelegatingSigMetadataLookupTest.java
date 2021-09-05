@@ -28,6 +28,7 @@ import com.hedera.services.state.merkle.MerkleToken;
 import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.store.tokens.TokenStore;
 import com.hedera.test.utils.IdUtils;
+import com.hedera.test.utils.TxnUtils;
 import com.hederahashgraph.api.proto.java.TokenID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -58,7 +59,9 @@ class DelegatingSigMetadataLookupTest {
 	void setup() {
 		freezeKey = new JEd25519Key("not-a-real-freeze-key".getBytes());
 
-		token = new MerkleToken(Long.MAX_VALUE, totalSupply, decimals, symbol, tokenName,  freezeDefault, accountsKycGrantedByDefault, treasury);
+		token = TxnUtils.typicalToken(Long.MAX_VALUE, totalSupply, decimals, symbol, tokenName,  treasury);
+		token.setAccountsFrozenByDefault(freezeDefault);
+		token.setAccountsKycGrantedByDefault(accountsKycGrantedByDefault);
 
 		tokenStore = mock(TokenStore.class);
 

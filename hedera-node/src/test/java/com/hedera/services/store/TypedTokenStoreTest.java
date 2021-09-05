@@ -44,6 +44,7 @@ import com.hedera.services.store.tokens.TokenStore;
 import com.hedera.services.store.tokens.views.UniqTokenViewsManager;
 import com.hedera.test.factories.scenarios.TxnHandlingScenario;
 import com.hedera.test.utils.IdUtils;
+import com.hedera.test.utils.TxnUtils;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.swirlds.fcmap.FCMap;
 import org.junit.jupiter.api.Assertions;
@@ -282,7 +283,7 @@ class TypedTokenStoreTest {
 		setupToken();
 		given(tokens.getForModify(any())).willReturn(merkleToken);
 
-		token.setIsDeleted(true);
+		token.setDeleted(true);
 		token.setAutoRenewAccount(null);
 
 		subject.persistToken(token);
@@ -310,11 +311,12 @@ class TypedTokenStoreTest {
 		final var mintedToken2 = new UniqueToken(tokenId, mintedSerialNo2, creationTime, Id.DEFAULT, nftMeta);
 		final var burnedToken = new UniqueToken(tokenId, burnedSerialNo, creationTime, modelTreasuryId, nftMeta);
 		// and:
-		final var expectedReplacementToken = new MerkleToken(
+		final var expectedReplacementToken = TxnUtils.typicalToken(
 				expiry, tokenSupply * 2, 0,
 				symbol, name,
-				freezeDefault, true,
 				new EntityId(0, 0, autoRenewAccountNum));
+		expectedReplacementToken.setAccountsFrozenByDefault(freezeDefault);
+		expectedReplacementToken.setAccountsKycGrantedByDefault(true);
 		expectedReplacementToken.setAutoRenewAccount(treasuryId);
 		expectedReplacementToken.setSupplyKey(supplyKey);
 		expectedReplacementToken.setFreezeKey(freezeKey);
@@ -325,11 +327,12 @@ class TypedTokenStoreTest {
 		expectedReplacementToken.setAutoRenewPeriod(autoRenewPeriod);
 
 		// and:
-		final var expectedReplacementToken2 = new MerkleToken(
+		final var expectedReplacementToken2 = TxnUtils.typicalToken(
 				expiry, tokenSupply * 4, 0,
 				symbol, name,
-				freezeDefault, true,
 				new EntityId(0, 0, treasuryAccountNum));
+		expectedReplacementToken2.setAccountsFrozenByDefault(freezeDefault);
+		expectedReplacementToken2.setAccountsKycGrantedByDefault(true);
 		expectedReplacementToken2.setAutoRenewAccount(treasuryId);
 		expectedReplacementToken2.setSupplyKey(supplyKey);
 		expectedReplacementToken2.setFreezeKey(freezeKey);
@@ -356,12 +359,12 @@ class TypedTokenStoreTest {
 		modelToken.setTreasury(autoRenewAccount);
 		modelToken.setFrozenByDefault(!freezeDefault);
 		modelToken.mintedUniqueTokens().add(mintedToken);
-		modelToken.setIsDeleted(false);
+		modelToken.setDeleted(false);
 		modelToken.setExpiry(expiry);
 		modelToken.setAutoRenewPeriod(autoRenewPeriod);
 		modelToken.removedUniqueTokens().add(wipedToken);
 		modelToken.setAutoRenewPeriod(autoRenewPeriod);
-		modelToken.setCustomFees(List.of());
+		modelToken.setFeeSchedule(List.of());
 		modelToken.setMemo(memo);
 		// and:
 		subject.persistToken(modelToken);
@@ -383,10 +386,10 @@ class TypedTokenStoreTest {
 		modelToken.setTreasury(treasuryAccount);
 		modelToken.setFrozenByDefault(!freezeDefault);
 		modelToken.mintedUniqueTokens().add(mintedToken2);
-		modelToken.setIsDeleted(false);
+		modelToken.setDeleted(false);
 		modelToken.setExpiry(expiry);
 		modelToken.removedUniqueTokens().add(burnedToken);
-		modelToken.setCustomFees(List.of());
+		modelToken.setFeeSchedule(List.of());
 		// and:
 		subject.persistToken(modelToken);
 
@@ -418,7 +421,7 @@ class TypedTokenStoreTest {
 		newToken.setWipeKey(wipeKey);
 		newToken.setAdminKey(adminKey);
 		newToken.setFeeScheduleKey(feeScheduleKey);
-		newToken.setCustomFees(List.of());
+		newToken.setFeeSchedule(List.of());
 
 		subject.persistNew(newToken);
 		verify(tokens).put(any(), any());
@@ -470,11 +473,12 @@ class TypedTokenStoreTest {
 	}
 
 	private void setupToken() {
-		merkleToken = new MerkleToken(
+		merkleToken = TxnUtils.typicalToken(
 				expiry, tokenSupply, 0,
 				symbol, name,
-				freezeDefault, true,
 				new EntityId(0, 0, treasuryAccountNum));
+		merkleToken.setAccountsFrozenByDefault(freezeDefault);
+		merkleToken.setAccountsKycGrantedByDefault(true);
 		merkleToken.setAutoRenewAccount(new EntityId(0, 0, autoRenewAccountNum));
 		merkleToken.setSupplyKey(supplyKey);
 		merkleToken.setKycKey(kycKey);
@@ -490,7 +494,7 @@ class TypedTokenStoreTest {
 		token.setFeeScheduleKey(feeScheduleKey);
 		token.setFrozenByDefault(freezeDefault);
 		token.setKycGrantedByDefault(true);
-		token.setIsDeleted(false);
+		token.setDeleted(false);
 		token.setExpiry(expiry);
 	}
 

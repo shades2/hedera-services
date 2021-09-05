@@ -105,7 +105,7 @@ public class GetTokenNftInfosAnswer implements AnswerService {
 			return TOKEN_WAS_DELETED;
 		}
 
-		if (!optionalToken.get().tokenType().equals(TokenType.NON_FUNGIBLE_UNIQUE)) {
+		if (!optionalToken.get().type().equals(TokenType.NON_FUNGIBLE_UNIQUE)) {
 			return NOT_SUPPORTED;
 		}
 

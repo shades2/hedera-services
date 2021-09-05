@@ -210,8 +210,8 @@ public class HederLedgerTokensTest extends BaseHederaLedgerTestHelper {
 										.setAccountID(IdUtils.asAccount("0.0.3"))));
 		// and:
 		given(tokenStore.get(tokenId)).willReturn(token);
-		given(tokenStore.get(frozenId).tokenType()).willReturn(TokenType.FUNGIBLE_COMMON);
-		given(tokenStore.get(tokenId).tokenType()).willReturn(TokenType.FUNGIBLE_COMMON);
+		given(tokenStore.get(frozenId).type()).willReturn(TokenType.FUNGIBLE_COMMON);
+		given(tokenStore.get(tokenId).type()).willReturn(TokenType.FUNGIBLE_COMMON);
 		given(nftsLedger.isInTransaction()).willReturn(true);
 		given(manager.isInTransaction()).willReturn(true);
 

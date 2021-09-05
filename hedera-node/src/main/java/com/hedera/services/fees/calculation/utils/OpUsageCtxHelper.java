@@ -56,7 +56,7 @@ public class OpUsageCtxHelper {
 		if (token == null) {
 			return MISSING_FEE_SCHEDULE_UPDATE_CTX;
 		}
-		return new ExtantFeeScheduleContext(token.expiry(), curFeeScheduleReprSize(token.customFeeSchedule()));
+		return new ExtantFeeScheduleContext(token.expiry(), curFeeScheduleReprSize(token.feeSchedule()));
 	}
 
 	private int curFeeScheduleReprSize(List<FcCustomFee> feeSchedule) {

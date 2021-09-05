@@ -20,25 +20,27 @@ package com.hedera.services.sigs.metadata;
  * ‍
  */
 
-import com.hedera.services.state.merkle.MerkleToken;
 import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.state.submerkle.FcCustomFee;
 import com.hedera.services.state.submerkle.FixedFeeSpec;
+import com.hedera.test.utils.TxnUtils;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
 import static com.hedera.services.state.enums.TokenType.NON_FUNGIBLE_UNIQUE;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TokenSigningMetadataTest {
 	@Test
 	void classifiesRoyaltyWithFallback() {
 		// setup:
 		final var treasury = new EntityId(1, 2, 4);
-		var royaltyFeeWithFallbackToken = new MerkleToken(
+		var royaltyFeeWithFallbackToken = TxnUtils.typicalToken(
 				Long.MAX_VALUE, 100, 1,
-				"ZPHYR", "West Wind Art", false, true,
+				"ZPHYR", "West Wind Art",
 				treasury);
 		royaltyFeeWithFallbackToken.setTokenType(NON_FUNGIBLE_UNIQUE);
 		royaltyFeeWithFallbackToken.setFeeSchedule(List.of(
@@ -59,9 +61,9 @@ class TokenSigningMetadataTest {
 	void classifiesRoyaltyWithNoFallback() {
 		// setup:
 		final var treasury = new EntityId(1, 2, 4);
-		var royaltyFeeNoFallbackToken = new MerkleToken(
+		var royaltyFeeNoFallbackToken = TxnUtils.typicalToken(
 				Long.MAX_VALUE, 100, 1,
-				"ZPHYR", "West Wind Art", false, true,
+				"ZPHYR", "West Wind Art",
 				treasury);
 		royaltyFeeNoFallbackToken.setTokenType(NON_FUNGIBLE_UNIQUE);
 		royaltyFeeNoFallbackToken.setFeeSchedule(List.of(

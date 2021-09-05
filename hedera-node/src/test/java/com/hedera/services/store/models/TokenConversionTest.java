@@ -27,6 +27,7 @@ import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.state.submerkle.RichInstant;
 import com.hedera.services.store.AccountStore;
 import com.hedera.test.factories.scenarios.TxnHandlingScenario;
+import com.hedera.test.utils.TxnUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -84,11 +85,12 @@ class TokenConversionTest {
 		given(accountStore.loadAccount(autoRenewId)).willReturn(autoRenewAccount);
 	}
 	private void setupToken() {
-		merkleToken = new MerkleToken(
+		merkleToken = TxnUtils.typicalToken(
 				expiry, tokenSupply, 0,
 				symbol, name,
-				freezeDefault, kycGrantedDefault,
 				new EntityId(0, 0, treasuryAccountNum));
+		merkleToken.setAccountsFrozenByDefault(freezeDefault);
+		merkleToken.setAccountsKycGrantedByDefault(kycGrantedDefault);
 		merkleToken.setAutoRenewAccount(new EntityId(0, 0, autoRenewAccountNum));
 		merkleToken.setSupplyKey(supplyKey);
 		merkleToken.setKycKey(kycKey);
@@ -113,7 +115,7 @@ class TokenConversionTest {
 		token.setFeeScheduleKey(feeScheduleKey);
 		token.setFrozenByDefault(freezeDefault);
 		token.setKycGrantedByDefault(kycGrantedDefault);
-		token.setIsDeleted(false);
+		token.setDeleted(false);
 		token.setExpiry(expiry);
 		token.setAutoRenewPeriod(autoRenewPeriod);
 

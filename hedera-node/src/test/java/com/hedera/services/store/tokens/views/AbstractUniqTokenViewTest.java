@@ -28,6 +28,7 @@ import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.state.submerkle.RichInstant;
 import com.hedera.services.store.tokens.views.internals.PermHashInteger;
 import com.hedera.services.store.tokens.views.utils.GrpcUtils;
+import com.hedera.test.utils.TxnUtils;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TokenNftInfo;
@@ -145,8 +146,11 @@ class AbstractUniqTokenViewTest {
 	private final MerkleUniqueToken wildcardNft = new MerkleUniqueToken(MISSING_ENTITY_ID, wildMeta, someCreationTime);
 	private final MerkleUniqueTokenId someExplicitNftId = new MerkleUniqueTokenId(tokenId, someSerial);
 	private final MerkleUniqueTokenId wildcardNftId = new MerkleUniqueTokenId(tokenId, wildcardSerial);
-	private final MerkleToken someToken = new MerkleToken(
+	private final MerkleToken someToken = TxnUtils.typicalToken(
 			1_234_567L, 1, 2,
 			"THREE", "Four",
-			true, false, treasuryId);
+			treasuryId);
+	{
+		someToken.setAccountsFrozenByDefault(true);
+	}
 }

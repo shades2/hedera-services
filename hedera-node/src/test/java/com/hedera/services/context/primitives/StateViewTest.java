@@ -53,6 +53,7 @@ import com.hedera.test.factories.accounts.MerkleAccountFactory;
 import com.hedera.test.factories.fees.CustomFeeBuilder;
 import com.hedera.test.factories.scenarios.TxnHandlingScenario;
 import com.hedera.test.utils.IdUtils;
+import com.hedera.test.utils.TxnUtils;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.CryptoGetInfoResponse;
@@ -255,10 +256,12 @@ class StateViewTest {
 				new MerkleTokenRelStatus(123L, false, true, false));
 
 		tokenStore = mock(TokenStore.class);
-		token = new MerkleToken(
+		token = TxnUtils.typicalToken(
 				Long.MAX_VALUE, 100, 1,
-				"UnfrozenToken", "UnfrozenTokenName", true, true,
+				"UnfrozenToken", "UnfrozenTokenName",
 				new EntityId(0, 0, 3));
+		token.setAccountsFrozenByDefault(true);
+		token.setAccountsKycGrantedByDefault(true);
 		token.setMemo(tokenMemo);
 		token.setAdminKey(TxnHandlingScenario.TOKEN_ADMIN_KT.asJKey());
 		token.setFreezeKey(TxnHandlingScenario.TOKEN_FREEZE_KT.asJKey());
@@ -475,7 +478,7 @@ class StateViewTest {
 	@Test
 	void getsTokenInfoMinusFreezeIfMissing() {
 		// setup:
-		token.setFreezeKey(MerkleToken.UNUSED_KEY);
+		token.setFreezeKey(null);
 
 		// when:
 		var info = subject.infoForToken(tokenId).get();

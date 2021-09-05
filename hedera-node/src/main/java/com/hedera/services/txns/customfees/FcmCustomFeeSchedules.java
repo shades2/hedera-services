@@ -51,7 +51,7 @@ public class FcmCustomFeeSchedules implements CustomFeeSchedules {
 			return CustomFeeMeta.MISSING_META;
 		}
 		final var merkleToken = currentTokens.get(tokenId.asMerkle());
-		return new CustomFeeMeta(tokenId, merkleToken.treasury().asId(), merkleToken.customFeeSchedule());
+		return new CustomFeeMeta(tokenId, merkleToken.treasury().asId(), merkleToken.feeSchedule());
 	}
 
 	public Supplier<FCMap<MerkleEntityId, MerkleToken>> getTokens() {

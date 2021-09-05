@@ -33,6 +33,7 @@ import com.hedera.services.state.merkle.MerkleTokenRelStatus;
 import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.store.tokens.TokenStore;
 import com.hedera.test.factories.accounts.MerkleAccountFactory;
+import com.hedera.test.utils.TxnUtils;
 import com.hederahashgraph.api.proto.java.AccountAmount;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.TokenID;
@@ -93,14 +94,14 @@ class RenewalHelperTest {
 	private final EntityId expiredTreasuryId = new EntityId(0, 0, brokeExpiredAccountNum);
 	private final EntityId treasuryId = new EntityId(0, 0, 666L);
 	private final AccountID treasuryGrpcId = treasuryId.toGrpcAccountId();
-	private final MerkleToken deletedToken = new MerkleToken(
+	private final MerkleToken deletedToken = TxnUtils.typicalToken(
 			Long.MAX_VALUE, 1L, 0,
 			"GONE", "Long lost dream",
-			true, true, expiredTreasuryId);
-	private final MerkleToken longLivedToken = new MerkleToken(
+			expiredTreasuryId);
+	private final MerkleToken longLivedToken = TxnUtils.typicalToken(
 			Long.MAX_VALUE, 1L, 0,
 			"HERE", "Dreams never die",
-			true, true, treasuryId);
+			treasuryId);
 	private final long deletedTokenNum = 1234L, survivedTokenNum = 4321L;
 	private final MerkleEntityId deletedTokenId = new MerkleEntityId(0, 0, deletedTokenNum);
 	private final MerkleEntityId survivedTokenId = new MerkleEntityId(0, 0, survivedTokenNum);

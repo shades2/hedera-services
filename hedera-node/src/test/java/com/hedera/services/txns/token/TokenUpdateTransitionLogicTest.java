@@ -112,7 +112,7 @@ class TokenUpdateTransitionLogicTest {
 		given(token.treasury()).willReturn(EntityId.fromGrpcAccountId(oldTreasury));
 		given(token.autoRenewAccount()).willReturn(EntityId.fromGrpcAccountId(oldAutoRenew));
 		given(token.hasAutoRenewAccount()).willReturn(true);
-		given(token.tokenType()).willReturn(TokenType.FUNGIBLE_COMMON);
+		given(token.type()).willReturn(TokenType.FUNGIBLE_COMMON);
 		given(store.resolve(target)).willReturn(target);
 		given(store.get(target)).willReturn(token);
 		given(store.associationExists(newTreasury, target)).willReturn(true);
@@ -419,7 +419,7 @@ class TokenUpdateTransitionLogicTest {
 		long oldTreasuryBalance = 1;
 		givenValidTxnCtx(true);
 		givenToken(true, true);
-		given(token.tokenType()).willReturn(TokenType.NON_FUNGIBLE_UNIQUE);
+		given(token.type()).willReturn(TokenType.NON_FUNGIBLE_UNIQUE);
 		// and:
 		given(ledger.unfreeze(newTreasury, target)).willReturn(OK);
 		given(ledger.grantKyc(newTreasury, target)).willReturn(OK);
@@ -602,9 +602,9 @@ class TokenUpdateTransitionLogicTest {
 		given(token.hasKycKey()).willReturn(hasKyc);
 		given(token.hasFreezeKey()).willReturn(hasFreeze);
 		if (isUnique) {
-			given(token.tokenType()).willReturn(TokenType.NON_FUNGIBLE_UNIQUE);
+			given(token.type()).willReturn(TokenType.NON_FUNGIBLE_UNIQUE);
 		} else {
-			given(token.tokenType()).willReturn(TokenType.FUNGIBLE_COMMON);
+			given(token.type()).willReturn(TokenType.FUNGIBLE_COMMON);
 		}
 	}
 

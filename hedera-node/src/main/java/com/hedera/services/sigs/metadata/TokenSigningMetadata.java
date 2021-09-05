@@ -62,7 +62,7 @@ public class TokenSigningMetadata {
 
 	public static TokenSigningMetadata from(MerkleToken token) {
 		boolean hasRoyaltyWithFallback = false;
-		final var customFees = token.customFeeSchedule();
+		final var customFees = token.feeSchedule();
 		if (!customFees.isEmpty()) {
 			for (var fee : customFees) {
 				if (fee.getFeeType() != FcCustomFee.FeeType.ROYALTY_FEE) {

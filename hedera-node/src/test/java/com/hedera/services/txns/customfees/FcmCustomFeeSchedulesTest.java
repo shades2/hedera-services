@@ -74,9 +74,9 @@ class FcmCustomFeeSchedulesTest {
 		final var missingTokenFees = subject.lookupMetaFor(missingToken.asId());
 
 		// expect:
-		assertEquals(aToken.customFeeSchedule(), tokenAFees.getCustomFees());
+		assertEquals(aToken.feeSchedule(), tokenAFees.getCustomFees());
 		assertEquals(aTreasury, tokenAFees.getTreasuryId().asEntityId());
-		assertEquals(bToken.customFeeSchedule(), tokenBFees.getCustomFees());
+		assertEquals(bToken.feeSchedule(), tokenBFees.getCustomFees());
 		assertEquals(bTreasury, tokenBFees.getTreasuryId().asEntityId());
 		assertSame(Collections.emptyList(), missingTokenFees.getCustomFees());
 	}

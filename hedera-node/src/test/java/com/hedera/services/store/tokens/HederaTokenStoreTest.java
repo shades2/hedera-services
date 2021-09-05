@@ -30,7 +30,6 @@ import com.hedera.services.ledger.properties.NftProperty;
 import com.hedera.services.ledger.properties.TokenRelProperty;
 import com.hedera.services.legacy.core.jproto.JKey;
 import com.hedera.services.sigs.utils.ImmutableKeyUtils;
-import com.hedera.services.state.enums.TokenSupplyType;
 import com.hedera.services.state.enums.TokenType;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.state.merkle.MerkleAccountTokens;
@@ -106,7 +105,6 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CUSTOM_FEE_NOT
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CUSTOM_FRACTIONAL_FEE_ONLY_ALLOWED_FOR_FUNGIBLE_COMMON;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CUSTOM_ROYALTY_FEE_ONLY_ALLOWED_FOR_NON_FUNGIBLE_UNIQUE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CUSTOM_SCHEDULE_ALREADY_HAS_NO_FEES;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.FAIL_INVALID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.FRACTIONAL_FEE_MAX_AMOUNT_LESS_THAN_MIN_AMOUNT;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.FRACTION_DIVIDES_BY_ZERO;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INSUFFICIENT_TOKEN_BALANCE;
@@ -276,11 +274,11 @@ class HederaTokenStoreTest {
 		given(token.hasAdminKey()).willReturn(true);
 		given(token.hasFeeScheduleKey()).willReturn(true);
 		given(token.treasury()).willReturn(EntityId.fromGrpcAccountId(treasury));
-		given(token.tokenType()).willReturn(TokenType.FUNGIBLE_COMMON);
+		given(token.type()).willReturn(TokenType.FUNGIBLE_COMMON);
 
 		nonfungibleToken = mock(MerkleToken.class);
 		given(nonfungibleToken.hasAdminKey()).willReturn(true);
-		given(nonfungibleToken.tokenType()).willReturn(TokenType.NON_FUNGIBLE_UNIQUE);
+		given(nonfungibleToken.type()).willReturn(TokenType.NON_FUNGIBLE_UNIQUE);
 
 		ids = mock(EntityIdSource.class);
 		given(ids.newTokenId(sponsor)).willReturn(created);
@@ -568,7 +566,7 @@ class HederaTokenStoreTest {
 		given(hederaLedger.alreadyUsedAutomaticAssociations(sponsor)).willReturn(alreadyUsedAutoAssocitaions);
 		given(token.hasKycKey()).willReturn(true);
 		given(token.hasFreezeKey()).willReturn(true);
-		given(token.accountsAreFrozenByDefault()).willReturn(true);
+		given(token.frozenByDefault()).willReturn(true);
 
 		final var status = subject.associate(sponsor, List.of(misc), true);
 
@@ -1082,7 +1080,7 @@ class HederaTokenStoreTest {
 		final var outcome = subject.update(op, CONSENSUS_NOW);
 
 		assertEquals(OK, outcome);
-		verify(token).setAdminKey(MerkleToken.UNUSED_KEY);
+		verify(token).setAdminKey(null);
 	}
 
 	@Test
@@ -1136,7 +1134,7 @@ class HederaTokenStoreTest {
 
 	@Test
 	void updateHappyPathWorksWithNewMemoForNonfungible() {
-		given(token.tokenType()).willReturn(TokenType.NON_FUNGIBLE_UNIQUE);
+		given(token.type()).willReturn(TokenType.NON_FUNGIBLE_UNIQUE);
 		subject.addKnownTreasury(treasury, misc);
 		givenUpdateTarget(ALL_KEYS, token);
 		final var op = updateWith(NO_KEYS,
@@ -1343,7 +1341,7 @@ class HederaTokenStoreTest {
 
 	private void givenTokenWithFreezeKey(boolean freezeDefault) {
 		given(token.freezeKey()).willReturn(Optional.of(TOKEN_TREASURY_KT.asJKeyUnchecked()));
-		given(token.accountsAreFrozenByDefault()).willReturn(freezeDefault);
+		given(token.frozenByDefault()).willReturn(freezeDefault);
 	}
 
 	@Test
@@ -1357,7 +1355,7 @@ class HederaTokenStoreTest {
 
 	@Test
 	void adjustingRejectsFungibleUniqueToken() {
-		given(token.tokenType()).willReturn(TokenType.NON_FUNGIBLE_UNIQUE);
+		given(token.type()).willReturn(TokenType.NON_FUNGIBLE_UNIQUE);
 
 		final var status = subject.adjustBalance(treasury, misc, 1);
 
@@ -1495,33 +1493,6 @@ class HederaTokenStoreTest {
 				.addAllCustomFees(grpcCustomFees);
 	}
 
-	private MerkleToken buildFullyValidExpectedToken() {
-		final var expected = new MerkleToken(
-				CONSENSUS_NOW + autoRenewPeriod,
-				totalSupply,
-				decimals,
-				symbol,
-				name,
-				freezeDefault,
-				accountsKycGrantedByDefault,
-				new EntityId(treasury.getShardNum(), treasury.getRealmNum(), treasury.getAccountNum()));
-
-		expected.setAutoRenewAccount(EntityId.fromGrpcAccountId(autoRenewAccount));
-		expected.setAutoRenewPeriod(autoRenewPeriod);
-		expected.setAdminKey(TOKEN_ADMIN_KT.asJKeyUnchecked());
-		expected.setFreezeKey(TOKEN_FREEZE_KT.asJKeyUnchecked());
-		expected.setKycKey(TOKEN_KYC_KT.asJKeyUnchecked());
-		expected.setWipeKey(MISC_ACCOUNT_KT.asJKeyUnchecked());
-		expected.setSupplyKey(COMPLEX_KEY_ACCOUNT_KT.asJKeyUnchecked());
-		expected.setFeeScheduleKey(TOKEN_FEE_SCHEDULE_KT.asJKeyUnchecked());
-		expected.setTokenType(TokenType.FUNGIBLE_COMMON);
-		expected.setSupplyType(TokenSupplyType.INFINITE);
-		expected.setMemo(memo);
-		expected.setFeeScheduleFrom(grpcCustomFees, EntityId.fromGrpcTokenId(created));
-
-		return expected;
-	}
-
 	private Duration enduring(final long secs) {
 		return Duration.newBuilder().setSeconds(secs).build();
 	}
@@ -1595,7 +1566,7 @@ class HederaTokenStoreTest {
 
 	@Test
 	void cannotUseFractionalFeeWithNonfungibleUpdateTarget() {
-		given(token.tokenType()).willReturn(TokenType.NON_FUNGIBLE_UNIQUE);
+		given(token.type()).willReturn(TokenType.NON_FUNGIBLE_UNIQUE);
 		final var op = updateFeeScheduleWithOnlyFractional();
 
 		final var result = subject.updateFeeSchedule(op);
@@ -1605,7 +1576,7 @@ class HederaTokenStoreTest {
 
 	@Test
 	void cannotUseRoyaltyFeeWithFungibleCommonUpdateTarget() {
-		given(token.tokenType()).willReturn(TokenType.FUNGIBLE_COMMON);
+		given(token.type()).willReturn(TokenType.FUNGIBLE_COMMON);
 		final var op = updateFeeScheduleWithOnlyRoyaltyHtsFallback();
 
 		final var result = subject.updateFeeSchedule(op);
@@ -1615,7 +1586,7 @@ class HederaTokenStoreTest {
 
 	@Test
 	void canUseRoyaltyFeeWithNoFallBackFees() {
-		given(token.tokenType())
+		given(token.type())
 				.willReturn(TokenType.NON_FUNGIBLE_UNIQUE)
 				.willReturn(TokenType.FUNGIBLE_COMMON);
 		final var op = updateFeeScheduleWithRoyaltyHtsNoFallback();
@@ -1628,7 +1599,7 @@ class HederaTokenStoreTest {
 
 	@Test
 	void cannotUseRoyaltyFeeWithZeroDivFraction() {
-		given(token.tokenType()).willReturn(TokenType.NON_FUNGIBLE_UNIQUE);
+		given(token.type()).willReturn(TokenType.NON_FUNGIBLE_UNIQUE);
 		final var op = updateFeeScheduleWithOnlyRoyaltyHtsFallbackZeroDiv();
 
 		final var result = subject.updateFeeSchedule(op);
@@ -1638,7 +1609,7 @@ class HederaTokenStoreTest {
 
 	@Test
 	void cannotUseRoyaltyFeeWithInvalidFraction() {
-		given(token.tokenType()).willReturn(TokenType.NON_FUNGIBLE_UNIQUE);
+		given(token.type()).willReturn(TokenType.NON_FUNGIBLE_UNIQUE);
 		final var op = updateFeeScheduleWithOnlyRoyaltyHtsFallbackInvalidFraction();
 
 		final var result = subject.updateFeeSchedule(op);
@@ -1648,7 +1619,7 @@ class HederaTokenStoreTest {
 
 	@Test
 	void cannotUseNegativeAmountInCustomFee() {
-		given(token.tokenType()).willReturn(TokenType.FUNGIBLE_COMMON);
+		given(token.type()).willReturn(TokenType.FUNGIBLE_COMMON);
 		final var op = updateFeeScheduleWithNegativeValue();
 
 		final var result = subject.updateFeeSchedule(op);
@@ -1658,7 +1629,7 @@ class HederaTokenStoreTest {
 
 	@Test
 	void cannotUseFixedCustomFeeWithMissingToken() {
-		given(token.tokenType()).willReturn(TokenType.FUNGIBLE_COMMON);
+		given(token.type()).willReturn(TokenType.FUNGIBLE_COMMON);
 		final var op = updateFeeScheduleWithFixedFeeMissingToken();
 
 		final var result = subject.updateFeeSchedule(op);
@@ -1668,7 +1639,7 @@ class HederaTokenStoreTest {
 
 	@Test
 	void cannotUseFixedCustomFeeWithNftTokenAsDenom() {
-		given(token.tokenType()).willReturn(TokenType.NON_FUNGIBLE_UNIQUE);
+		given(token.type()).willReturn(TokenType.NON_FUNGIBLE_UNIQUE);
 		given(tokens.get(fromTokenId(nonfungible))).willReturn(token);
 		final var op = updateFeeScheduleWithFixedFeeNftToken();
 
@@ -1679,7 +1650,7 @@ class HederaTokenStoreTest {
 
 	@Test
 	void cannotUseFixedCustomFeeWithNonAssociatedTokenToCollector() {
-		given(token.tokenType()).willReturn(TokenType.FUNGIBLE_COMMON);
+		given(token.type()).willReturn(TokenType.FUNGIBLE_COMMON);
 		given(tokenRelsLedger.exists(anotherFeeCollectorMisc)).willReturn(false);
 		final var op = updateFeeScheduleWithFixedHtsFee();
 
@@ -1690,7 +1661,7 @@ class HederaTokenStoreTest {
 
 	@Test
 	void cannotUseNegativeAmountInCustomFractionalFee() {
-		given(token.tokenType()).willReturn(TokenType.FUNGIBLE_COMMON);
+		given(token.type()).willReturn(TokenType.FUNGIBLE_COMMON);
 		final var op = updateFeeScheduleWithNegativeFractionalFee();
 
 		final var result = subject.updateFeeSchedule(op);
@@ -1700,7 +1671,7 @@ class HederaTokenStoreTest {
 
 	@Test
 	void cannotUseInvalidZeroDivisionInCustomFractionalFee() {
-		given(token.tokenType()).willReturn(TokenType.FUNGIBLE_COMMON);
+		given(token.type()).willReturn(TokenType.FUNGIBLE_COMMON);
 		final var op = updateFeeScheduleWithZeroDivisonFractionalFee();
 
 		final var result = subject.updateFeeSchedule(op);
@@ -1710,7 +1681,7 @@ class HederaTokenStoreTest {
 
 	@Test
 	void cannotUseNegativeMinInCustomFractionalFee() {
-		given(token.tokenType()).willReturn(TokenType.FUNGIBLE_COMMON);
+		given(token.type()).willReturn(TokenType.FUNGIBLE_COMMON);
 		final var op = updateFeeScheduleWithNegativeMinInFractionalFee();
 
 		final var result = subject.updateFeeSchedule(op);
@@ -1720,7 +1691,7 @@ class HederaTokenStoreTest {
 
 	@Test
 	void cannotUseGreaterMinInCustomFractionalFee() {
-		given(token.tokenType()).willReturn(TokenType.FUNGIBLE_COMMON);
+		given(token.type()).willReturn(TokenType.FUNGIBLE_COMMON);
 		final var op = updateFeeScheduleWithGreaterMinInFractionalFee();
 
 		final var result = subject.updateFeeSchedule(op);
@@ -1740,7 +1711,7 @@ class HederaTokenStoreTest {
 
 	@Test
 	void happyPathCustomRoyaltyFeesUpdated() {
-		given(token.tokenType())
+		given(token.type())
 				.willReturn(TokenType.NON_FUNGIBLE_UNIQUE)
 				.willReturn(TokenType.FUNGIBLE_COMMON);
 		final var op = updateFeeScheduleWithOnlyRoyaltyHtsFallback();

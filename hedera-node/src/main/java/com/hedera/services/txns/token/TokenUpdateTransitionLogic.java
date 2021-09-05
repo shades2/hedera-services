@@ -143,7 +143,7 @@ public class TokenUpdateTransitionLogic implements TransitionLogic {
 				return;
 			}
 			var existingTreasury = token.treasury().toGrpcAccountId();
-			if (!allowChangedTreasuryToOwnNfts && token.tokenType() == NON_FUNGIBLE_UNIQUE) {
+			if (!allowChangedTreasuryToOwnNfts && token.type() == NON_FUNGIBLE_UNIQUE) {
 				var existingTreasuryBalance = ledger.getTokenBalance(existingTreasury, id);
 				if (existingTreasuryBalance > 0L) {
 					abortWith(CURRENT_TREASURY_STILL_OWNS_NFTS);
@@ -169,7 +169,7 @@ public class TokenUpdateTransitionLogic implements TransitionLogic {
 			final var oldTreasury = replacedTreasury.get();
 			long replacedTreasuryBalance = ledger.getTokenBalance(oldTreasury, id);
 			if (replacedTreasuryBalance > 0) {
-				if (token.tokenType().equals(TokenType.FUNGIBLE_COMMON)) {
+				if (token.type().equals(TokenType.FUNGIBLE_COMMON)) {
 					outcome = ledger.doTokenTransfer(
 							id,
 							oldTreasury,

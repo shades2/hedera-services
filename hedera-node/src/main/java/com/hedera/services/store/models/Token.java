@@ -170,7 +170,7 @@ public class Token {
 		token.setName(op.getName());
 		token.setFrozenByDefault(op.getFreezeDefault());
 		token.setKycGrantedByDefault(!op.hasKycKey());
-		token.setCustomFees(customFees);
+		token.setFeeSchedule(customFees);
 
 		token.setNew(true);
 		return token;
@@ -326,7 +326,7 @@ public class Token {
 	public void delete() {
 		validateTrue(hasAdminKey(), TOKEN_IS_IMMUTABLE);
 
-		setIsDeleted(true);
+		setDeleted(true);
 	}
 
 	public boolean hasAdminKey() {
@@ -443,6 +443,14 @@ public class Token {
 		return maxSupply;
 	}
 
+	public void setMaxSupply(long maxSupply) {
+		this.maxSupply = maxSupply;
+	}
+
+	public void setSupplyType(TokenSupplyType supplyType) {
+		this.supplyType = supplyType;
+	}
+
 	public void setSupplyKey(final JKey supplyKey) {
 		this.supplyKey = supplyKey;
 	}
@@ -540,7 +548,7 @@ public class Token {
 		return deleted;
 	}
 
-	public void setIsDeleted(final boolean deleted) {
+	public void setDeleted(final boolean deleted) {
 		this.deleted = deleted;
 	}
 
@@ -603,7 +611,6 @@ public class Token {
 	public TokenSupplyType getSupplyType() {
 		return supplyType;
 	}
-
 
 	public String getName() {
 		return name;
@@ -684,7 +691,7 @@ public class Token {
 		return customFees.stream().map(CustomFee::toMerkle).collect(Collectors.toList());
 	}
 
-	public void setCustomFees(final List<CustomFee> customFees) {
+	public void setFeeSchedule(final List<CustomFee> customFees) {
 		this.customFees = customFees;
 	}
 }

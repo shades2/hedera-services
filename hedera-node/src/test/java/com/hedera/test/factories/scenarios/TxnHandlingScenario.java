@@ -26,7 +26,6 @@ import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.state.merkle.MerkleEntityId;
 import com.hedera.services.state.merkle.MerkleSchedule;
 import com.hedera.services.state.merkle.MerkleScheduleTest;
-import com.hedera.services.state.merkle.MerkleToken;
 import com.hedera.services.state.merkle.MerkleTopic;
 import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.state.submerkle.FcCustomFee;
@@ -38,6 +37,7 @@ import com.hedera.services.utils.PlatformTxnAccessor;
 import com.hedera.test.factories.keys.KeyFactory;
 import com.hedera.test.factories.keys.KeyTree;
 import com.hedera.test.factories.keys.OverlappingKeyGenerator;
+import com.hedera.test.utils.TxnUtils;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.Duration;
@@ -73,6 +73,7 @@ import static com.hedera.test.utils.IdUtils.asFile;
 import static com.hedera.test.utils.IdUtils.asSchedule;
 import static com.hedera.test.utils.IdUtils.asToken;
 import static com.hedera.test.utils.IdUtils.asTopic;
+import static com.hedera.test.utils.TxnUtils.typicalToken;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
@@ -202,56 +203,60 @@ public interface TxnHandlingScenario {
 		var optionalFreezeKey = TOKEN_FREEZE_KT.asJKeyUnchecked();
 		var optionalFeeScheduleKey = TOKEN_FEE_SCHEDULE_KT.asJKeyUnchecked();
 
-		var immutableToken = new MerkleToken(
+		var immutableToken = typicalToken(
 				Long.MAX_VALUE, 100, 1,
-				"ImmutableToken", "ImmutableTokenName", false, false,
+				"ImmutableToken", "ImmutableTokenName",
 				new EntityId(1, 2, 3));
 		given(tokenStore.resolve(KNOWN_TOKEN_IMMUTABLE))
 				.willReturn(KNOWN_TOKEN_IMMUTABLE);
 		given(tokenStore.get(KNOWN_TOKEN_IMMUTABLE)).willReturn(immutableToken);
 
-		var vanillaToken = new MerkleToken(
+		var vanillaToken = typicalToken(
 				Long.MAX_VALUE, 100, 1,
-				"VanillaToken", "TOKENNAME", false, false,
+				"VanillaToken", "TOKENNAME",
 				new EntityId(1, 2, 3));
 		vanillaToken.setAdminKey(adminKey);
 		given(tokenStore.resolve(KNOWN_TOKEN_NO_SPECIAL_KEYS))
 				.willReturn(KNOWN_TOKEN_NO_SPECIAL_KEYS);
 		given(tokenStore.get(KNOWN_TOKEN_NO_SPECIAL_KEYS)).willReturn(vanillaToken);
 
-		var frozenToken = new MerkleToken(
+		var frozenToken = typicalToken(
 				Long.MAX_VALUE, 100, 1,
-				"FrozenToken", "FRZNTKN", true, false,
+				"FrozenToken", "FRZNTKN",
 				new EntityId(1, 2, 4));
+		frozenToken.setAccountsFrozenByDefault(true);
 		frozenToken.setAdminKey(adminKey);
 		frozenToken.setFreezeKey(optionalFreezeKey);
 		given(tokenStore.resolve(KNOWN_TOKEN_WITH_FREEZE))
 				.willReturn(KNOWN_TOKEN_WITH_FREEZE);
 		given(tokenStore.get(KNOWN_TOKEN_WITH_FREEZE)).willReturn(frozenToken);
 
-		var kycToken = new MerkleToken(
+		var kycToken = typicalToken(
 				Long.MAX_VALUE, 100, 1,
-				"KycToken", "KYCTOKENNAME", false, true,
+				"KycToken", "KYCTOKENNAME",
 				new EntityId(1, 2, 4));
+		kycToken.setAccountsKycGrantedByDefault(true);
 		kycToken.setAdminKey(adminKey);
 		kycToken.setKycKey(optionalKycKey);
 		given(tokenStore.resolve(KNOWN_TOKEN_WITH_KYC))
 				.willReturn(KNOWN_TOKEN_WITH_KYC);
 		given(tokenStore.get(KNOWN_TOKEN_WITH_KYC)).willReturn(kycToken);
 
-		var feeScheduleToken = new MerkleToken(
+		var feeScheduleToken = TxnUtils.typicalToken(
 				Long.MAX_VALUE, 100, 1,
-				"FsToken", "FEE_SCHEDULETOKENNAME", false, true,
+				"FsToken", "FEE_SCHEDULETOKENNAME",
 				new EntityId(1, 2, 4));
+		feeScheduleToken.setAccountsKycGrantedByDefault(true);
 		feeScheduleToken.setFeeScheduleKey(optionalFeeScheduleKey);
 		given(tokenStore.resolve(KNOWN_TOKEN_WITH_FEE_SCHEDULE_KEY))
 				.willReturn(KNOWN_TOKEN_WITH_FEE_SCHEDULE_KEY);
 		given(tokenStore.get(KNOWN_TOKEN_WITH_FEE_SCHEDULE_KEY)).willReturn(feeScheduleToken);
 
-		var royaltyFeeWithFallbackToken = new MerkleToken(
+		var royaltyFeeWithFallbackToken = typicalToken(
 				Long.MAX_VALUE, 100, 1,
-				"ZPHYR", "West Wind Art", false, true,
+				"ZPHYR", "West Wind Art",
 				EntityId.fromGrpcAccountId(MISC_ACCOUNT));
+		royaltyFeeWithFallbackToken.setAccountsKycGrantedByDefault(true);
 		royaltyFeeWithFallbackToken.setFeeScheduleKey(optionalFeeScheduleKey);
 		royaltyFeeWithFallbackToken.setTokenType(NON_FUNGIBLE_UNIQUE);
 		royaltyFeeWithFallbackToken.setFeeSchedule(List.of(
@@ -264,9 +269,9 @@ public interface TxnHandlingScenario {
 		given(tokenStore.get(KNOWN_TOKEN_WITH_ROYALTY_FEE_AND_FALLBACK))
 				.willReturn(royaltyFeeWithFallbackToken);
 
-		var supplyToken = new MerkleToken(
+		var supplyToken = typicalToken(
 				Long.MAX_VALUE, 100, 1,
-				"SupplyToken", "SUPPLYTOKENNAME", false, false,
+				"SupplyToken", "SUPPLYTOKENNAME",
 				new EntityId(1, 2, 4));
 		supplyToken.setAdminKey(adminKey);
 		supplyToken.setSupplyKey(optionalSupplyKey);
@@ -274,9 +279,9 @@ public interface TxnHandlingScenario {
 				.willReturn(KNOWN_TOKEN_WITH_SUPPLY);
 		given(tokenStore.get(KNOWN_TOKEN_WITH_SUPPLY)).willReturn(supplyToken);
 
-		var wipeToken = new MerkleToken(
+		var wipeToken = typicalToken(
 				Long.MAX_VALUE, 100, 1,
-				"WipeToken", "WIPETOKENNAME", false, false,
+				"WipeToken", "WIPETOKENNAME",
 				new EntityId(1, 2, 4));
 		wipeToken.setAdminKey(adminKey);
 		wipeToken.setWipeKey(optionalWipeKey);

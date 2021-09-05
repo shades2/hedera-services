@@ -108,9 +108,10 @@ public class StateView {
 	static final FCOneToManyRelation<?, ?> EMPTY_FCOTMR = new FCOneToManyRelation<>();
 
 	public static final JKey EMPTY_WACL = new JKeyList();
-	public static final MerkleToken REMOVED_TOKEN = new MerkleToken(
-			0L, 0L, 0, "", "",
-			false, false, MISSING_ENTITY_ID);
+	public static final MerkleToken REMOVED_TOKEN = new MerkleToken();
+	static {
+		REMOVED_TOKEN.setTreasury(MISSING_ENTITY_ID);
+	}
 	public static final StateView EMPTY_VIEW = new StateView(
 					null, null, null, null,
 					EMPTY_UNIQ_TOKEN_VIEW_FACTORY);
@@ -196,7 +197,7 @@ public class StateView {
 			}
 			var token = tokenStore.get(id);
 			var info = TokenInfo.newBuilder()
-					.setTokenTypeValue(token.tokenType().ordinal())
+					.setTokenTypeValue(token.type().ordinal())
 					.setSupplyTypeValue(token.supplyType().ordinal())
 					.setTokenId(id)
 					.setDeleted(token.isDeleted())
@@ -214,13 +215,13 @@ public class StateView {
 
 			var freezeCandidate = token.freezeKey();
 			freezeCandidate.ifPresentOrElse(k -> {
-				info.setDefaultFreezeStatus(tfsFor(token.accountsAreFrozenByDefault()));
+				info.setDefaultFreezeStatus(tfsFor(token.frozenByDefault()));
 				info.setFreezeKey(asKeyUnchecked(k));
 			}, () -> info.setDefaultFreezeStatus(TokenFreezeStatus.FreezeNotApplicable));
 
 			var kycCandidate = token.kycKey();
 			kycCandidate.ifPresentOrElse(k -> {
-				info.setDefaultKycStatus(tksFor(token.accountsKycGrantedByDefault()));
+				info.setDefaultKycStatus(tksFor(token.kycGrantedByDefault()));
 				info.setKycKey(asKeyUnchecked(k));
 			}, () -> info.setDefaultKycStatus(TokenKycStatus.KycNotApplicable));
 
@@ -332,7 +333,7 @@ public class StateView {
 				return Optional.empty();
 			}
 			var token = tokenStore.get(id);
-			return Optional.ofNullable(TokenType.forNumber(token.tokenType().ordinal()));
+			return Optional.ofNullable(TokenType.forNumber(token.type().ordinal()));
 		} catch (Exception unexpected) {
 			log.warn(
 					"Unexpected failure getting info for token {}!",

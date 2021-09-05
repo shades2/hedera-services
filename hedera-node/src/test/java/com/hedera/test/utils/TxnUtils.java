@@ -23,6 +23,8 @@ package com.hedera.test.utils;
 import com.google.protobuf.ByteString;
 import com.hedera.services.legacy.core.jproto.JKey;
 import com.hedera.services.legacy.core.jproto.JKeyList;
+import com.hedera.services.state.merkle.MerkleToken;
+import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.test.factories.keys.KeyTree;
 import com.hedera.test.factories.scenarios.TxnHandlingScenario;
 import com.hederahashgraph.api.proto.java.AccountAmount;
@@ -223,5 +225,23 @@ public class TxnUtils {
 			final var descendantKeys = nestJKeys(additionalKeysToNest - 1);
 			return new JKeyList(List.of(descendantKeys));
 		}
+	}
+
+	public static MerkleToken typicalToken(
+			long expiry,
+			long totalSupply,
+			int decimals,
+			String symbol,
+			String name,
+			EntityId treasury
+	) {
+		final var token = new MerkleToken();
+		token.setExpiry(expiry);
+		token.setTotalSupply(totalSupply);
+		token.setDecimals(decimals);
+		token.setSymbol(symbol);
+		token.setName(name);
+		token.setTreasury(treasury);
+		return token;
 	}
 }

@@ -49,6 +49,7 @@ import java.util.List;
 import static com.hedera.services.state.merkle.MerkleTopic.serdes;
 import static com.hedera.test.factories.fees.CustomFeeBuilder.fixedHts;
 import static com.hedera.test.factories.fees.CustomFeeBuilder.fractional;
+import static com.hedera.test.utils.TxnUtils.typicalToken;
 import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -128,8 +129,7 @@ class MerkleTokenTest {
 
 	@BeforeEach
 	void setup() {
-		subject = new MerkleToken(
-				expiry, totalSupply, decimals, symbol, name, freezeDefault, accountsKycGrantedByDefault, treasury);
+		subject = typicalToken(expiry, totalSupply, decimals, symbol, name, treasury);
 		setOptionalElements(subject);
 		subject.setExpiry(expiry);
 		subject.setTotalSupply(totalSupply);
@@ -210,14 +210,14 @@ class MerkleTokenTest {
 
 	@Test
 	void getterWorks() {
-		assertEquals(feeSchedule, subject.customFeeSchedule());
+		assertEquals(feeSchedule, subject.feeSchedule());
 	}
 
 	@Test
 	void v0120DeserializeWorks() throws IOException {
 		final var fin = mock(SerializableDataInputStream.class);
 		subject.setFeeScheduleFrom(Collections.emptyList(), null);
-		subject.setFeeScheduleKey(MerkleToken.UNUSED_KEY);
+		subject.setFeeScheduleKey(null);
 		given(serdes.readNullableSerializable(any())).willReturn(autoRenewAccount);
 		given(serdes.deserializeKey(fin)).willReturn(adminKey);
 		given(serdes.readNullable(argThat(fin::equals), any(IoReadingFunction.class)))
@@ -234,13 +234,13 @@ class MerkleTokenTest {
 				.willReturn(subject.expiry())
 				.willReturn(subject.autoRenewPeriod())
 				.willReturn(subject.totalSupply())
-				.willReturn(subject.getLastUsedSerialNumber());
+				.willReturn(subject.lastUsedSerialNumber());
 		given(fin.readInt()).willReturn(subject.decimals())
 				.willReturn(TokenType.FUNGIBLE_COMMON.ordinal())
 				.willReturn(TokenSupplyType.INFINITE.ordinal());
 		given(fin.readBoolean())
 				.willReturn(isDeleted)
-				.willReturn(subject.accountsAreFrozenByDefault());
+				.willReturn(subject.frozenByDefault());
 		given(fin.readSerializable()).willReturn(subject.treasury());
 		final var read = new MerkleToken();
 
@@ -270,14 +270,14 @@ class MerkleTokenTest {
 				.willReturn(subject.autoRenewPeriod())
 				.willReturn(subject.totalSupply())
 				.willReturn(subject.maxSupply())
-				.willReturn(subject.getLastUsedSerialNumber());
+				.willReturn(subject.lastUsedSerialNumber());
 		given(fin.readInt())
 				.willReturn(subject.decimals())
-				.willReturn(subject.tokenType().ordinal())
+				.willReturn(subject.type().ordinal())
 				.willReturn(subject.supplyType().ordinal());
 		given(fin.readBoolean())
 				.willReturn(isDeleted)
-				.willReturn(subject.accountsAreFrozenByDefault());
+				.willReturn(subject.frozenByDefault());
 		given(fin.readSerializable()).willReturn(subject.treasury());
 		given(fin.<FcCustomFee>readSerializableList(eq(Integer.MAX_VALUE), eq(true), any()))
 				.willReturn(feeSchedule);
@@ -290,8 +290,10 @@ class MerkleTokenTest {
 
 	@Test
 	void objectContractHoldsForDifferentMemos() {
-		final var other = new MerkleToken(
-				expiry, totalSupply, decimals, symbol, name, freezeDefault, accountsKycGrantedByDefault, treasury);
+		final var other = typicalToken(
+				expiry, totalSupply, decimals, symbol, name, treasury);
+		other.setAccountsFrozenByDefault(freezeDefault);
+		other.setAccountsKycGrantedByDefault(accountsKycGrantedByDefault);
 		setOptionalElements(other);
 		other.setMemo(otherMemo);
 
@@ -301,8 +303,10 @@ class MerkleTokenTest {
 
 	@Test
 	void objectContractHoldsForDifferentTotalSupplies() {
-		final var other = new MerkleToken(
-				expiry, otherTotalSupply, decimals, symbol, name, freezeDefault, accountsKycGrantedByDefault, treasury);
+		final var other = typicalToken(
+				expiry, otherTotalSupply, decimals, symbol, name, treasury);
+		other.setAccountsFrozenByDefault(freezeDefault);
+		other.setAccountsKycGrantedByDefault(accountsKycGrantedByDefault);
 		setOptionalElements(other);
 
 		assertNotEquals(subject, other);
@@ -311,8 +315,9 @@ class MerkleTokenTest {
 
 	@Test
 	void objectContractHoldsForDifferentDecimals() {
-		final var other = new MerkleToken(
-				expiry, totalSupply, otherDecimals, symbol, name, freezeDefault, accountsKycGrantedByDefault, treasury);
+		final var other = typicalToken(expiry, totalSupply, otherDecimals, symbol, name, treasury);
+		other.setAccountsFrozenByDefault(freezeDefault);
+		other.setAccountsKycGrantedByDefault(accountsKycGrantedByDefault);
 		setOptionalElements(other);
 
 		assertNotEquals(subject, other);
@@ -321,8 +326,9 @@ class MerkleTokenTest {
 
 	@Test
 	void objectContractHoldsForDifferentWipeKey() {
-		final var other = new MerkleToken(
-				expiry, totalSupply, decimals, symbol, name, freezeDefault, accountsKycGrantedByDefault, treasury);
+		final var other = typicalToken(expiry, totalSupply, decimals, symbol, name, treasury);
+		other.setAccountsFrozenByDefault(freezeDefault);
+		other.setAccountsKycGrantedByDefault(accountsKycGrantedByDefault);
 		setOptionalElements(other);
 		other.setWipeKey(otherWipeKey);
 
@@ -332,8 +338,9 @@ class MerkleTokenTest {
 
 	@Test
 	void objectContractHoldsForDifferentFeeScheduleKey() {
-		final var other = new MerkleToken(
-				expiry, totalSupply, decimals, symbol, name, freezeDefault, accountsKycGrantedByDefault, treasury);
+		final var other = typicalToken(expiry, totalSupply, decimals, symbol, name, treasury);
+		other.setAccountsFrozenByDefault(freezeDefault);
+		other.setAccountsKycGrantedByDefault(accountsKycGrantedByDefault);
 		setOptionalElements(other);
 		other.setFeeScheduleKey(otherFeeScheduleKey);
 
@@ -343,8 +350,9 @@ class MerkleTokenTest {
 
 	@Test
 	void objectContractHoldsForDifferentSupply() {
-		final var other = new MerkleToken(
-				expiry, totalSupply, decimals, symbol, name, freezeDefault, accountsKycGrantedByDefault, treasury);
+		final var other = typicalToken(expiry, totalSupply, decimals, symbol, name, treasury);
+		other.setAccountsFrozenByDefault(freezeDefault);
+		other.setAccountsKycGrantedByDefault(accountsKycGrantedByDefault);
 		setOptionalElements(other);
 		other.setSupplyKey(otherSupplyKey);
 
@@ -354,8 +362,9 @@ class MerkleTokenTest {
 
 	@Test
 	void objectContractHoldsForDifferentDeleted() {
-		final var other = new MerkleToken(
-				expiry, totalSupply, decimals, symbol, name, freezeDefault, accountsKycGrantedByDefault, treasury);
+		final var other = typicalToken(expiry, totalSupply, decimals, symbol, name, treasury);
+		other.setAccountsFrozenByDefault(freezeDefault);
+		other.setAccountsKycGrantedByDefault(accountsKycGrantedByDefault);
 		setOptionalElements(other);
 		other.setDeleted(otherIsDeleted);
 
@@ -365,8 +374,9 @@ class MerkleTokenTest {
 
 	@Test
 	void objectContractHoldsForDifferentAdminKey() {
-		final var other = new MerkleToken(
-				expiry, totalSupply, decimals, symbol, name, freezeDefault, accountsKycGrantedByDefault, treasury);
+		final var other = typicalToken(expiry, totalSupply, decimals, symbol, name, treasury);
+		other.setAccountsFrozenByDefault(freezeDefault);
+		other.setAccountsKycGrantedByDefault(accountsKycGrantedByDefault);
 		setOptionalElements(other);
 		other.setAdminKey(otherAdminKey);
 
@@ -376,8 +386,9 @@ class MerkleTokenTest {
 
 	@Test
 	void objectContractHoldsForDifferentAutoRenewPeriods() {
-		final var other = new MerkleToken(
-				expiry, totalSupply, decimals, symbol, name, freezeDefault, accountsKycGrantedByDefault, treasury);
+		final var other = typicalToken(expiry, totalSupply, decimals, symbol, name, treasury);
+		other.setAccountsFrozenByDefault(freezeDefault);
+		other.setAccountsKycGrantedByDefault(accountsKycGrantedByDefault);
 		setOptionalElements(other);
 		other.setAutoRenewPeriod(otherAutoRenewPeriod);
 
@@ -387,8 +398,9 @@ class MerkleTokenTest {
 
 	@Test
 	void objectContractHoldsForDifferentAutoRenewAccounts() {
-		final var other = new MerkleToken(
-				expiry, totalSupply, decimals, symbol, name, freezeDefault, accountsKycGrantedByDefault, treasury);
+		final var other = typicalToken(expiry, totalSupply, decimals, symbol, name, treasury);
+		other.setAccountsFrozenByDefault(freezeDefault);
+		other.setAccountsKycGrantedByDefault(accountsKycGrantedByDefault);
 		setOptionalElements(other);
 		other.setAutoRenewAccount(otherAutoRenewAccount);
 
@@ -398,8 +410,9 @@ class MerkleTokenTest {
 
 	@Test
 	void objectContractHoldsForDifferentExpiries() {
-		final var other = new MerkleToken(
-				otherExpiry, totalSupply, decimals, symbol, name, freezeDefault, accountsKycGrantedByDefault, treasury);
+		final var other = typicalToken(otherExpiry, totalSupply, decimals, symbol, name, treasury);
+		other.setAccountsFrozenByDefault(freezeDefault);
+		other.setAccountsKycGrantedByDefault(accountsKycGrantedByDefault);
 		setOptionalElements(other);
 
 		assertNotEquals(subject, other);
@@ -408,8 +421,9 @@ class MerkleTokenTest {
 
 	@Test
 	void objectContractHoldsForDifferentSymbol() {
-		final var other = new MerkleToken(
-				expiry, totalSupply, decimals, otherSymbol, name, freezeDefault, accountsKycGrantedByDefault, treasury);
+		final var other = typicalToken(expiry, totalSupply, decimals, otherSymbol, name, treasury);
+		other.setAccountsFrozenByDefault(freezeDefault);
+		other.setAccountsKycGrantedByDefault(accountsKycGrantedByDefault);
 		setOptionalElements(other);
 
 		assertNotEquals(subject, other);
@@ -418,8 +432,9 @@ class MerkleTokenTest {
 
 	@Test
 	void objectContractHoldsForDifferentName() {
-		final var other = new MerkleToken(
-				expiry, totalSupply, decimals, symbol, otherName, freezeDefault, accountsKycGrantedByDefault, treasury);
+		final var other = typicalToken(expiry, totalSupply, decimals, symbol, otherName, treasury);
+		other.setAccountsFrozenByDefault(freezeDefault);
+		other.setAccountsKycGrantedByDefault(accountsKycGrantedByDefault);
 		setOptionalElements(other);
 
 		assertNotEquals(subject, other);
@@ -428,8 +443,9 @@ class MerkleTokenTest {
 
 	@Test
 	void objectContractHoldsForDifferentFreezeDefault() {
-		final var other = new MerkleToken(
-				expiry, totalSupply, decimals, symbol, name, otherFreezeDefault, accountsKycGrantedByDefault, treasury);
+		final var other = typicalToken(expiry, totalSupply, decimals, symbol, name, treasury);
+		other.setAccountsFrozenByDefault(otherFreezeDefault);
+		other.setAccountsKycGrantedByDefault(accountsKycGrantedByDefault);
 		setOptionalElements(other);
 
 		assertNotEquals(subject, other);
@@ -438,8 +454,9 @@ class MerkleTokenTest {
 
 	@Test
 	void objectContractHoldsForDifferentAccountsKycGrantedByDefault() {
-		final var other = new MerkleToken(
-				expiry, totalSupply, decimals, symbol, name, freezeDefault, otherAccountsKycGrantedByDefault, treasury);
+		final var other = typicalToken(expiry, totalSupply, decimals, symbol, name, treasury);
+		other.setAccountsFrozenByDefault(freezeDefault);
+		other.setAccountsKycGrantedByDefault(otherAccountsKycGrantedByDefault);
 		setOptionalElements(other);
 
 		assertNotEquals(subject, other);
@@ -448,8 +465,9 @@ class MerkleTokenTest {
 
 	@Test
 	void objectContractHoldsForDifferentTreasury() {
-		final var other = new MerkleToken(
-				expiry, totalSupply, decimals, symbol, name, freezeDefault, accountsKycGrantedByDefault, otherTreasury);
+		final var other = typicalToken(expiry, totalSupply, decimals, symbol, name, otherTreasury);
+		other.setAccountsFrozenByDefault(freezeDefault);
+		other.setAccountsKycGrantedByDefault(accountsKycGrantedByDefault);
 		setOptionalElements(other);
 
 		assertNotEquals(subject, other);
@@ -458,30 +476,32 @@ class MerkleTokenTest {
 
 	@Test
 	void objectContractHoldsForDifferentKycKeys() {
-		final var other = new MerkleToken(
-				expiry, totalSupply, decimals, symbol, name, freezeDefault, accountsKycGrantedByDefault, treasury);
+		final var other = typicalToken(expiry, totalSupply, decimals, symbol, name, treasury);
+		other.setAccountsFrozenByDefault(freezeDefault);
+		other.setAccountsKycGrantedByDefault(accountsKycGrantedByDefault);
 		setOptionalElements(other);
 
 		other.setKycKey(otherKycKey);
 		assertNotEquals(subject, other);
 		assertNotEquals(subject.hashCode(), other.hashCode());
 
-		other.setKycKey(MerkleToken.UNUSED_KEY);
+		other.setKycKey(null);
 		assertNotEquals(subject, other);
 		assertNotEquals(subject.hashCode(), other.hashCode());
 	}
 
 	@Test
 	void objectContractHoldsForDifferentFreezeKeys() {
-		final var other = new MerkleToken(
-				expiry, totalSupply, decimals, symbol, name, freezeDefault, accountsKycGrantedByDefault, treasury);
+		final var other = typicalToken(expiry, totalSupply, decimals, symbol, name, treasury);
+		other.setAccountsFrozenByDefault(freezeDefault);
+		other.setAccountsKycGrantedByDefault(accountsKycGrantedByDefault);
 		setOptionalElements(other);
 
 		other.setFreezeKey(otherFreezeKey);
 		assertNotEquals(subject, other);
 		assertNotEquals(subject.hashCode(), other.hashCode());
 
-		other.setFreezeKey(MerkleToken.UNUSED_KEY);
+		other.setFreezeKey(null);
 		assertNotEquals(subject, other);
 		assertNotEquals(subject.hashCode(), other.hashCode());
 	}
@@ -501,7 +521,7 @@ class MerkleTokenTest {
 		assertTrue(subject.isDeleted());
 		assertEquals(symbol, subject.symbol());
 		assertEquals(name, subject.name());
-		assertTrue(subject.accountsKycGrantedByDefault());
+		assertTrue(subject.kycGrantedByDefault());
 		assertEquals(autoRenewAccount, subject.autoRenewAccount());
 		assertTrue(subject.hasAutoRenewAccount());
 		assertEquals(supplyKey, subject.getSupplyKey());
@@ -515,7 +535,7 @@ class MerkleTokenTest {
 	void hasFeeScheduleKeyWorks() {
 		assertTrue(subject.hasFeeScheduleKey());
 
-		subject.setFeeScheduleKey(MerkleToken.UNUSED_KEY);
+		subject.setFeeScheduleKey(null);
 
 		assertFalse(subject.hasFeeScheduleKey());
 	}
@@ -539,22 +559,24 @@ class MerkleTokenTest {
 	@Test
 	void hashCodeContractMet() {
 		final var defaultSubject = new MerkleAccountState();
-		final var identicalSubject = new MerkleToken(
-				expiry, totalSupply, decimals, symbol, name, freezeDefault, accountsKycGrantedByDefault, treasury);
+		final var identicalSubject = typicalToken(expiry, totalSupply, decimals, symbol, name, treasury);
+		identicalSubject.setAccountsFrozenByDefault(freezeDefault);
+		identicalSubject.setAccountsKycGrantedByDefault(accountsKycGrantedByDefault);
 		setOptionalElements(identicalSubject);
 		identicalSubject.setDeleted(isDeleted);
 		identicalSubject.setTokenType(TokenType.FUNGIBLE_COMMON);
 		identicalSubject.setSupplyType(TokenSupplyType.INFINITE);
 		identicalSubject.setMaxSupply(subject.maxSupply());
-		identicalSubject.setLastUsedSerialNumber(subject.getLastUsedSerialNumber());
+		identicalSubject.setLastUsedSerialNumber(subject.lastUsedSerialNumber());
 
-		final var other = new MerkleToken(
-				otherExpiry, otherTotalSupply, otherDecimals, otherSymbol, otherName,
-				otherFreezeDefault, otherAccountsKycGrantedByDefault, otherTreasury);
+		final var other =
+				typicalToken(otherExpiry, otherTotalSupply, otherDecimals, otherSymbol, otherName, otherTreasury);
+		other.setAccountsFrozenByDefault(otherFreezeDefault);
+		other.setAccountsKycGrantedByDefault(otherAccountsKycGrantedByDefault);
 		other.setTokenType(TokenType.FUNGIBLE_COMMON);
 		other.setSupplyType(TokenSupplyType.INFINITE);
 		other.setMaxSupply(subject.maxSupply());
-		other.setLastUsedSerialNumber(subject.getLastUsedSerialNumber());
+		other.setLastUsedSerialNumber(subject.lastUsedSerialNumber());
 
 		assertNotEquals(subject.hashCode(), defaultSubject.hashCode());
 		assertNotEquals(subject.hashCode(), other.hashCode());
@@ -643,8 +665,9 @@ class MerkleTokenTest {
 
 	@Test
 	void returnCorrectGrpcFeeSchedule() {
-		final var token = new MerkleToken(
-				expiry, totalSupply, decimals, symbol, name, freezeDefault, accountsKycGrantedByDefault, treasury);
+		final var token = typicalToken(expiry, totalSupply, decimals, symbol, name, treasury);
+		token.setAccountsFrozenByDefault(freezeDefault);
+		token.setAccountsKycGrantedByDefault(accountsKycGrantedByDefault);
 		assertEquals(Collections.emptyList(), token.grpcFeeSchedule());
 
 		token.setFeeScheduleFrom(grpcFeeSchedule, null);

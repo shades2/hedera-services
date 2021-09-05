@@ -272,7 +272,7 @@ class TokenWipeTransitionLogicTest {
 		given(accessor.getTxn()).willReturn(tokenWipeTxn);
 		given(txnCtx.accessor()).willReturn(accessor);
 		given(merkleToken.totalSupply()).willReturn(totalAmount);
-		given(merkleToken.tokenType()).willReturn(TokenType.FUNGIBLE_COMMON);
+		given(merkleToken.type()).willReturn(TokenType.FUNGIBLE_COMMON);
 		given(typedTokenStore.loadToken(any())).willReturn(token);
 		given(token.getType()).willReturn(TokenType.FUNGIBLE_COMMON);
 		given(accountStore.loadAccount(any())).willReturn(account);
@@ -289,7 +289,7 @@ class TokenWipeTransitionLogicTest {
 		given(accessor.getTxn()).willReturn(tokenWipeTxn);
 		given(txnCtx.accessor()).willReturn(accessor);
 		given(merkleToken.totalSupply()).willReturn(totalAmount);
-		given(merkleToken.tokenType()).willReturn(TokenType.NON_FUNGIBLE_UNIQUE);
+		given(merkleToken.type()).willReturn(TokenType.NON_FUNGIBLE_UNIQUE);
 		given(typedTokenStore.loadToken(any())).willReturn(token);
 		given(token.getType()).willReturn(TokenType.NON_FUNGIBLE_UNIQUE);
 		given(dynamicProperties.areNftsEnabled()).willReturn(true);

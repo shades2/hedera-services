@@ -21,10 +21,10 @@ package com.hedera.services.fees.calculation.token.txns;
  */
 
 import com.hedera.services.context.primitives.StateView;
-import com.hedera.services.state.merkle.MerkleToken;
 import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.usage.SigUsage;
 import com.hedera.services.usage.token.TokenMintUsage;
+import com.hedera.test.utils.TxnUtils;
 import com.hederahashgraph.api.proto.java.FeeData;
 import com.hederahashgraph.api.proto.java.SubType;
 import com.hederahashgraph.api.proto.java.Timestamp;
@@ -106,8 +106,9 @@ class TokenMintResourceUsageTest {
 	void delegatesToCorrectEstimate() throws Exception {
 		final long expiry = 1_234_567L;
 		final long lifetime = expiry - now;
-		final var aToken = new MerkleToken(expiry, 1, 1, "A",
-				"B", true, false, EntityId.MISSING_ENTITY_ID);
+		final var aToken = TxnUtils.typicalToken(expiry, 1, 1, "A",
+				"B", EntityId.MISSING_ENTITY_ID);
+		aToken.setAccountsFrozenByDefault(true);
 		given(view.tokenType(token)).willReturn(Optional.of(TokenType.FUNGIBLE_COMMON));
 		given(factory.apply(any(), any())).willReturn(usage);
 		given(usage.givenSubType(any())).willReturn(usage);

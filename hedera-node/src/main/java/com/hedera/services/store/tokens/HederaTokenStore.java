@@ -78,7 +78,6 @@ import static com.hedera.services.ledger.properties.TokenRelProperty.TOKEN_BALAN
 import static com.hedera.services.state.enums.TokenType.FUNGIBLE_COMMON;
 import static com.hedera.services.state.enums.TokenType.NON_FUNGIBLE_UNIQUE;
 import static com.hedera.services.state.merkle.MerkleEntityId.fromTokenId;
-import static com.hedera.services.state.merkle.MerkleToken.UNUSED_KEY;
 import static com.hedera.services.state.submerkle.EntityId.fromGrpcAccountId;
 import static com.hedera.services.state.submerkle.EntityId.fromGrpcTokenId;
 import static com.hedera.services.utils.EntityIdUtils.readableId;
@@ -233,7 +232,7 @@ public class HederaTokenStore extends HederaStore implements TokenStore {
 						tokenRelsLedger.set(
 								relationship,
 								TokenRelProperty.IS_FROZEN,
-								token.hasFreezeKey() && token.accountsAreFrozenByDefault());
+								token.hasFreezeKey() && token.frozenByDefault());
 						tokenRelsLedger.set(
 								relationship,
 								TokenRelProperty.IS_KYC_GRANTED,
@@ -541,7 +540,7 @@ public class HederaTokenStore extends HederaStore implements TokenStore {
 			final MerkleToken targetToken,
 			final ResponseCodeEnum failureCode
 	) {
-		if (targetToken.tokenType() != requiredType) {
+		if (targetToken.type() != requiredType) {
 			return failureCode;
 		}
 		return OK;
@@ -574,7 +573,7 @@ public class HederaTokenStore extends HederaStore implements TokenStore {
 				return INVALID_TOKEN_ID_IN_CUSTOM_FEES;
 			}
 			final var merkleToken = get(denom);
-			if (merkleToken.tokenType() == NON_FUNGIBLE_UNIQUE) {
+			if (merkleToken.type() == NON_FUNGIBLE_UNIQUE) {
 				return CUSTOM_FEE_DENOMINATION_MUST_BE_FUNGIBLE_COMMON;
 			}
 			if (!pendingId.equals(denom) && !associationExists(feeCollector, denom)) {
@@ -778,7 +777,7 @@ public class HederaTokenStore extends HederaStore implements TokenStore {
 			final TokenID tId,
 			final TokenUpdateTransactionBody changes
 	) {
-		if (token.tokenType().equals(TokenType.NON_FUNGIBLE_UNIQUE)) {
+		if (token.type().equals(TokenType.NON_FUNGIBLE_UNIQUE)) {
 			if (changes.hasTreasury()) {
 				/* This relationship is verified to exist in the TokenUpdateTransitionLogic */
 				final var newTreasuryRel = asTokenRel(changes.getTreasury(), tId);
@@ -795,7 +794,7 @@ public class HederaTokenStore extends HederaStore implements TokenStore {
 		if (changes.hasAdminKey()) {
 			final var newAdminKey = changes.getAdminKey();
 			if (REMOVES_ADMIN_KEY.test(newAdminKey)) {
-				token.setAdminKey(UNUSED_KEY);
+				token.setAdminKey(null);
 			} else {
 				token.setAdminKey(asFcKeyUnchecked(newAdminKey));
 			}
@@ -1011,7 +1010,7 @@ public class HederaTokenStore extends HederaStore implements TokenStore {
 		if (token.isDeleted()) {
 			return TOKEN_WAS_DELETED;
 		}
-		if (onlyFungibleCommon && token.tokenType() == NON_FUNGIBLE_UNIQUE) {
+		if (onlyFungibleCommon && token.type() == NON_FUNGIBLE_UNIQUE) {
 			return ACCOUNT_AMOUNT_TRANSFERS_ONLY_ALLOWED_FOR_FUNGIBLE_COMMON;
 		}
 

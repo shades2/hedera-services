@@ -222,7 +222,7 @@ class DissociationTest {
 	@Test
 	void oksDissociatedDeletedTokenTreasury() {
 		token.setTreasury(account);
-		token.setIsDeleted(true);
+		token.setDeleted(true);
 
 		final var subject = new Dissociation(dissociatingAccountRel, dissociatedTokenTreasuryRel);
 
