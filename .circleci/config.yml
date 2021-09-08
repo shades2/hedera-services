@@ -983,11 +983,12 @@ workflows:
   GCP-Daily-Services-Recovery-4N-1C:
     triggers:
       - schedule:
-          cron: "55 6 * * *"
+          cron: "12 3,6,9,12,15,18,21,0 * * *"
           filters:
             branches:
               only:
-                - master
+#                - master
+                - 02134-M-Address-Binding-error
     jobs:
       - build-platform-and-services
       - jrs-regression:
@@ -1174,6 +1175,7 @@ workflows:
               branches:
                 ignore:
                   - NONE
+                  - 02134-M-Address-Binding-error
             workflow-name: "Continuous-integration"
         - sonar-check:
             context: SonarCloud
@@ -1429,10 +1431,10 @@ jobs:
         default: true
       slack_results_channel:
         type: string
-        default: "hedera-regression"
+        default: "hedera-regression-test"
       slack_summary_channel:
         type: string
-        default: "hedera-regression-summary"
+        default: "hedera-regression-test"
       workflow-name:
         type: string
         default: ""

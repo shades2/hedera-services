@@ -73,7 +73,7 @@ public class NettyGrpcServerManager implements GrpcServerManager {
 		try {
 			hookAdder.accept(new Thread(() -> terminateNetty(port, tlsPort, println)));
 			server = startOneNettyServer(false, port, println, SLEEPING_PAUSE);
-			tlsServer = startOneNettyServer(true, tlsPort, println, SLEEPING_PAUSE);
+			//  tlsServer = startOneNettyServer(true, tlsPort, println, SLEEPING_PAUSE);
 		} catch (FileNotFoundException fnfe) {
 			tlsServer = null;
 			String message = nettyAction("Could not start", true, tlsPort, false);
@@ -114,7 +114,7 @@ public class NettyGrpcServerManager implements GrpcServerManager {
 
 	private void terminateNetty(int port, int tlsPort, Consumer<String> println) {
 		terminateOneNettyServer(server, false, port, println);
-		terminateOneNettyServer(tlsServer, true, tlsPort, println);
+		// terminateOneNettyServer(tlsServer, true, tlsPort, println);
 	}
 
 	private void terminateOneNettyServer(Server server, boolean tlsSupport, int port, Consumer<String> println) {
