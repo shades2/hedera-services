@@ -32,6 +32,7 @@ import java.util.concurrent.Callable;
 		subcommands = {
 				HelpCommand.class,
 				BalanceCommand.class,
+				MonitorAndFundCommand.class,
 				RekeyCommand.class
 		},
 		description = "Performs account operations")
