@@ -41,8 +41,8 @@ public class AuctionDemoMonitorSuite extends HapiApiSuite {
 	private static final Logger log = LogManager.getLogger(AuctionDemoMonitorSuite.class);
 
 //	private final Map<String, String> specConfig;
-	private static long balanceThreshold = 1000000;
-	private static long rechargeAmount = 100;
+	private static long balanceThreshold = 100 * ONE_HBAR;
+	private static long rechargeAmount = 100 * ONE_HBAR;
 	private static String[] accounts = new String[]{
 			"0.0.44034",
 			"0.0.448324",
@@ -118,32 +118,26 @@ public class AuctionDemoMonitorSuite extends HapiApiSuite {
 						// Load keys
 						//(curKey, keyEncoded)
 				).when(
-//						cryptoTransfer(tinyBarsFromTo(DEFAULT_PAYER, account, rechargeAmount))
-//												.payingWith(DEFAULT_PAYER)
-//												.signedBy(DEFAULT_PAYER)
-//								.fee(ONE_HBAR)
-//												.logged()
 						withOpContext((spec, ctxLog) -> {
 							// sign with appropriate key
 							var checkBalanceOp = getAccountInfo(account).logged();
 							allRunFor(spec, checkBalanceOp);
-//							if (checkBalanceOp.getResponse().getCryptoGetInfo().getAccountInfo().getBalance()
-//									< balanceThreshold * ONE_HBAR) {
-//								// sign with appropriate key if receiver sig required
-//									ctxLog.info("Account " + account + " depleted its funds below " + balanceThreshold + " Hbar");
-//								var fundAccountOp =
-//										cryptoTransfer(tinyBarsFromTo(DEFAULT_PAYER, account, rechargeAmount))
-////								cryptoTransfer(tinyBarsFromTo(GENESIS, account, rechargeAmount * ONE_HBAR))
-//												.payingWith(DEFAULT_PAYER)
-//												.signedBy(DEFAULT_PAYER)
-//												.logged();
-//								allRunFor(spec, fundAccountOp);
-//								if(fundAccountOp.getLastReceipt().getStatus() != ResponseCodeEnum.SUCCESS) {
-//									ctxLog.warn("Account transfer failed");
-//								} else {
-//									ctxLog.info("Account " + account + " has been funded with " + rechargeAmount + " tHbar");
-//								}
-//							}
+							if (checkBalanceOp.getResponse().getCryptoGetInfo().getAccountInfo().getBalance()
+									< balanceThreshold * ONE_HBAR) {
+								// sign with appropriate key if receiver sig required
+									ctxLog.info("Account " + account + " depleted its funds below " + balanceThreshold + " Hbar");
+								var fundAccountOp =
+								cryptoTransfer(tinyBarsFromTo(GENESIS, account, rechargeAmount * ONE_HBAR))
+												.payingWith(DEFAULT_PAYER)
+												.signedBy(DEFAULT_PAYER)
+												.logged();
+								allRunFor(spec, fundAccountOp);
+								if(fundAccountOp.getLastReceipt().getStatus() != ResponseCodeEnum.SUCCESS) {
+									ctxLog.warn("Account transfer failed");
+								} else {
+									ctxLog.info("Account " + account + " has been funded with " + rechargeAmount + " Hbar");
+								}
+							}
 						})
 				)
 				.then(
