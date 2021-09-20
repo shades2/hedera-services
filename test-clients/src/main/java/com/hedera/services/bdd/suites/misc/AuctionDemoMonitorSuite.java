@@ -1,4 +1,4 @@
-package com.hedera.services.yahcli.suites;
+package com.hedera.services.bdd.suites.misc;
 
 /*-
  * ‌
@@ -32,16 +32,15 @@ import java.util.List;
 import java.util.Map;
 
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getAccountInfo;
-import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoCreate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoTransfer;
 import static com.hedera.services.bdd.spec.transactions.crypto.HapiCryptoTransfer.tinyBarsFromTo;
 import static com.hedera.services.bdd.spec.utilops.CustomSpecAssert.allRunFor;
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.withOpContext;
 
-public class AuctionMonitorSuite extends HapiApiSuite {
-	private static final Logger log = LogManager.getLogger(AuctionMonitorSuite.class);
+public class AuctionDemoMonitorSuite extends HapiApiSuite {
+	private static final Logger log = LogManager.getLogger(AuctionDemoMonitorSuite.class);
 
-	private final Map<String, String> specConfig;
+//	private final Map<String, String> specConfig;
 	private static long balanceThreshold = 1000000;
 	private static long rechargeAmount = 100;
 	private static String[] accounts = new String[]{
@@ -60,17 +59,17 @@ public class AuctionMonitorSuite extends HapiApiSuite {
 //		if(args.length > 0) {
 //			accounts = args[0];
 //		}
-
 //		log.info("Proceed with the following parameters: {} {} {}", accounts, balanceThreshold, rechargeAmount);
-
 //		accountsMap = loadAccountsAndKeys(accountsFile);
-
-		new AuctionMonitorSuite(Map.of()).runSuiteSync();
+//		new AuctionDemoMonitorSuite(Map.of()).runSuiteSync();
+		new AuctionDemoMonitorSuite().runSuiteSync();
 	}
 
-	public AuctionMonitorSuite(final Map<String, String> specConfig) {
-		this.specConfig = specConfig;
+	public AuctionDemoMonitorSuite() {
 	}
+//	public AuctionDemoMonitorSuite(final Map<String, String> specConfig) {
+//		this.specConfig = specConfig;
+//	}
 
 	@Override
 	protected Logger getResultsLogger() {
@@ -106,15 +105,14 @@ public class AuctionMonitorSuite extends HapiApiSuite {
 	}
 
 	private HapiApiSpec checkAndFund(String account) {
-//		String curKey = "tesTKey";
-		return HapiApiSpec.customHapiSpec(("CheckAndFund"))
-				.withProperties(Map.of(
+		return HapiApiSpec.defaultHapiSpec(("CheckAndFund"))
+			//	.withProperties( //Map.of(
 //						specConfig
-						"nodes", "35.237.200.180:0.0.3",
-						"default.payer", "0.0.950",
-						"default.payer.pemKeyLoc", "mainnet-account950.pem",
-						"default.payer.pemKeyPassphrase", "BtUiHHK7rAnn4TPA")
-				)
+//						"nodes", "35.237.200.180:0.0.3",
+//						"default.payer", "0.0.950",
+//						"default.payer.pemKeyLoc", "src/main/resource/mainnet-account950.pem",
+//						"default.payer.pemKeyPassphrase", "BtUiHHK7rAnn4TPA")
+//				)
 				.given(
 						//getAccountInfo(DEFAULT_PAYER).logged()
 						// Load keys
@@ -129,23 +127,23 @@ public class AuctionMonitorSuite extends HapiApiSuite {
 							// sign with appropriate key
 							var checkBalanceOp = getAccountInfo(account).logged();
 							allRunFor(spec, checkBalanceOp);
-							if (checkBalanceOp.getResponse().getCryptoGetInfo().getAccountInfo().getBalance()
-									< balanceThreshold * ONE_HBAR) {
-								// sign with appropriate key if receiver sig required
-									ctxLog.info("Account " + account + " depleted its funds below " + balanceThreshold + " Hbar");
-								var fundAccountOp =
-										cryptoTransfer(tinyBarsFromTo(DEFAULT_PAYER, account, rechargeAmount))
-//								cryptoTransfer(tinyBarsFromTo(GENESIS, account, rechargeAmount * ONE_HBAR))
-												.payingWith(DEFAULT_PAYER)
-												.signedBy(DEFAULT_PAYER)
-												.logged();
-								allRunFor(spec, fundAccountOp);
-								if(fundAccountOp.getLastReceipt().getStatus() != ResponseCodeEnum.SUCCESS) {
-									ctxLog.warn("Account transfer failed");
-								} else {
-									ctxLog.info("Account " + account + " has been funded with " + rechargeAmount + " tHbar");
-								}
-							}
+//							if (checkBalanceOp.getResponse().getCryptoGetInfo().getAccountInfo().getBalance()
+//									< balanceThreshold * ONE_HBAR) {
+//								// sign with appropriate key if receiver sig required
+//									ctxLog.info("Account " + account + " depleted its funds below " + balanceThreshold + " Hbar");
+//								var fundAccountOp =
+//										cryptoTransfer(tinyBarsFromTo(DEFAULT_PAYER, account, rechargeAmount))
+////								cryptoTransfer(tinyBarsFromTo(GENESIS, account, rechargeAmount * ONE_HBAR))
+//												.payingWith(DEFAULT_PAYER)
+//												.signedBy(DEFAULT_PAYER)
+//												.logged();
+//								allRunFor(spec, fundAccountOp);
+//								if(fundAccountOp.getLastReceipt().getStatus() != ResponseCodeEnum.SUCCESS) {
+//									ctxLog.warn("Account transfer failed");
+//								} else {
+//									ctxLog.info("Account " + account + " has been funded with " + rechargeAmount + " tHbar");
+//								}
+//							}
 						})
 				)
 				.then(

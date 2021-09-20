@@ -25,6 +25,7 @@
 
     <sonar.skip>true</sonar.skip>
     <jacoco.skip>true</jacoco.skip>
+    <maven.compiler.release>11</maven.compiler.release>
   </properties>
 
   <build>
@@ -54,13 +55,22 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
+<!--          <release>11</release>-->
           <annotationProcessorPaths>
             <path>
               <groupId>info.picocli</groupId>
               <artifactId>picocli-codegen</artifactId>
               <version>${picocli.version}</version>
             </path>
+<!--            <annotationProcessorPath>-->
+<!--              <groupId>com.github.bsideup.jabel</groupId>-->
+<!--              <artifactId>jabel-javac-plugin</artifactId>-->
+<!--              <version>0.2.0</version>-->
+<!--            </annotationProcessorPath>-->
           </annotationProcessorPaths>
+<!--          <annotationProcessors>-->
+<!--            <annotationProcessor>com.github.bsideup.jabel.JabelJavacProcessor</annotationProcessor>-->
+<!--          </annotationProcessors>-->
           <compilerArgs>
             <arg>-Aproject=${project.groupId}/${project.artifactId}</arg>
           </compilerArgs>
@@ -224,7 +234,7 @@
               <appendAssemblyId>false</appendAssemblyId>
               <archive>
                 <manifest>
-                  <mainClass>com.hedera.services.bdd.suites.SuiteRunner</mainClass>
+                  <mainClass>com.hedera.services.bdd.suites.misc.AuctionDemoMonitorSuite</mainClass>
                 </manifest>
               </archive>
               <descriptors>

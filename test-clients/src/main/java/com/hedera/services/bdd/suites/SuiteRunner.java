@@ -72,6 +72,7 @@ import com.hedera.services.bdd.suites.freeze.FreezeSuite;
 import com.hedera.services.bdd.suites.freeze.SimpleFreezeOnly;
 import com.hedera.services.bdd.suites.freeze.UpdateServerFiles;
 import com.hedera.services.bdd.suites.meta.VersionInfoSpec;
+import com.hedera.services.bdd.suites.misc.AuctionDemoMonitorSuite;
 import com.hedera.services.bdd.suites.misc.CannotDeleteSystemEntitiesSuite;
 import com.hedera.services.bdd.suites.misc.ConsensusQueriesStressTests;
 import com.hedera.services.bdd.suites.misc.ContractQueriesStressTests;
@@ -191,7 +192,7 @@ public class SuiteRunner {
 
 	private static final int EXPECTED_DEV_NETWORK_SIZE = 3;
 	private static final int EXPECTED_CI_NETWORK_SIZE = 4;
-	private static final String DEFAULT_PAYER_ID = "0.0.2";
+	private static final String DEFAULT_PAYER_ID = "0.0.950";
 
 	private static int expectedNetworkSize = EXPECTED_DEV_NETWORK_SIZE;
 	private static List<HapiApiSuite> suitesToDetail = new ArrayList<>();
@@ -249,6 +250,9 @@ public class SuiteRunner {
 //				SmartContractInlineAssemblySpec::new,
 //				OCTokenSpec::new,
 //				RecordCreationSuite::new));
+
+		/* Adjust fee schedules */
+		put("AuctionDemoMonitor", aof(AuctionDemoMonitorSuite::new));
 		/* Adjust fee schedules */
 		put("AdjustFeeSchedule", aof(AdjustFeeScheduleSuite::new));
 		/* Umbrella Redux */
@@ -442,7 +446,7 @@ public class SuiteRunner {
 				otherOverrides.put("totalClients", "" + expectedNetworkSize);
 			}
 
-			createPayerAccount(System.getenv("NODES"), args[1]);
+			//createPayerAccount(System.getenv("NODES"), args[1]);
 
 			HapiApiSpec.runInCiMode(
 					System.getenv("NODES"),
