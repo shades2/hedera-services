@@ -23,18 +23,13 @@ package com.hedera.services.store.models;
 import com.google.common.base.MoreObjects;
 import com.google.protobuf.ByteString;
 import com.hedera.services.legacy.core.jproto.JKey;
-import com.hedera.services.sigs.utils.ImmutableKeyUtils;
 import com.hedera.services.state.enums.TokenSupplyType;
 import com.hedera.services.state.enums.TokenType;
 import com.hedera.services.state.submerkle.FcCustomFee;
 import com.hedera.services.state.submerkle.RichInstant;
-import com.hedera.services.txns.validation.OptionValidator;
 import com.hedera.services.utils.TokenTypesMapper;
-import com.hederahashgraph.api.proto.java.Duration;
-import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TokenCreateTransactionBody;
-import com.hederahashgraph.api.proto.java.TokenUpdateTransactionBody;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 
@@ -43,38 +38,22 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.function.Consumer;
-import java.util.function.Predicate;
-import java.util.function.Supplier;
 
 import static com.hedera.services.exceptions.ValidationUtils.validateFalse;
 import static com.hedera.services.exceptions.ValidationUtils.validateTrue;
-import static com.hedera.services.state.merkle.MerkleToken.UNUSED_KEY;
-import static com.hedera.services.state.merkle.internals.IdentityCodeUtils.MAX_NUM_ALLOWED;
-import static com.hedera.services.store.models.Token.CandidateKeys.FREEZE_KEY_CANDIDATE;
-import static com.hedera.services.store.models.Token.CandidateKeys.KYC_KEY_CANDIDATE;
-import static com.hedera.services.store.models.Token.CandidateKeys.SCHEDULE_KEY_CANDIDATE;
-import static com.hedera.services.store.models.Token.CandidateKeys.SUPPLY_KEY_CANDIDATE;
-import static com.hedera.services.store.models.Token.CandidateKeys.WIPE_KEY_CANDIDATE;
-import static com.hedera.services.utils.MiscUtils.asFcKeyUnchecked;
+import static com.hedera.services.state.merkle.internals.BitPackUtils.MAX_NUM_ALLOWED;
 import static com.hedera.services.utils.MiscUtils.asUsableFcKey;
 import static com.hedera.services.utils.MiscUtils.describe;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_DOES_NOT_OWN_WIPED_NFT;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CANNOT_WIPE_TOKEN_TREASURY_ACCOUNT;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.FAIL_INVALID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INSUFFICIENT_TOKEN_BALANCE;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_EXPIRATION_TIME;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_RENEWAL_PERIOD;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_BURN_AMOUNT;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_BURN_METADATA;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_MINT_AMOUNT;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_MINT_METADATA;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_WIPING_AMOUNT;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.SERIAL_NUMBER_LIMIT_REACHED;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_FEE_SCHEDULE_KEY;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_FREEZE_KEY;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_KYC_KEY;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_SUPPLY_KEY;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_WIPE_KEY;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_IS_IMMUTABLE;
@@ -95,217 +74,37 @@ import static java.util.stream.Collectors.toList;
  */
 public class Token {
 	private final Id id;
+	private final List<UniqueToken> mintedUniqueTokens = new ArrayList<>();
+	private final List<UniqueToken> removedUniqueTokens = new ArrayList<>();
+	private Map<Long, UniqueToken> loadedUniqueTokens = new HashMap<>();
+	private boolean supplyHasChanged;
 	private TokenType type;
 	private TokenSupplyType supplyType;
-	private Account treasury;
-	private Account autoRenewAccount;
+	private long totalSupply;
+	private long maxSupply;
 	private JKey kycKey;
 	private JKey freezeKey;
 	private JKey supplyKey;
 	private JKey wipeKey;
 	private JKey adminKey;
 	private JKey feeScheduleKey;
-	private final List<UniqueToken> mintedUniqueTokens = new ArrayList<>();
-	private final List<UniqueToken> removedUniqueTokens = new ArrayList<>();
-	private Map<Long, UniqueToken> loadedUniqueTokens = new HashMap<>();
+	private boolean frozenByDefault;
+	private Account treasury;
+	private Account autoRenewAccount;
+	private boolean deleted;
+	private boolean autoRemoved = false;
 	private long expiry;
-	private long totalSupply;
-	private long maxSupply;
-	private long lastUsedSerialNumber;
-	private long autoRenewPeriod;
+	private boolean isNew;
 	private String memo;
 	private String name;
 	private String symbol;
 	private int decimals;
-
+	private long autoRenewPeriod;
+	private long lastUsedSerialNumber;
 	private List<FcCustomFee> customFees;
-	private boolean supplyHasChanged;
-	private boolean hasUpdatedTreasury;
-	private boolean frozenByDefault;
-	private boolean deleted;
-	private boolean autoRemoved = false;
-	private boolean isNew;
-	static Predicate<Key> REMOVES_ADMIN_KEY = ImmutableKeyUtils::signalsKeyRemoval;
+
 	public Token(Id id) {
 		this.id = id;
-	}
-
-	/**
-	 * Updates the token properties if appropriate and if the transaction body complies with business rules for the update operation.
-	 * <p><b>Candidates of the update operation are the bellow token properties:</b></p>
-	 * <li>Keys (Freeze, KYC, Supply, Wipe, and Fee Schedule)</li>
-	 * <li>Symbol</li>
-	 * <li>Name</li>
-	 * <li>Memo</li>
-	 * <li>Expiry</li>
-	 * <li>Treasury account</li>
-	 *
-	 * @param changes             the transaction body containing the necessary data for token update operation
-	 * @param newAutoRenewAccount the new auto-renew account, which will replace the current auto-renew account if appropriate
-	 * @param newTreasury         the new Treasury account of the token
-	 * @param validator           instance of {@link com.hedera.services.txns.validation.OptionValidator} (used to validate the auto-renew period if present in the transaction body)
-	 */
-	public void update(
-			final TokenUpdateTransactionBody changes,
-			@Nullable final Account newAutoRenewAccount,
-			@Nullable final Account newTreasury,
-			final OptionValidator validator
-	) {
-		validateExpiry(changes);
-		validateAutoRenewPeriod(changes, validator);
-		validateKeysArePresent(changes);
-
-		updateAdminKeyIfAppropriate(changes);
-		updateAutoRenewAccountIfAppropriate(newAutoRenewAccount);
-		updateAutoRenewPeriodIfAppropriate(changes);
-
-		updateKeyOfTypeIfAppropriate(changes.hasFreezeKey(), changes::getFreezeKey, this::setFreezeKey);
-		updateKeyOfTypeIfAppropriate(changes.hasKycKey(), changes::getKycKey, this::setKycKey);
-		updateKeyOfTypeIfAppropriate(changes.hasSupplyKey(), changes::getSupplyKey, this::setSupplyKey);
-		updateKeyOfTypeIfAppropriate(changes.hasWipeKey(), changes::getWipeKey, this::setWipeKey);
-		updateKeyOfTypeIfAppropriate(changes.hasFeeScheduleKey(), changes::getFeeScheduleKey, this::setFeeScheduleKey);
-
-		updateSymbolIfAppropriate(changes);
-		updateNameIfAppropriate(changes);
-		updateMemoIfAppropriate(changes);
-		updateExpiryIfAppropriate(changes);
-		updateTreasuryIfAppropriate(newTreasury);
-	}
-
-	private void validateExpiry(final TokenUpdateTransactionBody changes) {
-		final var candidateExpiry = changes.getExpiry().getSeconds();
-		final var isNotValidExpiry = candidateExpiry != 0L && candidateExpiry < this.getExpiry();
-
-		validateFalse(isNotValidExpiry, INVALID_EXPIRATION_TIME);
-	}
-
-	private void validateAutoRenewPeriod(
-			final TokenUpdateTransactionBody changes,
-			final OptionValidator validator) {
-		if (changes.hasAutoRenewAccount() || this.hasAutoRenewAccount()) {
-			final var newAutoRenewPeriod = changes.getAutoRenewPeriod().getSeconds();
-			final var compliesWithGlobalRequirements = validateNewAutoRenewPeriod(newAutoRenewPeriod, validator);
-			final var newAutoRenewPeriodIsNotValid = (newAutoRenewPeriod != 0L || !this.hasAutoRenewAccount()) &&
-					!compliesWithGlobalRequirements;
-
-			validateFalse(newAutoRenewPeriodIsNotValid, INVALID_RENEWAL_PERIOD);
-		}
-	}
-
-	private boolean validateNewAutoRenewPeriod(long secs, final OptionValidator validator) {
-		return validator.isValidAutoRenewPeriod(
-				Duration
-						.newBuilder()
-						.setSeconds(secs)
-						.build());
-	}
-
-	private void validateKeysArePresent(final TokenUpdateTransactionBody changes) {
-		final var newKeys = getCandidateKeys(changes);
-
-		validateFalse(keyIsNotPresent(KYC_KEY_CANDIDATE, newKeys), TOKEN_HAS_NO_KYC_KEY);
-		validateFalse(keyIsNotPresent(FREEZE_KEY_CANDIDATE, newKeys), TOKEN_HAS_NO_FREEZE_KEY);
-		validateFalse(keyIsNotPresent(WIPE_KEY_CANDIDATE, newKeys), TOKEN_HAS_NO_WIPE_KEY);
-		validateFalse(keyIsNotPresent(SUPPLY_KEY_CANDIDATE, newKeys), TOKEN_HAS_NO_SUPPLY_KEY);
-		validateFalse(keyIsNotPresent(SCHEDULE_KEY_CANDIDATE, newKeys), TOKEN_HAS_NO_FEE_SCHEDULE_KEY);
-	}
-
-	private Map<CandidateKeys, Optional<?>> getCandidateKeys(final TokenUpdateTransactionBody changes) {
-		return Map.of(
-				KYC_KEY_CANDIDATE, changes.hasKycKey()
-						? asUsableFcKey(changes.getKycKey())
-						: Optional.empty(),
-				FREEZE_KEY_CANDIDATE, changes.hasFreezeKey()
-						? asUsableFcKey(changes.getFreezeKey())
-						: Optional.empty(),
-				WIPE_KEY_CANDIDATE, changes.hasWipeKey()
-						? asUsableFcKey(changes.getWipeKey())
-						: Optional.empty(),
-				SUPPLY_KEY_CANDIDATE, changes.hasSupplyKey()
-						? asUsableFcKey(changes.getSupplyKey())
-						: Optional.empty(),
-				SCHEDULE_KEY_CANDIDATE, changes.hasFeeScheduleKey()
-						? asUsableFcKey(changes.getFeeScheduleKey())
-						: Optional.empty());
-	}
-
-	private boolean keyIsNotPresent(final CandidateKeys key, final Map<CandidateKeys, Optional<?>> newKeys) {
-		switch (key) {
-			case KYC_KEY_CANDIDATE:
-				return !this.hasKycKey() && newKeys.get(key).isPresent();
-			case FREEZE_KEY_CANDIDATE:
-				return !this.hasFreezeKey() && newKeys.get(key).isPresent();
-			case WIPE_KEY_CANDIDATE:
-				return !this.hasWipeKey() && newKeys.get(key).isPresent();
-			case SUPPLY_KEY_CANDIDATE:
-				return !this.hasSupplyKey() && newKeys.get(key).isPresent();
-			default:
-				return !this.hasFeeScheduleKey() && newKeys.get(key).isPresent();
-		}
-	}
-
-	private void updateAdminKeyIfAppropriate(final TokenUpdateTransactionBody changes) {
-		if (changes.hasAdminKey()) {
-			var newAdminKey = changes.getAdminKey();
-			if (REMOVES_ADMIN_KEY.test(newAdminKey)) {
-				this.setAdminKey(UNUSED_KEY);
-			} else {
-				this.setAdminKey(asFcKeyUnchecked(changes.getAdminKey()));
-			}
-		}
-	}
-
-	private void updateAutoRenewAccountIfAppropriate(final Account newAutoRenewAccount) {
-		if (autoRenewAccount != null) {
-			this.setAutoRenewAccount(newAutoRenewAccount);
-		}
-	}
-
-	private void updateAutoRenewPeriodIfAppropriate(final TokenUpdateTransactionBody changes) {
-		if (this.hasAutoRenewAccount()) {
-			final var changedAutoRenewPeriod = changes.getAutoRenewPeriod().getSeconds();
-			if (changedAutoRenewPeriod > 0L) {
-				this.setAutoRenewPeriod(changedAutoRenewPeriod);
-			}
-		}
-	}
-
-	private void updateKeyOfTypeIfAppropriate(boolean hasKey, Supplier<Key> supplier, Consumer<JKey> consumer) {
-		if (hasKey) {
-			consumer.accept(asFcKeyUnchecked(supplier.get()));
-		}
-	}
-
-	private void updateSymbolIfAppropriate(final TokenUpdateTransactionBody changes) {
-		if (changes.getSymbol().length() > 0) {
-			this.setSymbol(changes.getSymbol());
-		}
-	}
-
-	private void updateNameIfAppropriate(final TokenUpdateTransactionBody changes) {
-		if (changes.getName().length() > 0) {
-			this.setName(changes.getName());
-		}
-	}
-
-	private void updateMemoIfAppropriate(final TokenUpdateTransactionBody changes) {
-		if (changes.hasMemo()) {
-			this.setMemo(changes.getMemo().getValue());
-		}
-	}
-
-	private void updateExpiryIfAppropriate(final TokenUpdateTransactionBody changes) {
-		var expiry = changes.getExpiry().getSeconds();
-		if (expiry != 0L) {
-			this.setExpiry(expiry);
-		}
-	}
-
-	private void updateTreasuryIfAppropriate(final Account newTreasury) {
-		if (newTreasury != null) {
-			setTreasury(newTreasury);
-			setHasUpdatedTreasury(true);
-		}
 	}
 
 	/**
@@ -383,10 +182,14 @@ public class Token {
 	 * Increments the serial number of the given base unique token, and assigns each of the numbers to each new unique
 	 * token instance.
 	 *
-	 * @param ownershipTracker - a tracker of changes made to the ownership of the tokens
-	 * @param treasuryRel      - the relationship between the treasury account and the token
-	 * @param metadata         - a list of user-defined metadata, related to the nft instances.
-	 * @param creationTime     - the consensus time of the token mint transaction
+	 * @param ownershipTracker
+	 * 		- a tracker of changes made to the ownership of the tokens
+	 * @param treasuryRel
+	 * 		- the relationship between the treasury account and the token
+	 * @param metadata
+	 * 		- a list of user-defined metadata, related to the nft instances.
+	 * @param creationTime
+	 * 		- the consensus time of the token mint transaction
 	 */
 	public void mint(
 			final OwnershipTracker ownershipTracker,
@@ -422,9 +225,12 @@ public class Token {
 	/**
 	 * Burning unique tokens effectively destroys them, as well as reduces the total supply of the token.
 	 *
-	 * @param ownershipTracker     - a tracker of changes made to the nft ownership
-	 * @param treasuryRelationship - the relationship between the treasury account and the token
-	 * @param serialNumbers        - the serial numbers, representing the unique tokens which will be destroyed.
+	 * @param ownershipTracker
+	 * 		- a tracker of changes made to the nft ownership
+	 * @param treasuryRelationship
+	 * 		- the relationship between the treasury account and the token
+	 * @param serialNumbers
+	 * 		- the serial numbers, representing the unique tokens which will be destroyed.
 	 */
 	public void burn(
 			final OwnershipTracker ownershipTracker,
@@ -451,8 +257,10 @@ public class Token {
 	/**
 	 * Wiping fungible tokens removes the balance of the given account, as well as reduces the total supply.
 	 *
-	 * @param accountRel - the relationship between the account which owns the tokens and the token
-	 * @param amount     - amount to be wiped
+	 * @param accountRel
+	 * 		- the relationship between the account which owns the tokens and the token
+	 * @param amount
+	 * 		- amount to be wiped
 	 */
 	public void wipe(final TokenRelationship accountRel, final long amount) {
 		validateTrue(type == TokenType.FUNGIBLE_COMMON, FAIL_INVALID,
@@ -471,9 +279,12 @@ public class Token {
 	 * Wiping unique tokens removes the unique token instances, associated to the given account, as well as reduces the
 	 * total supply.
 	 *
-	 * @param ownershipTracker - a tracker of changes made to the ownership of the tokens
-	 * @param accountRel       - the relationship between the account, which owns the tokens, and the token
-	 * @param serialNumbers    - a list of serial numbers, representing the tokens to be wiped
+	 * @param ownershipTracker
+	 * 		- a tracker of changes made to the ownership of the tokens
+	 * @param accountRel
+	 * 		- the relationship between the account, which owns the tokens, and the token
+	 * @param serialNumbers
+	 * 		- a list of serial numbers, representing the tokens to be wiped
 	 */
 	public void wipe(OwnershipTracker ownershipTracker, TokenRelationship accountRel, List<Long> serialNumbers) {
 		validateTrue(type == TokenType.NON_FUNGIBLE_UNIQUE, FAIL_INVALID);
@@ -511,8 +322,8 @@ public class Token {
 		setIsDeleted(true);
 	}
 
-	public boolean hasAutoRenewAccount() {
-		return autoRenewAccount != null;
+	public boolean hasAdminKey() {
+		return adminKey != null;
 	}
 
 	public TokenRelationship newRelationshipWith(final Account account, final boolean automaticAssociation) {
@@ -529,7 +340,8 @@ public class Token {
 	 * Creates new {@link TokenRelationship} for the specified {@link Account}
 	 * IMPORTANT: The provided account is set to KYC granted and unfrozen by default
 	 *
-	 * @param account the Account for which to create the relationship
+	 * @param account
+	 * 		the Account for which to create the relationship
 	 * @return newly created {@link TokenRelationship}
 	 */
 	public TokenRelationship newEnabledRelationship(final Account account) {
@@ -540,7 +352,7 @@ public class Token {
 	}
 
 	private void changeSupply(TokenRelationship treasuryRel, long amount, ResponseCodeEnum negSupplyCode,
-							  boolean ignoreSupplyKey) {
+			boolean ignoreSupplyKey) {
 		validateTrue(treasuryRel != null, FAIL_INVALID,
 				"Cannot mint with a null treasuryRel");
 		validateTrue(treasuryRel.hasInvolvedIds(id, treasury.getId()), FAIL_INVALID,
@@ -624,52 +436,32 @@ public class Token {
 		return maxSupply;
 	}
 
-	public JKey getSupplyKey() {
-		return supplyKey;
-	}
-
 	public void setSupplyKey(final JKey supplyKey) {
 		this.supplyKey = supplyKey;
 	}
 
-	public JKey getKycKey() {
-		return kycKey;
+	public JKey getSupplyKey() {
+		return supplyKey;
 	}
 
 	public void setKycKey(final JKey kycKey) {
 		this.kycKey = kycKey;
 	}
 
-	public JKey getFreezeKey() {
-		return freezeKey;
-	}
-
 	public void setFreezeKey(final JKey freezeKey) {
 		this.freezeKey = freezeKey;
-	}
-
-	public boolean hasKycKey() {
-		return kycKey != null;
 	}
 
 	public boolean hasFreezeKey() {
 		return freezeKey != null;
 	}
 
-	public boolean hasSupplyKey() {
-		return supplyKey != null;
+	public boolean hasKycKey() {
+		return kycKey != null;
 	}
 
-	public boolean hasWipeKey() {
+	private boolean hasWipeKey() {
 		return wipeKey != null;
-	}
-
-	public boolean hasAdminKey() {
-		return adminKey != null;
-	}
-
-	public boolean hasFeeScheduleKey() {
-		return feeScheduleKey != null;
 	}
 
 	public JKey getWipeKey() {
@@ -680,12 +472,12 @@ public class Token {
 		this.wipeKey = wipeKey;
 	}
 
-	public JKey getAdminKey() {
-		return adminKey;
+	public JKey getKycKey() {
+		return kycKey;
 	}
 
-	public void setAdminKey(final JKey adminKey) {
-		this.adminKey = adminKey;
+	public JKey getFreezeKey() {
+		return freezeKey;
 	}
 
 	/* supply is changed only after the token is created */
@@ -753,30 +545,6 @@ public class Token {
 		this.expiry = expiry;
 	}
 
-	public String getSymbol() {
-		return symbol;
-	}
-
-	public void setSymbol(final String symbol) {
-		this.symbol = symbol;
-	}
-
-	public String getName() {
-		return name;
-	}
-
-	public void setName(final String name) {
-		this.name = name;
-	}
-
-	public String getMemo() {
-		return memo;
-	}
-
-	public void setMemo(final String memo) {
-		this.memo = memo;
-	}
-
 	public boolean hasRemovedUniqueTokens() {
 		return !removedUniqueTokens.isEmpty();
 	}
@@ -801,6 +569,22 @@ public class Token {
 		this.autoRemoved = true;
 	}
 
+	public JKey getAdminKey() {
+		return adminKey;
+	}
+
+	public void setAdminKey(final JKey adminKey) {
+		this.adminKey = adminKey;
+	}
+
+	public String getMemo() {
+		return memo;
+	}
+
+	public void setMemo(final String memo) {
+		this.memo = memo;
+	}
+
 	public boolean isNew() {
 		return isNew;
 	}
@@ -813,6 +597,23 @@ public class Token {
 		return supplyType;
 	}
 
+
+	public String getName() {
+		return name;
+	}
+
+	public void setName(final String name) {
+		this.name = name;
+	}
+
+	public String getSymbol() {
+		return symbol;
+	}
+
+	public void setSymbol(final String symbol) {
+		this.symbol = symbol;
+	}
+
 	public int getDecimals() {
 		return decimals;
 	}
@@ -821,6 +622,9 @@ public class Token {
 		this.decimals = decimals;
 	}
 
+	public long getAutoRenewPeriod() {
+		return autoRenewPeriod;
+	}
 
 	public void setAutoRenewPeriod(final long autoRenewPeriod) {
 		this.autoRenewPeriod = autoRenewPeriod;
@@ -856,12 +660,8 @@ public class Token {
 				.toString();
 	}
 
-	public boolean hasUpdatedTreasury() {
-		return hasUpdatedTreasury;
-	}
-
-	public void setHasUpdatedTreasury(final boolean hasUpdatedTreasury) {
-		this.hasUpdatedTreasury = hasUpdatedTreasury;
+	public boolean hasFeeScheduleKey() {
+		return feeScheduleKey != null;
 	}
 
 	public JKey getFeeScheduleKey() {
@@ -875,22 +675,8 @@ public class Token {
 	public List<FcCustomFee> getCustomFees() {
 		return customFees;
 	}
+
 	public void setCustomFees(final List<FcCustomFee> customFees) {
 		this.customFees = customFees;
 	}
-
-	public long getAutoRenewPeriod() {
-		return autoRenewPeriod;
-	}
-
-	protected enum CandidateKeys {
-		KYC_KEY_CANDIDATE,
-		FREEZE_KEY_CANDIDATE,
-		WIPE_KEY_CANDIDATE,
-		SUPPLY_KEY_CANDIDATE,
-		SCHEDULE_KEY_CANDIDATE,
-	}
-
 }
-
-
