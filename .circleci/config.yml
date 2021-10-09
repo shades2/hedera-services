@@ -1173,7 +1173,7 @@ workflows:
             filters:
               branches:
                 ignore:
-                  - NONE
+                  - replace-blobs-with-chunks
             workflow-name: "Continuous-integration"
         - sonar-check:
             context: SonarCloud
