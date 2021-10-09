@@ -24,17 +24,18 @@ import com.hedera.services.ServicesState;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.state.merkle.MerkleDiskFs;
 import com.hedera.services.state.merkle.MerkleNetworkContext;
-import com.hedera.services.state.merkle.MerkleOptionalBlob;
 import com.hedera.services.state.merkle.MerkleSchedule;
 import com.hedera.services.state.merkle.MerkleToken;
 import com.hedera.services.state.merkle.MerkleTokenRelStatus;
 import com.hedera.services.state.merkle.MerkleTopic;
 import com.hedera.services.state.merkle.MerkleUniqueToken;
+import com.hedera.services.state.merkle.internals.ChunkPath;
+import com.hedera.services.stream.RecordsRunningHashLeaf;
 import com.hedera.services.utils.EntityNum;
 import com.hedera.services.utils.EntityNumPair;
-import com.hedera.services.stream.RecordsRunningHashLeaf;
 import com.swirlds.common.AddressBook;
 import com.swirlds.fchashmap.FCOneToManyRelation;
+import com.swirlds.merkle.chunk.KeyedChunk;
 import com.swirlds.merkle.map.MerkleMap;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -53,7 +54,7 @@ class StateAccessorTest {
 	@Mock
 	private MerkleMap<EntityNum, MerkleAccount> accounts;
 	@Mock
-	private MerkleMap<String, MerkleOptionalBlob> storage;
+	private MerkleMap<ChunkPath, KeyedChunk<ChunkPath>> storage;
 	@Mock
 	private MerkleMap<EntityNum, MerkleTopic> topics;
 	@Mock

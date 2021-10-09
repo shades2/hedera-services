@@ -55,6 +55,7 @@ import com.hedera.services.state.merkle.MerkleToken;
 import com.hedera.services.state.merkle.MerkleTokenRelStatus;
 import com.hedera.services.state.merkle.MerkleTopic;
 import com.hedera.services.state.merkle.MerkleUniqueToken;
+import com.hedera.services.state.merkle.internals.ChunkPath;
 import com.hedera.services.state.submerkle.ExchangeRates;
 import com.hedera.services.state.submerkle.SequenceNumber;
 import com.hedera.services.state.validation.BasedLedgerValidator;
@@ -78,6 +79,7 @@ import com.swirlds.common.notification.NotificationEngine;
 import com.swirlds.common.notification.NotificationFactory;
 import com.swirlds.common.notification.listeners.ReconnectCompleteListener;
 import com.swirlds.fchashmap.FCOneToManyRelation;
+import com.swirlds.merkle.chunk.KeyedChunk;
 import com.swirlds.merkle.map.MerkleMap;
 import dagger.Binds;
 import dagger.Module;
@@ -238,7 +240,7 @@ public abstract class StateModule {
 
 	@Provides
 	@Singleton
-	public static Supplier<MerkleMap<String, MerkleOptionalBlob>> provideWorkingStorage(
+	public static Supplier<MerkleMap<ChunkPath, KeyedChunk<ChunkPath>>> provideWorkingStorage(
 			@WorkingState StateAccessor accessor
 	) {
 		return accessor::storage;

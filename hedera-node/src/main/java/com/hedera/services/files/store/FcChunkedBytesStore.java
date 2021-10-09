@@ -20,7 +20,9 @@ package com.hedera.services.files.store;
  * ‍
  */
 
-import com.hedera.services.state.merkle.MerkleOptionalBlob;
+import com.hedera.services.state.merkle.internals.ChunkPath;
+import com.swirlds.merkle.chunk.Chunk;
+import com.swirlds.merkle.chunk.KeyedChunk;
 import com.swirlds.merkle.map.MerkleMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -28,32 +30,24 @@ import org.apache.logging.log4j.Logger;
 import java.util.AbstractMap;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.function.Supplier;
 
-import static java.util.stream.Collectors.toSet;
+public class FcChunkedBytesStore extends AbstractMap<String, byte[]> {
+	private static final Logger log = LogManager.getLogger(FcChunkedBytesStore.class);
 
-public class FcBlobsBytesStore extends AbstractMap<String, byte[]> {
-	private static final Logger log = LogManager.getLogger(FcBlobsBytesStore.class);
+	private final Supplier<MerkleMap<ChunkPath, KeyedChunk<ChunkPath>>> chunks;
 
-	private final Function<byte[], MerkleOptionalBlob> blobFactory;
-	private final Supplier<MerkleMap<String, MerkleOptionalBlob>> pathedBlobs;
-
-	public FcBlobsBytesStore(
-			Function<byte[], MerkleOptionalBlob> blobFactory,
-			Supplier<MerkleMap<String, MerkleOptionalBlob>> pathedBlobs
-	) {
-		this.blobFactory = blobFactory;
-		this.pathedBlobs = pathedBlobs;
+	public FcChunkedBytesStore(Supplier<MerkleMap<ChunkPath, KeyedChunk<ChunkPath>>> chunks) {
+		this.chunks = chunks;
 	}
 
-	private String at(Object key) {
-		return (String) key;
+	private ChunkPath at(Object key) {
+		return new ChunkPath((String) key);
 	}
 
 	@Override
 	public void clear() {
-		pathedBlobs.get().clear();
+		chunks.get().clear();
 	}
 
 	/**
@@ -68,7 +62,7 @@ public class FcBlobsBytesStore extends AbstractMap<String, byte[]> {
 	 */
 	@Override
 	public byte[] remove(Object path) {
-		pathedBlobs.get().remove(at(path));
+		chunks.get().remove(at(path));
 		return null;
 	}
 
@@ -87,49 +81,46 @@ public class FcBlobsBytesStore extends AbstractMap<String, byte[]> {
 	@Override
 	public byte[] put(String path, byte[] value) {
 		var meta = at(path);
-		if (pathedBlobs.get().containsKey(meta)) {
-			var blob = pathedBlobs.get().getForModify(meta);
-			blob.modify(value);
+		if (chunks.get().containsKey(meta)) {
+			final var chunk = chunks.get().getForModify(meta);
+			chunk.setData(value);
 			if (log.isDebugEnabled()) {
-				log.debug("Modifying to {} new bytes (hash = {}) @ '{}'", value.length, blob.getHash(), path);
+				log.debug("Modifying to {} new bytes (hash = {}) @ '{}'", value.length, chunk.getHash(), path);
 			}
 		} else {
-			var blob = blobFactory.apply(value);
+			final KeyedChunk<ChunkPath> newChunk = new KeyedChunk<>(value);
 			if (log.isDebugEnabled()) {
-				log.debug("Putting {} new bytes (hash = {}) @ '{}'", value.length, blob.getHash(), path);
+				log.debug("Putting {} new bytes (hash = {}) @ '{}'", value.length, newChunk.getHash(), path);
 			}
-			pathedBlobs.get().put(at(path), blob);
+			chunks.get().put(at(path), newChunk);
 		}
 		return null;
 	}
 
 	@Override
 	public byte[] get(Object path) {
-		return Optional.ofNullable(pathedBlobs.get().get(at(path)))
-				.map(MerkleOptionalBlob::getData)
+		return Optional.ofNullable(chunks.get().get(at(path)))
+				.map(Chunk::getData)
 				.orElse(null);
 	}
 
 	@Override
 	public boolean containsKey(Object path) {
-		return pathedBlobs.get().containsKey(at(path));
+		return chunks.get().containsKey(at(path));
 	}
 
 	@Override
 	public boolean isEmpty() {
-		return pathedBlobs.get().isEmpty();
+		return chunks.get().isEmpty();
 	}
 
 	@Override
 	public int size() {
-		return pathedBlobs.get().size();
+		return chunks.get().size();
 	}
 
 	@Override
 	public Set<Entry<String, byte[]>> entrySet() {
-		return pathedBlobs.get().entrySet()
-				.stream()
-				.map(entry -> new SimpleEntry<>(entry.getKey(), entry.getValue().getData()))
-				.collect(toSet());
+		throw new UnsupportedOperationException();
 	}
 }

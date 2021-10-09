@@ -22,17 +22,12 @@ package com.hedera.services.files.store;
 
 import com.hedera.services.state.merkle.MerkleBlobMeta;
 import com.hedera.services.state.merkle.MerkleOptionalBlob;
+import com.hedera.services.state.merkle.internals.ChunkPath;
+import com.swirlds.merkle.chunk.KeyedChunk;
 import com.swirlds.merkle.map.MerkleMap;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-
-import java.util.AbstractMap;
-import java.util.Comparator;
-import java.util.Map.Entry;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -40,35 +35,28 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.BDDMockito.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.mock;
 import static org.mockito.BDDMockito.verify;
 
-class FcBlobsBytesStoreTest {
+class FcChunkedBytesStoreTest {
 	private static final byte[] aData = "BlobA".getBytes();
 	private static final byte[] bData = "BlobB".getBytes();
-	private static final String pathA = "pathA";
-	private static final String pathB = "pathB";
-	private static final MerkleBlobMeta aMeta = new MerkleBlobMeta(pathA);
+	private static final ChunkPath pathA = new ChunkPath("pathA");
 
-	private MerkleOptionalBlob blobA, blobB;
-	private Function<byte[], MerkleOptionalBlob> blobFactory;
-	private MerkleMap<String, MerkleOptionalBlob> pathedBlobs;
+	private KeyedChunk<ChunkPath> chunkA;
+	private KeyedChunk<ChunkPath> chunkB;
+	private MerkleMap<ChunkPath, KeyedChunk<ChunkPath>> pathedBlobs;
 
-	private FcBlobsBytesStore subject;
+	private FcChunkedBytesStore subject;
 
 	@BeforeEach
 	private void setup() {
 		pathedBlobs = mock(MerkleMap.class);
-		blobFactory = mock(Function.class);
 
 		givenMockBlobs();
-		given(blobFactory.apply(any()))
-				.willReturn(blobA)
-				.willReturn(blobB);
 
-		subject = new FcBlobsBytesStore(blobFactory, () -> pathedBlobs);
+		subject = new FcChunkedBytesStore(() -> pathedBlobs);
 	}
 
 	@Test
@@ -80,14 +68,14 @@ class FcBlobsBytesStoreTest {
 
 	@Test
 	void delegatesRemoveOfMissing() {
-		given(pathedBlobs.remove(aMeta)).willReturn(null);
+		given(pathedBlobs.remove(pathA.getLoc())).willReturn(null);
 
 		assertNull(subject.remove(pathA));
 	}
 
 	@Test
 	void delegatesRemoveAndReturnsNull() {
-		given(pathedBlobs.remove(aMeta)).willReturn(blobA);
+		given(pathedBlobs.remove(pathA.getLoc())).willReturn(chunkA);
 
 		assertNull(subject.remove(pathA));
 	}
@@ -95,30 +83,30 @@ class FcBlobsBytesStoreTest {
 	@Test
 	void delegatesPutUsingGetForModifyIfExtantBlob() {
 		given(pathedBlobs.containsKey(pathA)).willReturn(true);
-		given(pathedBlobs.getForModify(pathA)).willReturn(blobA);
+		given(pathedBlobs.getForModify(pathA)).willReturn(chunkA);
 
-		final var oldBytes = subject.put(pathA, aData);
+		final var oldBytes = subject.put(pathA.getLoc(), aData);
 
 		verify(pathedBlobs).containsKey(pathA);
 		verify(pathedBlobs).getForModify(pathA);
-		verify(blobA).modify(aData);
+		verify(chunkA).setData(aData);
 
 		assertNull(oldBytes);
 	}
 
 	@Test
 	void delegatesPutUsingGetAndFactoryIfNewBlob() {
-		final var keyCaptor = ArgumentCaptor.forClass(String.class);
-		final var valueCaptor = ArgumentCaptor.forClass(MerkleOptionalBlob.class);
+		final var keyCaptor = ArgumentCaptor.forClass(ChunkPath.class);
+		final var valueCaptor = ArgumentCaptor.forClass(KeyedChunk.class);
 		given(pathedBlobs.containsKey(pathA)).willReturn(false);
 
-		final var oldBytes = subject.put(pathA, aData);
+		final var oldBytes = subject.put(pathA.getLoc(), aData);
 
 		verify(pathedBlobs).containsKey(pathA);
 		verify(pathedBlobs).put(keyCaptor.capture(), valueCaptor.capture());
 
 		assertEquals(pathA, keyCaptor.getValue());
-		assertSame(blobA, valueCaptor.getValue());
+		assertSame(chunkA, valueCaptor.getValue());
 		assertNull(oldBytes);
 	}
 
@@ -131,7 +119,7 @@ class FcBlobsBytesStoreTest {
 
 	@Test
 	void delegatesGet() {
-		given(pathedBlobs.get(pathA)).willReturn(blobA);
+		given(pathedBlobs.get(pathA)).willReturn(chunkA);
 
 		assertArrayEquals(aData, subject.get(pathA));
 	}
@@ -158,31 +146,12 @@ class FcBlobsBytesStoreTest {
 		assertEquals(123, subject.size());
 	}
 
-	@Test
-	void delegatesEntrySet() {
-		final Set<Entry<String, MerkleOptionalBlob>> blobEntries = Set.of(
-				new AbstractMap.SimpleEntry<>(pathA, blobA),
-				new AbstractMap.SimpleEntry<>(pathB, blobB));
-		given(pathedBlobs.entrySet()).willReturn(blobEntries);
-
-		final var entries = subject.entrySet();
-
-		assertEquals(
-				"pathA->BlobA, pathB->BlobB",
-				entries
-						.stream()
-						.sorted(Comparator.comparing(Entry::getKey))
-						.map(entry -> String.format("%s->%s", entry.getKey(), new String(entry.getValue())))
-						.collect(Collectors.joining(", "))
-		);
-	}
-
 	private void givenMockBlobs() {
-		blobA = mock(MerkleOptionalBlob.class);
-		blobB = mock(MerkleOptionalBlob.class);
+		chunkA = mock(KeyedChunk.class);
+		chunkB = mock(KeyedChunk.class);
 
-		given(blobA.getData()).willReturn(aData);
-		given(blobB.getData()).willReturn(bData);
+		given(chunkA.getData()).willReturn(aData);
+		given(chunkB.getData()).willReturn(bData);
 	}
 
 	@Test

@@ -27,15 +27,15 @@ import com.hedera.services.contracts.sources.AddressKeyedMapFactory;
 import com.hedera.services.files.DataMapFactory;
 import com.hedera.services.files.HFileMeta;
 import com.hedera.services.files.MetadataMapFactory;
-import com.hedera.services.files.store.FcBlobsBytesStore;
+import com.hedera.services.files.store.FcChunkedBytesStore;
 import com.hedera.services.legacy.core.jproto.JKey;
 import com.hedera.services.legacy.core.jproto.JKeyList;
 import com.hedera.services.state.merkle.MerkleAccount;
-import com.hedera.services.state.merkle.MerkleOptionalBlob;
 import com.hedera.services.state.merkle.MerkleToken;
 import com.hedera.services.state.merkle.MerkleTokenRelStatus;
 import com.hedera.services.state.merkle.MerkleTopic;
 import com.hedera.services.state.merkle.MerkleUniqueToken;
+import com.hedera.services.state.merkle.internals.ChunkPath;
 import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.state.submerkle.RawTokenRelationship;
 import com.hedera.services.store.schedule.ScheduleStore;
@@ -69,6 +69,7 @@ import com.hederahashgraph.api.proto.java.TokenType;
 import com.swirlds.common.merkle.MerkleNode;
 import com.swirlds.common.merkle.utility.Keyed;
 import com.swirlds.fchashmap.FCOneToManyRelation;
+import com.swirlds.merkle.chunk.KeyedChunk;
 import com.swirlds.merkle.map.MerkleMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -87,12 +88,12 @@ import static com.hedera.services.state.submerkle.EntityId.MISSING_ENTITY_ID;
 import static com.hedera.services.store.schedule.ScheduleStore.MISSING_SCHEDULE;
 import static com.hedera.services.store.tokens.TokenStore.MISSING_TOKEN;
 import static com.hedera.services.store.tokens.views.EmptyUniqTokenViewFactory.EMPTY_UNIQ_TOKEN_VIEW_FACTORY;
-import static com.hedera.services.utils.EntityNum.fromAccountId;
-import static com.hedera.services.utils.EntityNum.fromContractId;
 import static com.hedera.services.utils.EntityIdUtils.asAccount;
 import static com.hedera.services.utils.EntityIdUtils.asSolidityAddress;
 import static com.hedera.services.utils.EntityIdUtils.asSolidityAddressHex;
 import static com.hedera.services.utils.EntityIdUtils.readableId;
+import static com.hedera.services.utils.EntityNum.fromAccountId;
+import static com.hedera.services.utils.EntityNum.fromContractId;
 import static com.hedera.services.utils.MiscUtils.asKeyUnchecked;
 import static java.util.Collections.unmodifiableMap;
 
@@ -144,8 +145,7 @@ public class StateView {
 				this::nftsByOwner,
 				this::treasuryNftsByType);
 
-		final Map<String, byte[]> blobStore = unmodifiableMap(
-				new FcBlobsBytesStore(MerkleOptionalBlob::new, this::storage));
+		final Map<String, byte[]> blobStore = unmodifiableMap(new FcChunkedBytesStore(this::storage));
 
 		fileContents = DataMapFactory.dataMapFrom(blobStore);
 		fileAttrs = MetadataMapFactory.metaMapFrom(blobStore);
@@ -506,7 +506,7 @@ public class StateView {
 		return stateChildren == null ? emptyMm() : stateChildren.getUniqueTokens();
 	}
 
-	MerkleMap<String, MerkleOptionalBlob> storage() {
+	MerkleMap<ChunkPath, KeyedChunk<ChunkPath>> storage() {
 		return stateChildren == null ? emptyMm() : stateChildren.getStorage();
 	}
 

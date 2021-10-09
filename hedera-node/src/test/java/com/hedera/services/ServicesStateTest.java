@@ -37,6 +37,7 @@ import com.hedera.services.state.merkle.MerkleToken;
 import com.hedera.services.state.merkle.MerkleTokenRelStatus;
 import com.hedera.services.state.merkle.MerkleTopic;
 import com.hedera.services.state.merkle.MerkleUniqueToken;
+import com.hedera.services.state.merkle.internals.ChunkPath;
 import com.hedera.services.state.migration.LegacyStateChildIndices;
 import com.hedera.services.state.migration.StateChildIndices;
 import com.hedera.services.state.migration.StateVersions;
@@ -64,6 +65,7 @@ import com.swirlds.common.constructable.ConstructableRegistry;
 import com.swirlds.common.constructable.ConstructableRegistryException;
 import com.swirlds.common.merkle.MerkleNode;
 import com.swirlds.fchashmap.FCOneToManyRelation;
+import com.swirlds.merkle.chunk.KeyedChunk;
 import com.swirlds.merkle.map.FCMapMigration;
 import com.swirlds.merkle.map.MerkleMap;
 import com.swirlds.merkle.tree.MerkleBinaryTree;
@@ -275,7 +277,6 @@ class ServicesStateTest {
 		assertThat(
 				logCaptor.warnLogs(),
 				contains(Matchers.startsWith("Method expandSignatures called with non-gRPC txn")));
-		;
 	}
 
 	@Test
@@ -411,7 +412,7 @@ class ServicesStateTest {
 		given(subject.uniqueTokens()).willReturn((MerkleMap<EntityNumPair, MerkleUniqueToken>) pretend);
 		given(subject.tokenAssociations()).willReturn((MerkleMap<EntityNumPair, MerkleTokenRelStatus>) pretend);
 		given(subject.topics()).willReturn((MerkleMap<EntityNum, MerkleTopic>) pretend);
-		given(subject.storage()).willReturn((MerkleMap<String, MerkleOptionalBlob>) pretend);
+		given(subject.storage()).willReturn((MerkleMap<ChunkPath, KeyedChunk<ChunkPath>>) pretend);
 		given(subject.accounts()).willReturn((MerkleMap<EntityNum, MerkleAccount>) pretend);
 		given(subject.tokens()).willReturn((MerkleMap<EntityNum, MerkleToken>) pretend);
 		given(subject.scheduleTxs()).willReturn((MerkleMap<EntityNum, MerkleSchedule>) pretend);

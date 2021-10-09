@@ -22,11 +22,11 @@ package com.hedera.services.state.forensics;
 
 import com.hedera.services.ServicesState;
 import com.hedera.services.state.merkle.MerkleAccount;
-import com.hedera.services.state.merkle.MerkleOptionalBlob;
 import com.hedera.services.state.merkle.MerkleSchedule;
 import com.hedera.services.state.merkle.MerkleToken;
 import com.hedera.services.state.merkle.MerkleTokenRelStatus;
 import com.hedera.services.state.merkle.MerkleTopic;
+import com.hedera.services.state.merkle.internals.ChunkPath;
 import com.hedera.services.utils.EntityNum;
 import com.hedera.services.utils.EntityNumPair;
 import com.hedera.test.extensions.LogCaptor;
@@ -35,6 +35,7 @@ import com.hedera.test.extensions.LoggingSubject;
 import com.hedera.test.extensions.LoggingTarget;
 import com.swirlds.common.NodeId;
 import com.swirlds.common.merkle.io.MerkleDataOutputStream;
+import com.swirlds.merkle.chunk.KeyedChunk;
 import com.swirlds.merkle.map.MerkleMap;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -68,7 +69,7 @@ class FcmDumpTest {
 	@Mock
 	MerkleMap<EntityNum, MerkleAccount> accounts;
 	@Mock
-	MerkleMap<String, MerkleOptionalBlob> storage;
+	MerkleMap<ChunkPath, KeyedChunk<ChunkPath>> storage;
 	@Mock
 	MerkleMap<EntityNum, MerkleTopic> topics;
 	@Mock

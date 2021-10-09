@@ -35,6 +35,7 @@ import com.hedera.services.state.merkle.MerkleTokenRelStatus;
 import com.hedera.services.state.merkle.MerkleTopic;
 import com.hedera.services.state.merkle.MerkleUniqueToken;
 import com.hedera.services.state.merkle.MerkleUniqueTokenId;
+import com.hedera.services.state.merkle.internals.ChunkPath;
 import com.hedera.services.state.migration.LegacyStateChildIndices;
 import com.hedera.services.state.migration.StateChildIndices;
 import com.hedera.services.state.migration.StateVersions;
@@ -59,6 +60,8 @@ import com.swirlds.common.merkle.MerkleNode;
 import com.swirlds.common.merkle.utility.AbstractNaryMerkleInternal;
 import com.swirlds.common.merkle.utility.Keyed;
 import com.swirlds.fchashmap.FCOneToManyRelation;
+import com.swirlds.merkle.chunk.ChunkManager;
+import com.swirlds.merkle.chunk.KeyedChunk;
 import com.swirlds.merkle.map.FCMapMigration;
 import com.swirlds.merkle.map.MerkleMap;
 import org.apache.logging.log4j.LogManager;
@@ -74,8 +77,8 @@ import java.util.function.Supplier;
 import static com.hedera.services.context.AppsManager.APPS;
 import static com.hedera.services.state.merkle.MerkleNetworkContext.UNKNOWN_CONSENSUS_TIME;
 import static com.hedera.services.state.migration.Release0170Migration.moveLargeFcmsToBinaryRoutePositions;
-import static com.hedera.services.utils.EntityNumPair.fromLongs;
 import static com.hedera.services.utils.EntityIdUtils.parseAccount;
+import static com.hedera.services.utils.EntityNumPair.fromLongs;
 import static java.util.concurrent.CompletableFuture.runAsync;
 
 /**
@@ -244,6 +247,8 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 			return;
 		}
 
+		ChunkManager.initialize(platform::addAppStatEntry);
+
 		log.info("Init called on Services node {} WITH Merkle saved state", platform.getSelfId());
 
 		/* Immediately override the address book from the saved state */
@@ -352,7 +357,7 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 		return getChild(StateChildIndices.ACCOUNTS);
 	}
 
-	public MerkleMap<String, MerkleOptionalBlob> storage() {
+	public MerkleMap<ChunkPath, KeyedChunk<ChunkPath>> storage() {
 		return getChild(StateChildIndices.STORAGE);
 	}
 
