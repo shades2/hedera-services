@@ -22,6 +22,9 @@ package com.hedera.services;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.services.context.properties.BootstrapProperties;
+import com.hedera.services.rbair.AccountKey;
+import com.hedera.services.rbair.AccountKeySerializer;
+import com.hedera.services.rbair.AccountValue;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.state.merkle.MerkleBlobMeta;
 import com.hedera.services.state.merkle.MerkleDiskFs;
@@ -59,11 +62,19 @@ import com.swirlds.common.merkle.MerkleNode;
 import com.swirlds.common.merkle.utility.AbstractNaryMerkleInternal;
 import com.swirlds.common.merkle.utility.Keyed;
 import com.swirlds.fchashmap.FCOneToManyRelation;
+import com.swirlds.jasperdb.VirtualDataSourceJasperDB;
+import com.swirlds.jasperdb.VirtualInternalRecordSerializer;
+import com.swirlds.jasperdb.VirtualLeafRecordSerializer;
 import com.swirlds.merkle.map.FCMapMigration;
 import com.swirlds.merkle.map.MerkleMap;
+import com.swirlds.virtualmap.VirtualMap;
+import com.swirlds.virtualmap.datasource.VirtualDataSource;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -74,8 +85,8 @@ import java.util.function.Supplier;
 import static com.hedera.services.context.AppsManager.APPS;
 import static com.hedera.services.state.merkle.MerkleNetworkContext.UNKNOWN_CONSENSUS_TIME;
 import static com.hedera.services.state.migration.Release0170Migration.moveLargeFcmsToBinaryRoutePositions;
-import static com.hedera.services.utils.EntityNumPair.fromLongs;
 import static com.hedera.services.utils.EntityIdUtils.parseAccount;
+import static com.hedera.services.utils.EntityNumPair.fromLongs;
 import static java.util.concurrent.CompletableFuture.runAsync;
 
 /**
@@ -454,6 +465,31 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 		setChild(StateChildIndices.SCHEDULE_TXS, new MerkleMap<>());
 		setChild(StateChildIndices.RECORD_STREAM_RUNNING_HASH, genesisRunningHashLeaf());
 		setChild(StateChildIndices.ADDRESS_BOOK, addressBook);
+
+		final AccountKeySerializer keySerializer = new AccountKeySerializer();
+		final VirtualLeafRecordSerializer<AccountKey, AccountValue> leafRecordSerializer =
+				new VirtualLeafRecordSerializer<>(
+						1, DigestType.SHA_384,
+						1, keySerializer.getSerializedSize(), AccountKey::new,
+						1, 33, AccountValue::new,
+						true);
+
+		try {
+			final VirtualDataSource<AccountKey, AccountValue> ds =
+					new VirtualDataSourceJasperDB<>(
+							leafRecordSerializer,
+							new VirtualInternalRecordSerializer(),
+							keySerializer,
+							Path.of("data/jasperdb"),
+							50_000_000,
+							true,
+							0,
+							false);
+
+			setChild(StateChildIndices.RBAIR_VMAP, new VirtualMap<AccountKey, AccountValue>(ds));
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
 	}
 
 	private RecordsRunningHashLeaf genesisRunningHashLeaf() {
