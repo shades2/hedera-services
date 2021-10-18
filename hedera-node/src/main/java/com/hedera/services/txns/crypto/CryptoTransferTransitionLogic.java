@@ -25,8 +25,12 @@ import com.hedera.services.context.properties.GlobalDynamicProperties;
 import com.hedera.services.grpc.marshalling.ImpliedTransfers;
 import com.hedera.services.grpc.marshalling.ImpliedTransfersMarshal;
 import com.hedera.services.grpc.marshalling.ImpliedTransfersMeta;
+import com.hedera.services.ledger.BalanceChange;
 import com.hedera.services.ledger.HederaLedger;
 import com.hedera.services.ledger.PureTransferSemanticChecks;
+import com.hedera.services.rbair.AccountKey;
+import com.hedera.services.state.StateAccessor;
+import com.hedera.services.state.annotations.WorkingState;
 import com.hedera.services.txns.TransitionLogic;
 import com.hedera.services.txns.span.ExpandHandleSpanMapAccessor;
 import com.hedera.services.utils.TxnAccessor;
@@ -55,6 +59,7 @@ public class CryptoTransferTransitionLogic implements TransitionLogic {
 	private final ImpliedTransfersMarshal impliedTransfersMarshal;
 	private final PureTransferSemanticChecks transferSemanticChecks;
 	private final ExpandHandleSpanMapAccessor spanMapAccessor;
+	private final StateAccessor stateAccessor;
 
 	@Inject
 	public CryptoTransferTransitionLogic(
@@ -63,14 +68,15 @@ public class CryptoTransferTransitionLogic implements TransitionLogic {
 			GlobalDynamicProperties dynamicProperties,
 			ImpliedTransfersMarshal impliedTransfersMarshal,
 			PureTransferSemanticChecks transferSemanticChecks,
-			ExpandHandleSpanMapAccessor spanMapAccessor
-	) {
+			ExpandHandleSpanMapAccessor spanMapAccessor,
+			@WorkingState StateAccessor stateAccessor) {
 		this.txnCtx = txnCtx;
 		this.ledger = ledger;
 		this.spanMapAccessor = spanMapAccessor;
 		this.dynamicProperties = dynamicProperties;
 		this.transferSemanticChecks = transferSemanticChecks;
 		this.impliedTransfersMarshal = impliedTransfersMarshal;
+		this.stateAccessor = stateAccessor;
 	}
 
 	@Override
@@ -83,6 +89,23 @@ public class CryptoTransferTransitionLogic implements TransitionLogic {
 
 		final var changes = impliedTransfers.getAllBalanceChanges();
 		ledger.doZeroSum(changes);
+
+		final var rbairMap = stateAccessor.rbairMap();
+		for (BalanceChange change : changes) {
+			if (change.isForHbar()) {
+				try {
+					final var accountId = change.accountId();
+					if (accountId.getAccountNum() >= 1000) {
+						final var newBalance = change.getNewBalance();
+						final var value = rbairMap.getForModify(
+								new AccountKey(accountId.getRealmNum(), accountId.getShardNum(), accountId.getAccountNum()));
+						value.setBalance(newBalance);
+					}
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+		}
 
 		txnCtx.setAssessedCustomFees(impliedTransfers.getAssessedCustomFees());
 	}

@@ -26,6 +26,10 @@ import com.hedera.services.exceptions.InsufficientFundsException;
 import com.hedera.services.ledger.HederaLedger;
 import com.hedera.services.ledger.accounts.HederaAccountCustomizer;
 import com.hedera.services.legacy.core.jproto.JKey;
+import com.hedera.services.rbair.AccountKey;
+import com.hedera.services.rbair.AccountValue;
+import com.hedera.services.state.StateAccessor;
+import com.hedera.services.state.annotations.WorkingState;
 import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.txns.TransitionLogic;
 import com.hedera.services.txns.validation.OptionValidator;
@@ -72,18 +76,20 @@ public class CryptoCreateTransitionLogic implements TransitionLogic {
 	private final OptionValidator validator;
 	private final TransactionContext txnCtx;
 	private final GlobalDynamicProperties dynamicProperties;
+	private final StateAccessor stateAccessor;
 
 	@Inject
 	public CryptoCreateTransitionLogic(
 			HederaLedger ledger,
 			OptionValidator validator,
 			TransactionContext txnCtx,
-			GlobalDynamicProperties dynamicProperties
-	) {
+			GlobalDynamicProperties dynamicProperties,
+			@WorkingState StateAccessor stateAccessor) {
 		this.ledger = ledger;
 		this.txnCtx = txnCtx;
 		this.validator = validator;
 		this.dynamicProperties = dynamicProperties;
+		this.stateAccessor = stateAccessor;
 	}
 
 	@Override
@@ -95,6 +101,11 @@ public class CryptoCreateTransitionLogic implements TransitionLogic {
 			CryptoCreateTransactionBody op = cryptoCreateTxn.getCryptoCreateAccount();
 			long balance = op.getInitialBalance();
 			AccountID created = ledger.create(sponsor, balance, asCustomizer(op));
+
+			final var rbairMap = this.stateAccessor.rbairMap();
+			rbairMap.put(
+					new AccountKey(created.getRealmNum(), created.getShardNum(), created.getAccountNum()),
+					new AccountValue(balance, 0, 0, false, 0));
 
 			txnCtx.setCreated(created);
 			txnCtx.setStatus(SUCCESS);

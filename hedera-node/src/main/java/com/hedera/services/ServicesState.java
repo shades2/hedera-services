@@ -239,13 +239,13 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 			blobMigrationFlag.accept(false);
 			log.info("Finished with FCMap -> MerkleMap migrations, completing the deferred init");
 
-			init(getPlatformForDeferredInit(), getAddressBookForDeferredInit());
+			init(getPlatformForDeferredInit(), getAddressBookForDeferredInit(), null);
 		}
 	}
 
 	/* --- SwirldState --- */
 	@Override
-	public void init(Platform platform, AddressBook addressBook) {
+	public void init(Platform platform, AddressBook addressBook, final SwirldDualState swirldDualState) {
 		if (deserializedVersion < StateVersions.RELEASE_0180_VERSION && platform != platformForDeferredInit) {
 			/* Due to design issues with the BinaryObjectStore, which will not be finished
 			initializing here, we need to defer initialization until post-FCM migration. */
@@ -264,7 +264,7 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 	}
 
 	@Override
-	public void genesisInit(Platform platform, AddressBook addressBook) {
+	public void genesisInit(Platform platform, AddressBook addressBook, final SwirldDualState swirldDualState) {
 		log.info("Init called on Services node {} WITHOUT Merkle saved state", platform.getSelfId());
 
 		/* Create the top-level children in the Merkle tree */
@@ -399,6 +399,10 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 		return getChild(StateChildIndices.RECORD_STREAM_RUNNING_HASH);
 	}
 
+	public VirtualMap<AccountKey, AccountValue> rbairMap() {
+		return getChild(StateChildIndices.RBAIR_VMAP);
+	}
+
 	public MerkleMap<EntityNumPair, MerkleUniqueToken> uniqueTokens() {
 		return getChild(StateChildIndices.UNIQUE_TOKENS);
 	}
@@ -470,8 +474,8 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 		final VirtualLeafRecordSerializer<AccountKey, AccountValue> leafRecordSerializer =
 				new VirtualLeafRecordSerializer<>(
 						1, DigestType.SHA_384,
-						1, keySerializer.getSerializedSize(), AccountKey::new,
-						1, 33, AccountValue::new,
+						(int) keySerializer.getCurrentDataVersion(), keySerializer.getSerializedSize(), AccountKey::new,
+						1, AccountValue.getSizeInBytes(), AccountValue::new,
 						true);
 
 		try {
@@ -486,7 +490,7 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 							0,
 							false);
 
-			setChild(StateChildIndices.RBAIR_VMAP, new VirtualMap<AccountKey, AccountValue>(ds));
+			setChild(StateChildIndices.RBAIR_VMAP, new VirtualMap<>(ds));
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
 		}

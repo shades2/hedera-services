@@ -386,7 +386,7 @@ class ServicesStateTest {
 	void defersInitWhenInitializingFromRelease0170() {
 		subject.addDeserializedChildren(Collections.emptyList(), StateVersions.RELEASE_0170_VERSION);
 
-		subject.init(platform, addressBook);
+		subject.init(platform, addressBook, null);
 
 		assertSame(platform, subject.getPlatformForDeferredInit());
 		assertSame(addressBook, subject.getAddressBookForDeferredInit());
@@ -430,7 +430,7 @@ class ServicesStateTest {
 		verify(fcmMigrator).toMerkleMap(eq(subject), eq(StateChildIndices.ACCOUNTS), any(), any());
 		verify(fcmMigrator).toMerkleMap(eq(subject), eq(StateChildIndices.TOKENS), any(), any());
 		verify(fcmMigrator).toMerkleMap(eq(subject), eq(StateChildIndices.SCHEDULE_TXS), any(), any());
-		verify(subject).init(platform, addressBook);
+		verify(subject).init(platform, addressBook, null);
 		assertThat(
 				logCaptor.infoLogs(),
 				contains(
@@ -466,7 +466,7 @@ class ServicesStateTest {
 		given(platform.getSelfId()).willReturn(selfId);
 
 		// when:
-		subject.genesisInit(platform, addressBook);
+		subject.genesisInit(platform, addressBook, null);
 
 		// then:
 		assertFalse(subject.isImmutable());
@@ -509,7 +509,7 @@ class ServicesStateTest {
 		APPS.save(selfId.getId(), app);
 
 		// when:
-		subject.init(platform, addressBook);
+		subject.init(platform, addressBook, null);
 
 		// then:
 		assertSame(addressBook, subject.addressBook());

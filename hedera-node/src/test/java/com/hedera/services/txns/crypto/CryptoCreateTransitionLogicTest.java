@@ -106,7 +106,7 @@ class CryptoCreateTransitionLogicTest {
 		given(dynamicProperties.maxTokensPerAccount()).willReturn(MAX_TOKEN_ASSOCIATIONS);
 		withRubberstampingValidator();
 
-		subject = new CryptoCreateTransitionLogic(ledger, validator, txnCtx, dynamicProperties);
+		subject = new CryptoCreateTransitionLogic(ledger, validator, txnCtx, dynamicProperties, null);
 	}
 
 	@Test

@@ -20,6 +20,8 @@ package com.hedera.services.context;
  * ‍
  */
 
+import com.hedera.services.rbair.AccountKey;
+import com.hedera.services.rbair.AccountValue;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.state.merkle.MerkleDiskFs;
 import com.hedera.services.state.merkle.MerkleNetworkContext;
@@ -29,12 +31,13 @@ import com.hedera.services.state.merkle.MerkleToken;
 import com.hedera.services.state.merkle.MerkleTokenRelStatus;
 import com.hedera.services.state.merkle.MerkleTopic;
 import com.hedera.services.state.merkle.MerkleUniqueToken;
+import com.hedera.services.stream.RecordsRunningHashLeaf;
 import com.hedera.services.utils.EntityNum;
 import com.hedera.services.utils.EntityNumPair;
-import com.hedera.services.stream.RecordsRunningHashLeaf;
 import com.swirlds.common.AddressBook;
 import com.swirlds.fchashmap.FCOneToManyRelation;
 import com.swirlds.merkle.map.MerkleMap;
+import com.swirlds.virtualmap.VirtualMap;
 
 import java.util.Objects;
 
@@ -58,6 +61,7 @@ public class StateChildren {
 	private AddressBook addressBook;
 	private MerkleDiskFs diskFs;
 	private RecordsRunningHashLeaf runningHashLeaf;
+	private VirtualMap<AccountKey, AccountValue> rbairMap;
 
 	public MerkleMap<EntityNum, MerkleAccount> getAccounts() {
 		Objects.requireNonNull(accounts);
@@ -66,6 +70,15 @@ public class StateChildren {
 
 	public void setAccounts(MerkleMap<EntityNum, MerkleAccount> accounts) {
 		this.accounts = accounts;
+	}
+
+	public VirtualMap<AccountKey, AccountValue> getRbairMap() {
+		Objects.requireNonNull(rbairMap);
+		return rbairMap;
+	}
+
+	public void setRbairMap(VirtualMap<AccountKey, AccountValue> rbairMap) {
+		this.rbairMap = rbairMap;
 	}
 
 	public MerkleMap<EntityNum, MerkleTopic> getTopics() {

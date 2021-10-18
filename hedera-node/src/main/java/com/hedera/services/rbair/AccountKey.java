@@ -83,9 +83,9 @@ public class AccountKey implements VirtualKey {
 
 	@Override
 	public boolean equals(final ByteBuffer buffer, final int version) throws IOException {
-		if (version != getVersion()) {
-			return false;
-		}
+//		if (version != getVersion()) {
+//			return false;
+//		}
 
 		return realmID == buffer.getLong() &&
 				shardId == buffer.getLong() &&
