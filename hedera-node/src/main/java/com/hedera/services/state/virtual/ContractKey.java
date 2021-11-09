@@ -23,6 +23,7 @@ package com.hedera.services.state.virtual;
 import com.swirlds.common.io.SerializableDataInputStream;
 import com.swirlds.common.io.SerializableDataOutputStream;
 import com.swirlds.virtualmap.VirtualKey;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.math.BigInteger;
@@ -390,6 +391,16 @@ public final class ContractKey implements VirtualKey {
 	static byte computeNonZeroBytes(long num) {
 		if (num == 0) return (byte) 1;
 		return (byte) Math.ceil((Long.SIZE - Long.numberOfLeadingZeros(num)) / 8D);
+	}
+
+	@Override
+	public int compareTo(@NotNull Object o) {
+		ContractKey that = (ContractKey)o;
+		int order = Long.compare(contractId, that.contractId);
+		if (order == 0) {
+			order = Arrays.compare(uint256Key, that.uint256Key);
+		}
+		return order;
 	}
 
 	/** Simple interface for a function that takes a object and returns a byte */

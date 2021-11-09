@@ -25,6 +25,7 @@ import com.hedera.services.utils.MiscUtils;
 import com.swirlds.common.io.SerializableDataInputStream;
 import com.swirlds.common.io.SerializableDataOutputStream;
 import com.swirlds.virtualmap.VirtualKey;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -38,6 +39,16 @@ public class VirtualBlobKey implements VirtualKey {
 	static final long CLASS_ID = 0x11b982c14217d523L;
 
 	private static final Type[] BLOB_TYPES = Type.values();
+
+	@Override
+	public int compareTo(@NotNull Object o) {
+		VirtualBlobKey that = (VirtualBlobKey) o;
+		int order = type.compareTo(that.type);
+		if (order == 0) {
+			order = Integer.compare(entityNumCode, that.entityNumCode);
+		}
+		return order;
+	}
 
 	public enum Type {
 		FILE_DATA, FILE_METADATA, CONTRACT_BYTECODE, SYSTEM_DELETED_ENTITY_EXPIRY

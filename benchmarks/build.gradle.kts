@@ -8,6 +8,7 @@ repositories {
 }
 
 dependencies {
+    var swirldsVersion="0.19.0";
     jmhImplementation(files("../hedera-node/target/classes"));
     jmhImplementation(files("../hapi-fees/target/classes"));
     jmhImplementation(files("../hapi-utils/target/classes"));
@@ -18,11 +19,11 @@ dependencies {
     jmhImplementation("com.boundary:high-scale-lib:1.0.6")
 
     jmhImplementation("com.hedera.hashgraph:sdk:2.0.5")
-    jmhImplementation("com.swirlds:swirlds-common:0.20.0-test.3")
-    jmhImplementation("com.swirlds:swirlds-merkle:0.20.0-test.3")
-    jmhImplementation("com.swirlds:swirlds-virtualmap:0.20.0-test.3")
-    jmhImplementation("com.swirlds:swirlds-jasperdb:0.20.0-test.3")
-    jmhImplementation("com.swirlds:swirlds-logging:0.20.0-test.3")
+    jmhImplementation("com.swirlds:swirlds-common:$swirldsVersion")
+    jmhImplementation("com.swirlds:swirlds-merkle:$swirldsVersion")
+    jmhImplementation("com.swirlds:swirlds-virtualmap:$swirldsVersion")
+    jmhImplementation("com.swirlds:swirlds-jasperdb:$swirldsVersion")
+    jmhImplementation("com.swirlds:swirlds-logging:$swirldsVersion")
     jmhImplementation("com.lmax:disruptor:3.4.4")
     jmhRuntimeOnly("io.grpc:grpc-okhttp:1.35.0")
     jmhRuntimeOnly("org.slf4j:slf4j-simple:1.7.29")
