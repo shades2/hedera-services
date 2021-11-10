@@ -11,6 +11,8 @@ import com.swirlds.jasperdb.VirtualDataSourceJasperDB;
 import com.swirlds.jasperdb.VirtualInternalRecordSerializer;
 import com.swirlds.jasperdb.VirtualLeafRecordSerializer;
 import com.swirlds.jasperdb.files.DataFileCommon;
+import com.swirlds.jasperdb.settings.JasperDbSettingsFactory;
+import com.swirlds.platform.JasperDbSettingsImpl;
 import com.swirlds.virtualmap.datasource.VirtualInternalRecord;
 import com.swirlds.virtualmap.datasource.VirtualLeafRecord;
 
@@ -18,6 +20,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.LongStream;
@@ -26,7 +29,13 @@ import java.util.stream.Stream;
 import static utils.CommonTestUtils.deleteDirectoryAndContents;
 import static utils.CommonTestUtils.hash;
 
+@SuppressWarnings("DuplicatedCode")
 public class ThorsHammer2 {
+	static {
+		JasperDbSettingsImpl settings = new JasperDbSettingsImpl();
+		settings.setMergeActivatedPeriod(10); // speed up merging checking
+		JasperDbSettingsFactory.configure(settings);
+	}
 	public static final int initialDataSize = Runtime.getRuntime().availableProcessors() > 10 ? 10_000_000 : 10_000;
 	public static final long firstLeafPath = initialDataSize;
 	public static final long middleLeafPath = firstLeafPath + (initialDataSize/2);
@@ -34,6 +43,7 @@ public class ThorsHammer2 {
 	public static final int updateBatchSize = initialDataSize/6;
 	public static final int numOfBatches = (int)((middleLeafPath - firstLeafPath) / updateBatchSize);
 	public static final Path dataSourcePath = Path.of("ThorsHammer-database").toAbsolutePath();
+	public static final Path snapshotPath = Path.of("ThorsHammer-database-SNAPSHOT").toAbsolutePath();
 	private final VirtualDataSourceJasperDB<ContractKey, ContractValue> dataSource;
 	// array of values to compare to, index in array is path
 	private final AtomicIntegerArray compareToMe = new AtomicIntegerArray((initialDataSize*2)+1);
@@ -94,12 +104,15 @@ public class ThorsHammer2 {
 	}
 
 	public void hammer() throws IOException, InterruptedException {
-		// do a couple checks first
+		// check all data first
 		System.out.println("\n===== CHECK INITIAL DATA IS ALL GOOD ================================================\n");
-		for (int i = 0; i < 3; i++) {
-			System.out.println(i);
-			checkAllValueOnce();
-		}
+		checkAllValueOnce();
+
+		// start snapshotting thread
+		System.out.println("\n===== STARTING SNAPSHOTTING ================================================\n");
+		Thread snapshotThread = new Thread(this::snapshoter,"Snapshot Thread ");
+		snapshotThread.setDaemon(true);
+		snapshotThread.start();
 
 		// start up some random checkers
 		final int randomReadThreads = Runtime.getRuntime().availableProcessors() / 4;
@@ -132,6 +145,25 @@ public class ThorsHammer2 {
 		}
 		dataSource.close();
 		System.exit(0);
+	}
+
+	public void snapshoter() {
+		while(true) {
+			// delete snapshot
+			deleteDirectoryAndContents(snapshotPath);
+			// sleep to give merging a chance
+			try {
+				TimeUnit.SECONDS.sleep(3);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			// create snapshot
+			try {
+				dataSource.snapshot(snapshotPath);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
 	}
 
 	public void updateAllValues() {

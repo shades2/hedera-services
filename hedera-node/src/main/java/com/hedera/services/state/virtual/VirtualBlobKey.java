@@ -33,7 +33,7 @@ import java.nio.ByteBuffer;
 import static com.hedera.services.files.store.FcBlobsBytesStore.LEGACY_BLOB_CODE_INDEX;
 import static java.lang.Long.parseLong;
 
-public class VirtualBlobKey implements VirtualKey {
+public class VirtualBlobKey implements VirtualKey<VirtualBlobKey> {
 	static final int CURRENT_VERSION = 1;
 	static final int BYTES_IN_SERIALIZED_FORM = 5;
 	static final long CLASS_ID = 0x11b982c14217d523L;
@@ -41,8 +41,8 @@ public class VirtualBlobKey implements VirtualKey {
 	private static final Type[] BLOB_TYPES = Type.values();
 
 	@Override
-	public int compareTo(@NotNull Object o) {
-		VirtualBlobKey that = (VirtualBlobKey) o;
+	public int compareTo(@NotNull VirtualBlobKey o) {
+		VirtualBlobKey that =o;
 		int order = type.compareTo(that.type);
 		if (order == 0) {
 			order = Integer.compare(entityNumCode, that.entityNumCode);

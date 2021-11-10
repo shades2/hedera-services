@@ -39,7 +39,7 @@ import static com.swirlds.jasperdb.utilities.NonCryptographicHashing.perm64;
  * We only store the number part of the contract ID as the ideas ia there will be a virtual merkle tree for each shard
  * and realm.
  */
-public final class ContractKey implements VirtualKey {
+public final class ContractKey implements VirtualKey<ContractKey> {
 	/** The shifts required to deserialize a big-endian contractId with leading zeros omitted */
 	private static final int[] BIT_SHIFTS =  { 0, 8, 16, 24, 32, 40, 48, 56 };
 	/** The estimated average size for a contract key when serialized */
@@ -394,8 +394,8 @@ public final class ContractKey implements VirtualKey {
 	}
 
 	@Override
-	public int compareTo(@NotNull Object o) {
-		ContractKey that = (ContractKey)o;
+	public int compareTo(@NotNull ContractKey o) {
+		ContractKey that = o;
 		int order = Long.compare(contractId, that.contractId);
 		if (order == 0) {
 			order = Arrays.compare(uint256Key, that.uint256Key);

@@ -34,7 +34,7 @@ public class VFCMapBenchBase {
         }
     }
 
-    protected static <K extends VirtualKey, V extends VirtualValue> VirtualMap<K,V> createMap(
+    protected static <K extends VirtualKey<? super K>, V extends VirtualValue> VirtualMap<K,V> createMap(
             DataSourceType type,
             VirtualLeafRecordSerializer<K, V> virtualLeafRecordSerializer,
             KeySerializer<K> keySerializer,

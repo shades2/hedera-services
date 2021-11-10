@@ -31,6 +31,7 @@ import java.nio.file.Path;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.LinkedList;
 import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -106,6 +107,11 @@ public class ContractBench {
     private ContractKey asContractKey(long contractIndex, long index) {
         return new ContractKey(contractIndex, index);
     }
+
+    private static final int MAX_NUMBER_OF_SNAPSHOTS_TO_KEEP = 10;
+
+    /** keep track of created snapshot directories so we can delete any older than 10 */
+    private final LinkedList<Path> snapshotDirs = new LinkedList<>();
 
     @Setup
     public void prepare() throws Exception {
@@ -213,6 +219,14 @@ public class ContractBench {
         ScheduledExecutorService snapshotting = Executors.newScheduledThreadPool(1, runnable -> new Thread(runnable, "Snapshot"));
         snapshotting.scheduleWithFixedDelay(() -> {
             final Path snapshotDir = Path.of("jasperdb_snapshot_"+df.format(new Date()));
+            snapshotDirs.add(snapshotDir);
+            // check if we need delete old snapshot if we have too many
+            while (snapshotDirs.size() > MAX_NUMBER_OF_SNAPSHOTS_TO_KEEP) {
+                final Path oldSnapshotDir = snapshotDirs.pop();
+                System.out.println("************ DELETING SNAPSHOT ["+oldSnapshotDir.toAbsolutePath()+"] ***********");
+                DataFileCommon.deleteDirectoryAndContents(oldSnapshotDir);
+            }
+            // create new snapshot
             System.out.println("************ STARTING SNAPSHOT ["+snapshotDir.toAbsolutePath()+"] ***********");
             long START = System.currentTimeMillis();
             try {

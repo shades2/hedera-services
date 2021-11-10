@@ -10,12 +10,16 @@ import com.swirlds.jasperdb.JasperDbBuilder;
 import com.swirlds.jasperdb.VirtualInternalRecordSerializer;
 import com.swirlds.jasperdb.VirtualLeafRecordSerializer;
 import com.swirlds.jasperdb.files.DataFileCommon;
+import com.swirlds.jasperdb.settings.JasperDbSettingsFactory;
+import com.swirlds.platform.JasperDbSettingsImpl;
 import com.swirlds.virtualmap.VirtualMap;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.IntStream;
@@ -24,14 +28,15 @@ import static utils.CommonTestUtils.deleteDirectoryAndContents;
 
 @SuppressWarnings("InfiniteLoopStatement")
 public class ThorsVirtualMapHammer {
-//	static {
-//		JasperDbSettingsImpl settings = new JasperDbSettingsImpl();
-//		settings.setMergeActivatedPeriod(1); // just merge as often as we can
-//		JasperDbSettingsFactory.configure(settings);
-//	}
+	static {
+		JasperDbSettingsImpl settings = new JasperDbSettingsImpl();
+		settings.setMergeActivatedPeriod(10); // speed up merging checking
+		JasperDbSettingsFactory.configure(settings);
+	}
 	public static final int dataSize = Runtime.getRuntime().availableProcessors() > 10 ? 10_000_000 : 10_000;
 	public static final int updateBatchSize = 8000;
 	public static final Path dataSourcePath = Path.of("ThorsHammer-database").toAbsolutePath();
+	public static final Path snapshotPath = Path.of("ThorsHammer-database-SNAPSHOT").toAbsolutePath();
 	private final AtomicReference<VirtualMap<ContractKey, ContractValue>> virtualMapRef = new AtomicReference<>();
 	private final ConcurrentHashMap<ContractKey, ContractValue> compareToMe = new ConcurrentHashMap<>();
 	/** Current progress percentage we are tracking in the range of 0 to 20 */
@@ -83,6 +88,12 @@ public class ThorsVirtualMapHammer {
 		System.out.println("\n===== CHECK INITIAL DATA IS ALL GOOD ================================================\n");
 		checkAllValueOnce();
 
+		// start snapshotting thread
+		System.out.println("\n===== STARTING SNAPSHOTTING ================================================\n");
+		Thread snapshotThread = new Thread(this::snapshoter,"Snapshot Thread ");
+		snapshotThread.setDaemon(true);
+		snapshotThread.start();
+
 		// start up some random checkers
 		final int randomReadThreads = 3;//Runtime.getRuntime().availableProcessors() / 2;
 		System.out.println("\n===== STARTING READING THREADS" +
@@ -121,6 +132,24 @@ public class ThorsVirtualMapHammer {
 		System.exit(0);
 	}
 
+	public void snapshoter() {
+		while(true) {
+			// delete snapshot
+			deleteDirectoryAndContents(snapshotPath);
+			// sleep to give merging a chance
+			try {
+				TimeUnit.SECONDS.sleep(3);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			// create snapshot
+			try {
+				virtualMapRef.get().getDataSource().snapshot(snapshotPath);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
 
 	public void checkAllValueOnce() {
 		final var virtualMap = virtualMapRef.get();

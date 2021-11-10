@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @param <V>
  */
 @SuppressWarnings("FieldCanBeLocal")
-public class Pipeline<K extends VirtualKey, V extends VirtualValue> {
+public class Pipeline<K extends VirtualKey<? super K>, V extends VirtualValue> {
     /** Used to pass a virtual map from the handleTransaction (main) thread to the hashing thread */
     private final Exchanger<HashingData> hashingExchanger = new Exchanger<>();
     /** Used to pass a virtual map from the holder thread to the release thread, where it will be released / merged */

@@ -26,7 +26,7 @@ import static java.nio.ByteBuffer.allocateDirect;
 import static org.lmdbjava.DbiFlags.MDB_CREATE;
 import static org.lmdbjava.DbiFlags.MDB_INTEGERKEY;
 
-public final class VFCDataSourceLmdb<K extends VirtualKey, V extends VirtualValue> implements VirtualDataSource<K, V> {
+public final class VFCDataSourceLmdb<K extends VirtualKey<? super K>, V extends VirtualValue> implements VirtualDataSource<K, V> {
     private final static long GB = 1024*1024*1024;
     private final static long TB = GB*1024;
     private final static int HASH_SIZE = Integer.BYTES + DigestType.SHA_384.digestLength();
