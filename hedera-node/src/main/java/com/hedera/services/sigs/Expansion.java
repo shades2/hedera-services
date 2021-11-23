@@ -83,7 +83,7 @@ class Expansion {
 
 		if (pkToSigFn.hasAtLeastOneUnusedSigWithFullPrefix()) {
 			pkToSigFn.forEachUnusedSigWithFullPrefix((pubKey, sig) ->
-					txnAccessor.getPlatformTxn().add(sigFactory.create(pubKey, sig)));
+					txnAccessor.getPlatformTxn().add(sigFactory.signBodyWithEd25519(pubKey, sig)));
 		}
 
 		return OK;

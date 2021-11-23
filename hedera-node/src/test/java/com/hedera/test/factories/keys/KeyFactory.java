@@ -33,12 +33,14 @@ import org.bouncycastle.crypto.params.ECKeyGenerationParameters;
 import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
 import org.bouncycastle.crypto.params.ECPublicKeyParameters;
 import org.bouncycastle.jce.ECNamedCurveTable;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.jce.spec.ECNamedCurveParameterSpec;
 import org.bouncycastle.jce.spec.ECPrivateKeySpec;
 
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.SecureRandom;
+import java.security.Security;
 import java.security.spec.InvalidKeySpecException;
 import java.util.HashMap;
 import java.util.List;
@@ -54,8 +56,12 @@ public class KeyFactory {
 	}
 
 	private final KeyGenerator keyGen;
-	private final Map<String, Key> labelToEd25519 = new HashMap<>();
+	private final Map<String, Key> labelToPrimitive = new HashMap<>();
 	private final Map<String, PrivateKey> publicToPrivateKey = new HashMap<>();
+
+	static {
+		Security.addProvider(new BouncyCastleProvider());
+	}
 
 	public KeyFactory() {
 		this(DEFAULT_KEY_GEN);
@@ -66,7 +72,11 @@ public class KeyFactory {
 	}
 
 	public Key labeledEd25519(String label) {
-		return labelToEd25519.computeIfAbsent(label, ignore -> newEd25519());
+		return labelToPrimitive.computeIfAbsent(label, ignore -> newEd25519());
+	}
+
+	public Key labeledEcdsaSecp256k1(String label) {
+		return labelToPrimitive.computeIfAbsent(label, ignore -> newEcdsaSecp256k1());
 	}
 
 	public Key newEd25519() {
@@ -152,7 +162,7 @@ public class KeyFactory {
 					curveParams.getSeed());
 	private static final ECKeyGenerationParameters genParams =
 			new ECKeyGenerationParameters(domainParams, new SecureRandom());
-	private static final ECKeyPairGenerator ecdsaKpGenerator = new ECKeyPairGenerator();
+	public static final ECKeyPairGenerator ecdsaKpGenerator = new ECKeyPairGenerator();
 
 	static {
 		ecdsaKpGenerator.init(genParams);

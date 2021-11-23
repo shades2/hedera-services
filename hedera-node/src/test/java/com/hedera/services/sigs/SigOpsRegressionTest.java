@@ -29,7 +29,6 @@ import com.hedera.services.files.HederaFs;
 import com.hedera.services.keys.HederaKeyActivation;
 import com.hedera.services.keys.KeyActivationCharacteristics;
 import com.hedera.services.legacy.core.jproto.JKey;
-import com.hedera.services.sigs.factories.BodySigningSigFactory;
 import com.hedera.services.sigs.factories.ReusableBodySigningFactory;
 import com.hedera.services.sigs.metadata.SigMetadataLookup;
 import com.hedera.services.sigs.metadata.lookups.HfsSigMetaLookup;
@@ -215,7 +214,7 @@ class SigOpsRegressionTest {
 		List<TransactionSignature> unknownSigs = PlatformSigOps.createCryptoSigsFrom(
 				List.of(COMPLEX_KEY_ACCOUNT_KT.asJKey(), CryptoCreateFactory.DEFAULT_ACCOUNT_KT.asJKey()),
 				platformTxn.getPkToSigsFn(),
-				new BodySigningSigFactory(platformTxn)
+				new ReusableBodySigningFactory(platformTxn)
 		).getPlatformSigs();
 		List<TransactionSignature> knownSigs = asKind(List.of(
 				new AbstractMap.SimpleEntry<>(unknownSigs.get(0), VALID),
@@ -240,7 +239,7 @@ class SigOpsRegressionTest {
 		List<TransactionSignature> unknownSigs = PlatformSigOps.createCryptoSigsFrom(
 				List.of(COMPLEX_KEY_ACCOUNT_KT.asJKey(), CryptoCreateFactory.DEFAULT_ACCOUNT_KT.asJKey()),
 				platformTxn.getPkToSigsFn(),
-				new BodySigningSigFactory(platformTxn)
+				new ReusableBodySigningFactory(platformTxn)
 		).getPlatformSigs();
 		List<TransactionSignature> knownSigs = asKind(List.of(
 				new AbstractMap.SimpleEntry<>(unknownSigs.get(0), INVALID),
@@ -265,7 +264,7 @@ class SigOpsRegressionTest {
 		List<TransactionSignature> unknownSigs = PlatformSigOps.createCryptoSigsFrom(
 				List.of(DEFAULT_PAYER_KT.asJKey(), COMPLEX_KEY_ACCOUNT_KT.asJKey()),
 				platformTxn.getPkToSigsFn(),
-				new BodySigningSigFactory(platformTxn)
+				new ReusableBodySigningFactory(platformTxn)
 		).getPlatformSigs();
 		List<TransactionSignature> knownSigs = asKind(List.of(
 				new AbstractMap.SimpleEntry<>(unknownSigs.get(0), VALID),
@@ -291,7 +290,7 @@ class SigOpsRegressionTest {
 		List<TransactionSignature> unknownSigs = PlatformSigOps.createCryptoSigsFrom(
 				List.of(DEFAULT_PAYER_KT.asJKey(), COMPLEX_KEY_ACCOUNT_KT.asJKey()),
 				platformTxn.getPkToSigsFn(),
-				new BodySigningSigFactory(platformTxn)
+				new ReusableBodySigningFactory(platformTxn)
 		).getPlatformSigs();
 		List<TransactionSignature> knownSigs = asKind(List.of(
 				new AbstractMap.SimpleEntry<>(unknownSigs.get(0), VALID),
@@ -317,7 +316,7 @@ class SigOpsRegressionTest {
 		List<TransactionSignature> unknownSigs = PlatformSigOps.createCryptoSigsFrom(
 				List.of(DEFAULT_PAYER_KT.asJKey(), COMPLEX_KEY_ACCOUNT_KT.asJKey(), NEW_ACCOUNT_KT.asJKey()),
 				platformTxn.getPkToSigsFn(),
-				new BodySigningSigFactory(platformTxn)
+				new ReusableBodySigningFactory(platformTxn)
 		).getPlatformSigs();
 		List<TransactionSignature> knownSigs = asKind(List.of(
 				new AbstractMap.SimpleEntry<>(unknownSigs.get(0), VALID),
@@ -345,7 +344,7 @@ class SigOpsRegressionTest {
 						DEFAULT_PAYER_KT.asJKey(),
 						CryptoCreateFactory.DEFAULT_ACCOUNT_KT.asJKey()),
 				platformTxn.getPkToSigsFn(),
-				new BodySigningSigFactory(platformTxn)
+				new ReusableBodySigningFactory(platformTxn)
 		).getPlatformSigs();
 	}
 
@@ -442,7 +441,7 @@ class SigOpsRegressionTest {
 			PlatformSigsCreationResult payerResult = PlatformSigOps.createCryptoSigsFrom(
 					payerKeys.getOrderedKeys(),
 					new PojoSigMapPubKeyToSigBytes(platformTxn.getSigMap()),
-					new BodySigningSigFactory(platformTxn)
+					new ReusableBodySigningFactory(platformTxn)
 			);
 			expectedSigs.addAll(payerResult.getPlatformSigs());
 			SigningOrderResult<ResponseCodeEnum> otherKeys =
@@ -453,7 +452,7 @@ class SigOpsRegressionTest {
 				PlatformSigsCreationResult otherResult = PlatformSigOps.createCryptoSigsFrom(
 						otherKeys.getOrderedKeys(),
 						new PojoSigMapPubKeyToSigBytes(platformTxn.getSigMap()),
-						new BodySigningSigFactory(platformTxn)
+						new ReusableBodySigningFactory(platformTxn)
 				);
 				if (!otherResult.hasFailed()) {
 					expectedSigs.addAll(otherResult.getPlatformSigs());

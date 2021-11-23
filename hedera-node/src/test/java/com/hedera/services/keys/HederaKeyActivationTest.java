@@ -22,12 +22,16 @@ package com.hedera.services.keys;
 
 import com.hedera.services.legacy.core.jproto.JKey;
 import com.hedera.services.legacy.core.jproto.JKeyList;
+import com.hedera.services.sigs.factories.ReusableBodySigningFactory;
+import com.hedera.services.sigs.sourcing.PubKeyToSigBytes;
 import com.hedera.services.utils.RationalizedSigMeta;
 import com.hedera.services.utils.TxnAccessor;
-import com.hedera.test.factories.keys.KeyTree;
+import com.hedera.test.factories.keys.KeyFactory;
 import com.hedera.test.factories.sigs.SigWrappers;
+import com.swirlds.common.crypto.SignatureType;
 import com.swirlds.common.crypto.TransactionSignature;
 import com.swirlds.common.crypto.VerificationStatus;
+import com.swirlds.common.crypto.engine.CryptoEngine;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,10 +42,16 @@ import java.util.function.Function;
 import static com.hedera.services.keys.HederaKeyActivation.ONLY_IF_SIG_IS_VALID;
 import static com.hedera.services.keys.HederaKeyActivation.isActive;
 import static com.hedera.services.keys.HederaKeyActivation.pkToSigMapFrom;
-import static com.hedera.services.sigs.factories.PlatformSigFactory.createEd25519;
+import static com.hedera.services.legacy.proto.utils.SignatureGenerator.signBytes;
+import static com.hedera.services.sigs.PlatformSigOps.createCryptoSigsFrom;
+import static com.hedera.services.sigs.factories.PlatformSigFactory.ed25519Sig;
+import static com.hedera.services.sigs.utils.MiscCryptoUtils.keccak256DigestOf;
+import static com.hedera.test.factories.keys.KeyTree.withRoot;
+import static com.hedera.test.factories.keys.NodeFactory.ecdsa384Secp256k1;
 import static com.hedera.test.factories.keys.NodeFactory.ed25519;
 import static com.hedera.test.factories.keys.NodeFactory.list;
 import static com.hedera.test.factories.keys.NodeFactory.threshold;
+import static com.swirlds.common.CommonUtils.hex;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -54,25 +64,28 @@ import static org.mockito.Mockito.verify;
 
 class HederaKeyActivationTest {
 	private static JKey complexKey;
+	private static JKey keyList;
 	private static final byte[] pk = "PK".getBytes();
 	private static final byte[] sig = "SIG".getBytes();
 	private static final byte[] data = "DATA".getBytes();
 	private Function<byte[], TransactionSignature> sigsFn;
 	private static final TransactionSignature VALID_SIG = SigWrappers
-			.asValid(List.of(createEd25519(pk, sig, data)))
+			.asValid(List.of(ed25519Sig(pk, sig, data)))
 			.get(0);
 	private static final TransactionSignature INVALID_SIG = SigWrappers
-			.asInvalid(List.of(createEd25519(pk, sig, data)))
+			.asInvalid(List.of(ed25519Sig(pk, sig, data)))
 			.get(0);
 
-	private static final Function<Integer, TransactionSignature> mockSigFn = i -> createEd25519(
+	private static final Function<Integer, TransactionSignature> mockSigFn = i -> ed25519Sig(
 			String.format("PK%d", i).getBytes(),
 			String.format("SIG%d", i).getBytes(),
 			String.format("DATA%d", i).getBytes());
 
 	@BeforeAll
 	private static void setupAll() throws Throwable {
-		complexKey = KeyTree.withRoot(
+		keyList = withRoot(list(ecdsa384Secp256k1(), ed25519())).asJKey();
+
+		complexKey = withRoot(
 				list(
 						ed25519(),
 						threshold(1,
@@ -86,6 +99,43 @@ class HederaKeyActivationTest {
 	@BeforeEach
 	void setup() {
 		sigsFn = (Function<byte[], TransactionSignature>) mock(Function.class);
+	}
+
+	@Test
+	void canMatchCompressedEcdsaSecp256k1Key() throws Exception {
+		final var mockTxnBytes =
+				"012345789012345789012345789012345789012345789012345789012345789012345789012345789012345789".getBytes();
+
+		final var explicitList = keyList.getKeyList().getKeysList();
+		final var secp256k1Key = explicitList.get(0);
+		final var ed25519Key = explicitList.get(1);
+
+		final var keyFactory = KeyFactory.getDefaultInstance();
+		final var mockSigs = mock(PubKeyToSigBytes.class);
+		given(mockSigs.sigBytesFor(explicitList.get(0).getECDSASecp256k1Key()))
+				.willReturn(signBytes(
+						keccak256DigestOf(mockTxnBytes),
+						keyFactory.lookupPrivateKey(hex(secp256k1Key.getECDSASecp256k1Key()))));
+		given(mockSigs.sigBytesFor(explicitList.get(1).getEd25519()))
+				.willReturn(signBytes(
+						mockTxnBytes,
+						keyFactory.lookupPrivateKey(hex(ed25519Key.getEd25519()))));
+
+		final var accessor = mock(TxnAccessor.class);
+		given(accessor.getTxnBytes()).willReturn(mockTxnBytes);
+
+		final var cryptoSigs = createCryptoSigsFrom(
+				explicitList, mockSigs, new ReusableBodySigningFactory(accessor)
+		).getPlatformSigs();
+		new CryptoEngine().verifySync(cryptoSigs);
+		final var subject = pkToSigMapFrom(cryptoSigs);
+
+		final var ed25519Sig = subject.apply(ed25519Key.getEd25519());
+		assertEquals(SignatureType.ED25519, ed25519Sig.getSignatureType());
+		assertEquals(VerificationStatus.VALID, ed25519Sig.getSignatureStatus());
+
+		final var secp256k1Sig = subject.apply(secp256k1Key.getECDSASecp256k1Key());
+		assertEquals(SignatureType.ECDSA_SECP256K1, secp256k1Sig.getSignatureType());
 	}
 
 	@Test

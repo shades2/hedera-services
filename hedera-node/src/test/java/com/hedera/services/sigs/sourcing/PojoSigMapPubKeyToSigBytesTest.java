@@ -122,7 +122,8 @@ class PojoSigMapPubKeyToSigBytesTest {
 				.payerKt(payerKt)
 				.nonPayerKts(otherKt)
 				.get();
-		PubKeyToSigBytes subject = new PojoSigMapPubKeyToSigBytes(SignedTxnAccessor.uncheckedFrom(signedTxn).getSigMap());
+		PubKeyToSigBytes subject = new PojoSigMapPubKeyToSigBytes(
+				SignedTxnAccessor.uncheckedFrom(signedTxn).getSigMap());
 
 		// expect:
 		lookupsMatch(payerKt, defaultFactory, CommonUtils.extractTransactionBodyBytes(signedTxn), subject);
@@ -186,10 +187,10 @@ class PojoSigMapPubKeyToSigBytesTest {
 		} else {
 			if (leaf.getSigType() == SignatureType.ED25519) {
 				return SigFactory.signUnchecked(data, factory.lookupPrivateKey(leaf.asKey(factory)));
+			} else if (leaf.getSigType() == SignatureType.ECDSA_SECP256K1) {
+				return SigFactory.NONSENSE_ECDSA_SIG;
 			} else if (leaf.getSigType() == SignatureType.RSA) {
 				return SigFactory.NONSENSE_RSA_SIG;
-			} else if (leaf.getSigType() == SignatureType.ECDSA) {
-				return SigFactory.NONSENSE_ECDSA_SIG;
 			}
 			throw new AssertionError("Impossible leaf type!");
 		}

@@ -84,7 +84,7 @@ class ExpansionTest {
 		final var pretendFullKey = "COMPLETE".getBytes(StandardCharsets.UTF_8);
 		final var pretendFullSig = "NONSENSE".getBytes(StandardCharsets.UTF_8);
 
-		given(sigFactory.create(pretendFullKey, pretendFullSig)).willReturn(signature);
+		given(sigFactory.signBodyWithEd25519(pretendFullKey, pretendFullSig)).willReturn(signature);
 		setupDegenerateMocks();
 		given(pkToSigFn.hasAtLeastOneUnusedSigWithFullPrefix()).willReturn(true);
 		willAnswer(inv -> {

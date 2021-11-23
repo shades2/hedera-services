@@ -124,7 +124,7 @@ public class Rationalization {
 			reqOthersSigs = lastOrderResult.getOrderedKeys();
 			if (pkToSigFn.hasAtLeastOneUnusedSigWithFullPrefix()) {
 				pkToSigFn.forEachUnusedSigWithFullPrefix((pubKey, sig) ->
-						realOtherPartySigs.add(bodySigningFactory.create(pubKey, sig)));
+						realOtherPartySigs.add(bodySigningFactory.signBodyWithEd25519(pubKey, sig)));
 			}
 		}
 

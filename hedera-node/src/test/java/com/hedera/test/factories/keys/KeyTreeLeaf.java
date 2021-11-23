@@ -36,8 +36,6 @@ public class KeyTreeLeaf implements KeyTreeNode {
 	private SignatureType sigType = SignatureType.ED25519;
 	private final Key NONSENSE_RSA_KEY =
 			Key.newBuilder().setRSA3072(ByteString.copyFrom("MOME".getBytes())).build();
-	private final Key NONSENSE_ECDSA_KEY =
-			Key.newBuilder().setECDSA384(ByteString.copyFrom("OUTGRABE".getBytes())).build();
 	private final Map<KeyFactory, Key> keyCache = new HashMap<>();
 
 	public KeyTreeLeaf(boolean usedToSign, String label, SignatureType sigType) {
@@ -65,8 +63,8 @@ public class KeyTreeLeaf implements KeyTreeNode {
 	private Key customKey(KeyFactory factory) {
 		if (sigType == SignatureType.ED25519) {
 			return Optional.ofNullable(label).map(factory::labeledEd25519).orElse(factory.newEd25519());
-		} else if (sigType == SignatureType.ECDSA) {
-			return NONSENSE_ECDSA_KEY;
+		} else if (sigType == SignatureType.ECDSA_SECP256K1) {
+			return Optional.ofNullable(label).map(factory::labeledEcdsaSecp256k1).orElse(factory.newEcdsaSecp256k1());
 		} else if (sigType == SignatureType.RSA) {
 			return NONSENSE_RSA_KEY;
 		}

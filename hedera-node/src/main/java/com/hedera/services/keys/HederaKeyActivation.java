@@ -24,11 +24,13 @@ import com.hedera.services.legacy.core.jproto.JKey;
 import com.hedera.services.legacy.core.jproto.JKeyList;
 import com.hedera.services.legacy.core.jproto.JThresholdKey;
 import com.hedera.services.utils.TxnAccessor;
+import com.swirlds.common.CommonUtils;
 import com.swirlds.common.crypto.TransactionSignature;
 import com.swirlds.common.crypto.VerificationStatus;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 
@@ -42,6 +44,9 @@ import static com.swirlds.common.crypto.VerificationStatus.VALID;
  * @see JKey
  */
 public final class HederaKeyActivation {
+	private static final int ED25519_PUBLIC_KEY_LEN = 32;
+	private static final int COMPRESSED_SECP256k1_PUBLIC_KEY_LEN = 33;
+
 	public static final TransactionSignature INVALID_MISSING_SIG = new InvalidSignature();
 
 	public static final BiPredicate<JKey, TransactionSignature> ONLY_IF_SIG_IS_VALID =
@@ -56,9 +61,9 @@ public final class HederaKeyActivation {
 	 * taken together, activate the payer's Hedera key.
 	 *
 	 * @param accessor
-	 * 		the txn to evaluate.
+	 * 		the txn to evaluate
 	 * @param validity
-	 * 		the logic deciding if a given simple key is activated by a given platform sig.
+	 * 		the logic deciding if a given simple key is activated by a given platform sig
 	 * @return whether the payer's Hedera key is active
 	 */
 	public static boolean payerSigIsActive(
@@ -86,12 +91,12 @@ public final class HederaKeyActivation {
 	 * of the Hedera key tree structure encounters the corresponding simple keys.
 	 *
 	 * @param key
-	 * 		the top-level Hedera key to test for activation.
+	 * 		the top-level Hedera key to test for activation
 	 * @param sigsFn
-	 * 		the source of platform signatures for the simple keys in the Hedera key.
+	 * 		the source of platform signatures for the simple keys in the Hedera key
 	 * @param validity
-	 * 		the logic deciding if a given simple key is activated by a given platform sig.
-	 * @return whether the Hedera key is active.
+	 * 		the logic deciding if a given simple key is activated by a given platform sig
+	 * @return whether the Hedera key is active
 	 */
 	public static boolean isActive(
 			final JKey key,
@@ -130,18 +135,31 @@ public final class HederaKeyActivation {
 	 * Factory for a source of platform signatures backed by a list.
 	 *
 	 * @param sigs
-	 * 		the backing list of platform sigs.
-	 * @return a supplier that produces the backing list sigs by public key.
+	 * 		the backing list of platform sigs
+	 * @return a supplier that produces the backing list sigs by public key
 	 */
 	public static Function<byte[], TransactionSignature> pkToSigMapFrom(final List<TransactionSignature> sigs) {
-		return key -> {
+		return pk -> {
 			for (var sig : sigs) {
-				if (Arrays.equals(key, sig.getExpandedPublicKeyDirect())) {
+				if (match(pk, sig.getExpandedPublicKeyDirect())) {
 					return sig;
 				}
 			}
 			return INVALID_MISSING_SIG;
 		};
+	}
+
+	private static boolean match(byte[] sourceKey, byte[] sigKey) {
+		System.out.println("Matching " + Optional.ofNullable(sourceKey).map(CommonUtils::hex).orElse("NULL"));
+		if (sourceKey.length == ED25519_PUBLIC_KEY_LEN) {
+			return Arrays.equals(sourceKey, sigKey);
+		} else if (sourceKey.length == COMPRESSED_SECP256k1_PUBLIC_KEY_LEN) {
+			return Arrays.equals(
+					sourceKey, 1, COMPRESSED_SECP256k1_PUBLIC_KEY_LEN,
+					sigKey, 0, 32);
+		} else {
+			throw new AssertionError("Not implemented");
+		}
 	}
 
 	private static class InvalidSignature extends TransactionSignature {

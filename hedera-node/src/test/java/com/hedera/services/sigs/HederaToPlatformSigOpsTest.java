@@ -273,7 +273,7 @@ class HederaToPlatformSigOpsTest {
 	}
 
 	private TransactionSignature dummyFor(final JKey key, final String sig) {
-		return PlatformSigFactory.createEd25519(
+		return PlatformSigFactory.ed25519Sig(
 				key.getEd25519(),
 				sig.getBytes(),
 				platformTxn.getTxnBytes());
