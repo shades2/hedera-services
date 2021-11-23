@@ -49,6 +49,8 @@ public class JKeySerializer {
 				objectType = JObjectType.FC_THRESHOLD_KEY;
 			} else if (rootObject instanceof JEd25519Key) {
 				objectType = JObjectType.FC_ED25519_KEY;
+			} else if (rootObject instanceof JECDSASecp256k1Key) {
+				objectType = JObjectType.FC_ECDSA_SECP256K1_KEY;
 			} else if (rootObject instanceof JECDSA_384Key) {
 				objectType = JObjectType.FC_ECDSA384_KEY;
 			} else if (rootObject instanceof JRSA_3072Key) {
@@ -94,6 +96,10 @@ public class JKeySerializer {
 			JKey jKey = (JKey) object;
 			byte[] key = (jKey.hasEd25519Key()) ? jKey.getEd25519() : jKey.getECDSA384();
 			stream.write(key);
+		} else if (JObjectType.FC_ECDSA_SECP256K1_KEY.equals(type)) {
+			JKey jKey = (JKey) object;
+			byte[] key = jKey.getECDSASecp256k1Key();
+			stream.write(key);
 		} else if (JObjectType.FC_THRESHOLD_KEY.equals(type)) {
 			JThresholdKey key = (JThresholdKey) object;
 			stream.writeInt(key.getThreshold());
@@ -134,41 +140,37 @@ public class JKeySerializer {
 		if (JObjectType.FC_ED25519_KEY.equals(type) || JObjectType.FC_ECDSA384_KEY.equals(type)) {
 			byte[] key = new byte[(int) length];
 			stream.readFully(key);
-
 			return (JObjectType.FC_ED25519_KEY.equals(type)) ? (T) new JEd25519Key(key) : (T) new JECDSA_384Key(key);
+		} else if (JObjectType.FC_ECDSA_SECP256K1_KEY.equals(type)) {
+			byte[] key = new byte[(int) length];
+			stream.readFully(key);
+			return (T) new JECDSASecp256k1Key(key);
 		} else if (JObjectType.FC_THRESHOLD_KEY.equals(type)) {
 			int threshold = stream.readInt();
 			JKeyList keyList = deserialize(stream);
-
 			return (T) new JThresholdKey(keyList, threshold);
 		} else if (JObjectType.FC_KEY_LIST.equals(type)) {
 			List<JKey> elements = new LinkedList<>();
-
 			int size = stream.readInt();
-
 			if (size > 0) {
 				for (int i = 0; i < size; i++) {
 					elements.add(deserialize(stream));
 				}
 			}
-
 			return (T) new JKeyList(elements);
 		} else if (JObjectType.FC_RSA3072_KEY.equals(type)) {
 			byte[] key = new byte[(int) length];
 			stream.readFully(key);
-
 			return (T) new JRSA_3072Key(key);
 		} else if (JObjectType.FC_CONTRACT_ID_KEY.equals(type)) {
 			long shard = stream.readLong();
 			long realm = stream.readLong();
 			long contract = stream.readLong();
-
 			return (T) new JContractIDKey(shard, realm, contract);
 		} else if (JObjectType.FC_DELEGATE_CONTRACT_ID_KEY.equals(type)) {
 			long shard = stream.readLong();
 			long realm = stream.readLong();
 			long contract = stream.readLong();
-
 			return (T) new JDelegateContractIDKey(shard, realm, contract);
 		} else {
 			throw new IllegalStateException(
@@ -180,10 +182,8 @@ public class JKeySerializer {
 		try (ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
 			try (DataOutputStream dos = new DataOutputStream(bos)) {
 				consumer.accept(dos);
-
 				dos.flush();
 				bos.flush();
-
 				return bos.toByteArray();
 			}
 		}

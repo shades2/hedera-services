@@ -20,12 +20,15 @@ package com.hedera.services.legacy.core.jproto;
  * ‍
  */
 
+import com.google.protobuf.ByteString;
 import com.hedera.test.factories.scenarios.TxnHandlingScenario;
 import com.hedera.test.utils.IdUtils;
 import com.hedera.test.utils.TxnUtils;
 import com.hederahashgraph.api.proto.java.Key;
 import org.apache.commons.codec.DecoderException;
 import org.junit.jupiter.api.Test;
+
+import java.util.Arrays;
 
 import static com.hedera.services.utils.MiscUtils.asKeyUnchecked;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -120,7 +123,8 @@ class JKeyTest {
 			}
 
 			@Override
-			public void setForScheduledTxn(boolean flag) { }
+			public void setForScheduledTxn(boolean flag) {
+			}
 
 			@Override
 			public boolean isForScheduledTxn() {
@@ -140,5 +144,27 @@ class JKeyTest {
 		// then:
 		assertNotSame(dup, orig);
 		assertEquals(asKeyUnchecked(orig), asKeyUnchecked(dup));
+	}
+
+	@Test
+	void convertsECDSAsecp256k1Key() {
+		ByteString edcsaSecp256K1Bytes = ByteString.copyFrom(new byte[] { 0x02 })
+				.concat(TxnUtils.randomUtf8ByteString(JECDSASecp256k1Key.ECDSASECP256_COMPRESSED_BYTE_LENGTH - 1));
+		final Key aKey = Key.newBuilder().setECDSASecp256K1(edcsaSecp256K1Bytes).build();
+
+		var validEDCSAsecp256K1Key = assertDoesNotThrow(() -> JKey.convertKey(aKey, 1));
+		assertTrue(validEDCSAsecp256K1Key instanceof JECDSASecp256k1Key);
+		assertEquals(33, validEDCSAsecp256K1Key.getECDSASecp256k1Key().length);
+		assertTrue(validEDCSAsecp256K1Key.isValid());
+		assertTrue(Arrays.equals(edcsaSecp256K1Bytes.toByteArray(), validEDCSAsecp256K1Key.getECDSASecp256k1Key()));
+	}
+
+	@Test
+	void convertsECDSAsecp256k1BasicKey() {
+		ByteString edcsaSecp256K1Bytes = ByteString.copyFrom(new byte[] { 0x02 })
+				.concat(TxnUtils.randomUtf8ByteString(JECDSASecp256k1Key.ECDSASECP256_COMPRESSED_BYTE_LENGTH - 1));
+		JKey jkey = new JECDSASecp256k1Key(edcsaSecp256K1Bytes.toByteArray());
+		var key = assertDoesNotThrow(() -> JKey.convertJKeyBasic(jkey));
+		assertFalse(key.getECDSASecp256K1().isEmpty());
 	}
 }

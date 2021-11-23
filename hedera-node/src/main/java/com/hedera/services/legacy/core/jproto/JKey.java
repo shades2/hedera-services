@@ -38,6 +38,7 @@ import java.util.Objects;
  */
 public abstract class JKey {
 	static final int MAX_KEY_DEPTH = 15;
+	private static final byte[] EMPTY_ARRAY = new byte[0];
 
 	private boolean forScheduledTxn = false;
 
@@ -118,6 +119,9 @@ public abstract class JKey {
 			rv = new JContractIDKey(key.getContractID());
 		} else if (key.getDelegateContractID().getContractNum() != 0) {
 			rv = new JDelegateContractIDKey(key.getDelegateContractID());
+		} else if (!key.getECDSASecp256K1().isEmpty()) {
+			byte[] pubKeyBytes = key.getECDSASecp256K1().toByteArray();
+			rv = new JECDSASecp256k1Key(pubKeyBytes);
 		} else {
 			throw new DecoderException("Key type not implemented: key=" + key);
 		}
@@ -146,6 +150,8 @@ public abstract class JKey {
 			rv = Key.newBuilder().setContractID(jkey.getContractIDKey().getContractID()).build();
 		} else if (jkey.hasDelegateContractID()) {
 			rv = Key.newBuilder().setDelegateContractID(jkey.getDelegateContractIDKey().getContractID()).build();
+		} else if (jkey.hasECDSAsecp256k1Key()) {
+			rv = Key.newBuilder().setECDSASecp256K1(ByteString.copyFrom(jkey.getECDSASecp256k1Key())).build();
 		} else {
 			throw new DecoderException("Key type not implemented: key=" + jkey);
 		}
@@ -251,6 +257,10 @@ public abstract class JKey {
 		return false;
 	}
 
+	public boolean hasECDSAsecp256k1Key() {
+		return false;
+	}
+
 	public boolean hasRSA_3072Key() {
 		return false;
 	}
@@ -288,15 +298,19 @@ public abstract class JKey {
 	}
 
 	public byte[] getEd25519() {
-		return null;
+		return EMPTY_ARRAY;
 	}
 
 	public byte[] getECDSA384() {
-		return null;
+		return EMPTY_ARRAY;
+	}
+
+	public byte[] getECDSASecp256k1Key() {
+		return EMPTY_ARRAY;
 	}
 
 	public byte[] getRSA3072() {
-		return null;
+		return EMPTY_ARRAY;
 	}
 
 	public JKey duplicate() {
