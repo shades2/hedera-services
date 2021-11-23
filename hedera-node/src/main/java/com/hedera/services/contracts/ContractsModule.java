@@ -45,18 +45,27 @@ import com.hedera.services.store.contracts.EntityAccess;
 import com.hedera.services.store.contracts.HederaMutableWorldState;
 import com.hedera.services.store.contracts.HederaWorldState;
 import com.hedera.services.store.contracts.MutableEntityAccess;
+import com.hedera.services.store.contracts.precompile.HTSPrecompiledContract;
 import com.swirlds.virtualmap.VirtualMap;
 import dagger.Binds;
 import dagger.Module;
 import dagger.Provides;
+import dagger.multibindings.IntoMap;
 import dagger.multibindings.IntoSet;
+import dagger.multibindings.StringKey;
+import org.hyperledger.besu.datatypes.Address;
+import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.gascalculator.GasCalculator;
 import org.hyperledger.besu.evm.operation.InvalidOperation;
 import org.hyperledger.besu.evm.operation.Operation;
+import org.hyperledger.besu.evm.precompile.PrecompiledContract;
 
 import javax.inject.Singleton;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.BiPredicate;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import static com.hedera.services.contracts.sources.AddressKeyedMapFactory.bytecodeMapFrom;
 import static com.hedera.services.contracts.sources.AddressKeyedMapFactory.storageMapFrom;
@@ -92,9 +101,11 @@ public abstract class ContractsModule {
 
 	@Provides
 	@Singleton
-	public static EntityAccess provideMutableEntityAccess(HederaLedger ledger,
-														  Supplier<VirtualMap<ContractKey, ContractValue>> storage,
-														  Supplier<VirtualMap<VirtualBlobKey, VirtualBlobValue>> bytecode) {
+	public static EntityAccess provideMutableEntityAccess(
+			final HederaLedger ledger,
+			final Supplier<VirtualMap<ContractKey, ContractValue>> storage,
+			final Supplier<VirtualMap<VirtualBlobKey, VirtualBlobValue>> bytecode
+	) {
 		return new MutableEntityAccess(ledger, storage, bytecode);
 	}
 
@@ -163,4 +174,22 @@ public abstract class ContractsModule {
 	@Singleton
 	@IntoSet
 	public abstract Operation bindStaticCallOperation(HederaStaticCallOperation staticCall);
+
+
+	@Binds
+	@Singleton
+	@IntoMap
+	@StringKey("0x167")
+	public abstract PrecompiledContract bindHTSPrecompile(HTSPrecompiledContract htsPrecompiledContract);
+
+
+	@Provides
+	@Singleton
+	public static BiPredicate<Address, MessageFrame> provideAddressValidator(
+			Map<String, PrecompiledContract> precompiledContractMap) {
+		Set<Address> precompiledAddresses =
+				precompiledContractMap.keySet().stream().map(Address::fromHexString).collect(Collectors.toSet());
+		return (address, frame) -> precompiledAddresses.contains(address) ||
+				frame.getWorldUpdater().get(address) != null;
+	}
 }
