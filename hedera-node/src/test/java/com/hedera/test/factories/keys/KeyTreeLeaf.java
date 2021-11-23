@@ -9,9 +9,9 @@ package com.hedera.test.factories.keys;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -45,19 +45,8 @@ public class KeyTreeLeaf implements KeyTreeNode {
 		this.sigType = sigType;
 		this.usedToSign = usedToSign;
 	}
-	public KeyTreeLeaf(boolean usedToSign) {
-		this.usedToSign = usedToSign;
-	}
-	public KeyTreeLeaf(String label) {
-		this.label = label;
-	}
-	public KeyTreeLeaf(SignatureType sigType) {
-		this.sigType = sigType;
-	}
-	public KeyTreeLeaf() {}
 
-	public String getLabel() {
-		return label;
+	public KeyTreeLeaf() {
 	}
 
 	public boolean isUsedToSign() {
@@ -72,6 +61,7 @@ public class KeyTreeLeaf implements KeyTreeNode {
 	public Key asKey(KeyFactory factory) {
 		return keyCache.computeIfAbsent(factory, this::customKey);
 	}
+
 	private Key customKey(KeyFactory factory) {
 		if (sigType == SignatureType.ED25519) {
 			return Optional.ofNullable(label).map(factory::labeledEd25519).orElse(factory.newEd25519());

@@ -51,19 +51,19 @@ public final class PlatformSigOps {
 	 * 		a factory to convert public keys and cryptographic sigs into sigs.
 	 * @return the result of attempting this creation.
 	 */
-	public static PlatformSigsCreationResult createEd25519PlatformSigsFrom(
+	public static PlatformSigsCreationResult createCryptoSigsFrom(
 			final List<JKey> pubKeys,
 			final PubKeyToSigBytes sigBytesFn,
 			final TxnScopedPlatformSigFactory factory
 	) {
 		final var result = new PlatformSigsCreationResult();
 		for (final var pk : pubKeys) {
-			visitSimpleKeys(pk, ed25519Key -> createPlatformSigFor(ed25519Key, sigBytesFn, factory, result));
+			visitSimpleKeys(pk, primitiveKey -> createCryptoSigFor(primitiveKey, sigBytesFn, factory, result));
 		}
 		return result;
 	}
 
-	private static void createPlatformSigFor(
+	private static void createCryptoSigFor(
 			final JKey primitiveKey,
 			final PubKeyToSigBytes sigBytesFn,
 			final TxnScopedPlatformSigFactory factory,
