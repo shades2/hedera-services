@@ -24,12 +24,24 @@ import net.i2p.crypto.eddsa.KeyPairGenerator;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import java.security.SecureRandom;
+import java.security.spec.ECGenParameterSpec;
+
 class SignatureGeneratorTest {
 	@Test
 	void rejectsNonEddsaKeys() {
 		Assertions.assertThrows(
 				IllegalArgumentException.class,
 				() -> SignatureGenerator.signBytes(new byte[0], null));
+	}
+
+	@Test
+	void acceptsEcdsaKey() throws Exception {
+		final ECGenParameterSpec ecSpec = new ECGenParameterSpec("secp256k1");
+		final java.security.KeyPairGenerator generator = java.security.KeyPairGenerator.getInstance("EC");
+		generator.initialize(ecSpec, new SecureRandom());
+		final var kp = generator.generateKeyPair();
+		Assertions.assertDoesNotThrow(() -> SignatureGenerator.signBytes("abc".getBytes(), kp.getPrivate()));
 	}
 
 	@Test

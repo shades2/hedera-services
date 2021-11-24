@@ -63,7 +63,7 @@ public final class SignatureGenerator {
 			ecdsaSign.update(msg);
 			return ecdsaSign.sign();
 		} else {
-			throw new IllegalArgumentException("Unusable private key " + privateKey.getAlgorithm());
+			throw new IllegalArgumentException("Unusable private key " + privateKey);
 		}
 	}
 }

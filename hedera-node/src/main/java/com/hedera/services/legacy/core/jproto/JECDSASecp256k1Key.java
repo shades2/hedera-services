@@ -29,9 +29,8 @@ import java.util.Arrays;
  */
 
 public class JECDSASecp256k1Key extends JKey {
+	private byte[] ecdsaSecp256k1Key;
 
-	private static final long serialVersionUID = 1L;
-	private byte[] ecdsaSecp256k1Key = null;
 	public static final int ECDSASECP256_COMPRESSED_BYTE_LENGTH = 33;
 
 	public JECDSASecp256k1Key(final byte[] ecdsaSecp256k1Key) {

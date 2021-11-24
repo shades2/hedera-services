@@ -325,4 +325,14 @@ public abstract class JKey {
 			throw new IllegalArgumentException(ex);
 		}
 	}
+
+	public byte[] primitiveKeyIfPresent() {
+		if (hasEd25519Key()) {
+			return getEd25519();
+		} else if (hasECDSAsecp256k1Key()) {
+			return getECDSASecp256k1Key();
+		} else {
+			return EMPTY_ARRAY;
+		}
+	}
 }

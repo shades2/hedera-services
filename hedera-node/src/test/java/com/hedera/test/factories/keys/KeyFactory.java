@@ -111,6 +111,8 @@ public class KeyFactory {
 			return CommonUtils.hex(key.getRSA3072().toByteArray());
 		} else if (key.getECDSA384() != ByteString.EMPTY) {
 			return CommonUtils.hex(key.getECDSA384().toByteArray());
+		} else if (key.getECDSASecp256K1() != ByteString.EMPTY) {
+			return CommonUtils.hex(key.getECDSASecp256K1().toByteArray());
 		} else {
 			return CommonUtils.hex(key.getEd25519().toByteArray());
 		}

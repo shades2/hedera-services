@@ -129,8 +129,12 @@ public final class HederaKeyActivation {
 				}
 			}
 			return n >= m;
-		} else {
+		} else if (key.hasEd25519Key()) {
 			return validity.test(key, sigsFn.apply(key.getEd25519()));
+		} else if (key.hasECDSAsecp256k1Key()) {
+			return validity.test(key, sigsFn.apply(key.getECDSASecp256k1Key()));
+		} else {
+			return false;
 		}
 	}
 

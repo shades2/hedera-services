@@ -99,6 +99,9 @@ public class PojoSigMapPubKeyToSigBytes implements PubKeyToSigBytes {
 	}
 
 	public static boolean beginsWith(byte[] pubKey, byte[] prefix) {
+		if (pubKey.length < prefix.length) {
+			return false;
+		}
 		int n = prefix.length;
 		return Arrays.equals(prefix, 0, n, pubKey, 0, n);
 	}

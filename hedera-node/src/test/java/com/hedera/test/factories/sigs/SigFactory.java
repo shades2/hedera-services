@@ -45,11 +45,11 @@ import java.util.function.Supplier;
 
 import static com.hedera.services.legacy.proto.utils.CommonUtils.extractTransactionBodyBytes;
 import static com.hedera.services.legacy.proto.utils.SignatureGenerator.signBytes;
+import static com.hedera.services.sigs.utils.MiscCryptoUtils.keccak256DigestOf;
 
 public class SigFactory {
 	private final SigMapGenerator sigMapGen;
 	public static final byte[] NONSENSE_RSA_SIG = "MOME".getBytes();
-	public static final byte[] NONSENSE_ECDSA_SIG = "OUTGRABE".getBytes();
 
 	public SigFactory() {
 		this(SigMapGenerator.withUniquePrefixes());
@@ -137,7 +137,9 @@ public class SigFactory {
 				byte[] sig = SignatureGenerator.signBytes(data, signer);
 				keySigs.add(new AbstractMap.SimpleEntry<>(key.getEd25519().toByteArray(), sig));
 			} else if (sigType == SignatureType.ECDSA_SECP256K1) {
-				keySigs.add(new AbstractMap.SimpleEntry<>(key.getECDSA384().toByteArray(), NONSENSE_ECDSA_SIG));
+				PrivateKey signer = factory.lookupPrivateKey(pubKeyHex);
+				byte[] sig = SignatureGenerator.signBytes(keccak256DigestOf(data), signer);
+				keySigs.add(new AbstractMap.SimpleEntry<>(key.getECDSASecp256K1().toByteArray(), sig));
 			} else if (sigType == SignatureType.RSA) {
 				keySigs.add(new AbstractMap.SimpleEntry<>(key.getRSA3072().toByteArray(), NONSENSE_RSA_SIG));
 			}

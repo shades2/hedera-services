@@ -20,6 +20,9 @@ package com.hedera.services.keys;
  * ‍
  */
 
+import com.hedera.services.legacy.core.jproto.JContractIDKey;
+import com.hedera.services.legacy.core.jproto.JDelegateContractIDKey;
+import com.hedera.services.legacy.core.jproto.JECDSASecp256k1Key;
 import com.hedera.services.legacy.core.jproto.JKey;
 import com.hedera.services.legacy.core.jproto.JKeyList;
 import com.hedera.services.sigs.factories.ReusableBodySigningFactory;
@@ -101,6 +104,26 @@ class HederaKeyActivationTest {
 	@BeforeEach
 	void setup() {
 		sigsFn = (Function<byte[], TransactionSignature>) mock(Function.class);
+	}
+
+	@Test
+	void canTestEcdsaSecp256kKey() {
+		final var secp256k1Key = new JECDSASecp256k1Key("012345789012345789012345789012".getBytes());
+		final var mockCryptoSig = mock(TransactionSignature.class);
+
+		given(mockCryptoSig.getSignatureStatus()).willReturn(VerificationStatus.VALID);
+		given(sigsFn.apply(secp256k1Key.getECDSASecp256k1Key())).willReturn(mockCryptoSig);
+
+		assertTrue(HederaKeyActivation.isActive(secp256k1Key, sigsFn, ONLY_IF_SIG_IS_VALID));
+	}
+
+	@Test
+	void contractAndDelegateContractKeysNeverActiveAtTopLevel() {
+		final var contractKey = new JContractIDKey(0, 0, 1234);
+		final var delegateContractKey = new JDelegateContractIDKey(0, 0, 12345);
+
+		assertFalse(HederaKeyActivation.isActive(contractKey, sigsFn, ONLY_IF_SIG_IS_VALID));
+		assertFalse(HederaKeyActivation.isActive(delegateContractKey, sigsFn, ONLY_IF_SIG_IS_VALID));
 	}
 
 	@Test

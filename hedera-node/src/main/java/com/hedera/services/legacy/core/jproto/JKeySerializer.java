@@ -92,9 +92,13 @@ public class JKeySerializer {
 	}
 
 	static void pack(final DataOutputStream stream, final JObjectType type, final Object object) throws IOException {
-		if (JObjectType.FC_ED25519_KEY.equals(type) || JObjectType.FC_ECDSA384_KEY.equals(type)) {
+		if (JObjectType.FC_ED25519_KEY.equals(type)) {
 			JKey jKey = (JKey) object;
-			byte[] key = (jKey.hasEd25519Key()) ? jKey.getEd25519() : jKey.getECDSA384();
+			byte[] key = jKey.getEd25519();
+			stream.write(key);
+		} else if (JObjectType.FC_ECDSA384_KEY.equals(type)) {
+			JKey jKey = (JKey) object;
+			byte[] key = jKey.getECDSA384();
 			stream.write(key);
 		} else if (JObjectType.FC_ECDSA_SECP256K1_KEY.equals(type)) {
 			JKey jKey = (JKey) object;
@@ -137,10 +141,14 @@ public class JKeySerializer {
 
 	@SuppressWarnings("unchecked")
 	static <T> T unpack(DataInputStream stream, JObjectType type, long length) throws IOException {
-		if (JObjectType.FC_ED25519_KEY.equals(type) || JObjectType.FC_ECDSA384_KEY.equals(type)) {
+		if (JObjectType.FC_ED25519_KEY.equals(type)) {
 			byte[] key = new byte[(int) length];
 			stream.readFully(key);
-			return (JObjectType.FC_ED25519_KEY.equals(type)) ? (T) new JEd25519Key(key) : (T) new JECDSA_384Key(key);
+			return (T) new JEd25519Key(key);
+		} else if (JObjectType.FC_ECDSA384_KEY.equals(type)) {
+			byte[] key = new byte[(int) length];
+			stream.readFully(key);
+			return (T) new JECDSA_384Key(key);
 		} else if (JObjectType.FC_ECDSA_SECP256K1_KEY.equals(type)) {
 			byte[] key = new byte[(int) length];
 			stream.readFully(key);

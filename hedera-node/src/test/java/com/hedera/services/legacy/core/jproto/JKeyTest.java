@@ -31,17 +31,21 @@ import org.junit.jupiter.api.Test;
 import java.util.Arrays;
 
 import static com.hedera.services.utils.MiscUtils.asKeyUnchecked;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.mock;
 
 class JKeyTest {
+
+
 	@Test
 	void positiveConvertKeyTest() {
 		// given:
@@ -81,9 +85,20 @@ class JKeyTest {
 
 		doCallRealMethod().when(subject).hasDelegateContractID();
 		doCallRealMethod().when(subject).getDelegateContractIDKey();
+		doCallRealMethod().when(subject).primitiveKeyIfPresent();
 
 		assertFalse(subject.hasDelegateContractID());
 		assertNull(subject.getDelegateContractIDKey());
+		assertArrayEquals(new byte[0], subject.primitiveKeyIfPresent());
+	}
+
+	@Test
+	void canGetPrimitiveKeyForEd25519OrSecp256k1() {
+		final var mockEd25519 = new JEd25519Key("01234578901234578901234578901".getBytes());
+		final var mockSecp256k1 = new JECDSASecp256k1Key("012345789012345789012345789012".getBytes());
+
+		assertSame(mockEd25519.getEd25519(), mockEd25519.primitiveKeyIfPresent());
+		assertSame(mockSecp256k1.getECDSASecp256k1Key(), mockSecp256k1.primitiveKeyIfPresent());
 	}
 
 	@Test

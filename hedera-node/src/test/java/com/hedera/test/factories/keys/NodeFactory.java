@@ -25,8 +25,8 @@ import com.swirlds.common.crypto.SignatureType;
 import java.util.List;
 
 public interface NodeFactory {
-	static NodeFactory rsa3072(boolean usedToSign) {
-		return new LeafFactory(null, usedToSign, SignatureType.RSA);
+	static NodeFactory ecdsa384Secp256k1(boolean usedToSign) {
+		return new LeafFactory(null, usedToSign, SignatureType.ECDSA_SECP256K1);
 	}
 
 	static NodeFactory ecdsa384Secp256k1() {
