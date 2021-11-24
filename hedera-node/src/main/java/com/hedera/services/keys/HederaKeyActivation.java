@@ -24,13 +24,11 @@ import com.hedera.services.legacy.core.jproto.JKey;
 import com.hedera.services.legacy.core.jproto.JKeyList;
 import com.hedera.services.legacy.core.jproto.JThresholdKey;
 import com.hedera.services.utils.TxnAccessor;
-import com.swirlds.common.CommonUtils;
 import com.swirlds.common.crypto.TransactionSignature;
 import com.swirlds.common.crypto.VerificationStatus;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 
@@ -41,11 +39,16 @@ import static com.swirlds.common.crypto.VerificationStatus.VALID;
 /**
  * Provides a static method to determine if a Hedera key is <i>active</i> relative to
  * a set of platform signatures corresponding to its simple keys.
+ *
  * @see JKey
  */
 public final class HederaKeyActivation {
 	private static final int ED25519_PUBLIC_KEY_LEN = 32;
-	private static final int COMPRESSED_SECP256k1_PUBLIC_KEY_LEN = 33;
+	private static final int SECP256K1_COORDINATE_LEN = 32;
+	private static final int COMPRESSED_SECP256K1_PUBLIC_KEY_LEN = 33;
+	private static final int UNCOMPRESSED_SECP256K1_PUBLIC_KEY_LEN = 64;
+
+	private static final byte PARITY_MASK = (byte) 0x01;
 
 	public static final TransactionSignature INVALID_MISSING_SIG = new InvalidSignature();
 
@@ -112,9 +115,7 @@ public final class HederaKeyActivation {
 			final BiPredicate<JKey, TransactionSignature> validity,
 			final KeyActivationCharacteristics characteristics
 	) {
-		if (!key.hasKeyList() && !key.hasThresholdKey()) {
-			return validity.test(key, sigsFn.apply(key.getEd25519()));
-		} else {
+		if (key.hasKeyList() || key.hasThresholdKey()) {
 			final var children = key.hasKeyList()
 					? key.getKeyList().getKeysList()
 					: key.getThresholdKey().getKeys().getKeysList();
@@ -128,6 +129,8 @@ public final class HederaKeyActivation {
 				}
 			}
 			return n >= m;
+		} else {
+			return validity.test(key, sigsFn.apply(key.getEd25519()));
 		}
 	}
 
@@ -141,7 +144,7 @@ public final class HederaKeyActivation {
 	public static Function<byte[], TransactionSignature> pkToSigMapFrom(final List<TransactionSignature> sigs) {
 		return pk -> {
 			for (var sig : sigs) {
-				if (match(pk, sig.getExpandedPublicKeyDirect())) {
+				if (keysMatch(pk, sig.getExpandedPublicKeyDirect())) {
 					return sig;
 				}
 			}
@@ -149,16 +152,21 @@ public final class HederaKeyActivation {
 		};
 	}
 
-	private static boolean match(byte[] sourceKey, byte[] sigKey) {
-		System.out.println("Matching " + Optional.ofNullable(sourceKey).map(CommonUtils::hex).orElse("NULL"));
+	static boolean keysMatch(byte[] sourceKey, byte[] sigKey) {
 		if (sourceKey.length == ED25519_PUBLIC_KEY_LEN) {
 			return Arrays.equals(sourceKey, sigKey);
-		} else if (sourceKey.length == COMPRESSED_SECP256k1_PUBLIC_KEY_LEN) {
-			return Arrays.equals(
-					sourceKey, 1, COMPRESSED_SECP256k1_PUBLIC_KEY_LEN,
-					sigKey, 0, 32);
+		} else if (sourceKey.length == COMPRESSED_SECP256K1_PUBLIC_KEY_LEN) {
+			final var xCoordsMatch = Arrays.equals(
+					sourceKey, 1, COMPRESSED_SECP256K1_PUBLIC_KEY_LEN,
+					sigKey, 0, SECP256K1_COORDINATE_LEN);
+			if (!xCoordsMatch) {
+				return false;
+			} else {
+				/* Two secp25681 public keys with the same x-coord can differ at most in the parity of their y-coords. */
+				return (sourceKey[0] & PARITY_MASK) == (sigKey[UNCOMPRESSED_SECP256K1_PUBLIC_KEY_LEN - 1] & PARITY_MASK);
+			}
 		} else {
-			throw new AssertionError("Not implemented");
+			return false;
 		}
 	}
 

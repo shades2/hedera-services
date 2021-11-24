@@ -32,10 +32,12 @@ import com.swirlds.common.crypto.SignatureType;
 import com.swirlds.common.crypto.TransactionSignature;
 import com.swirlds.common.crypto.VerificationStatus;
 import com.swirlds.common.crypto.engine.CryptoEngine;
+import org.bouncycastle.crypto.params.ECPublicKeyParameters;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
 
@@ -77,7 +79,7 @@ class HederaKeyActivationTest {
 			.get(0);
 
 	private static final Function<Integer, TransactionSignature> mockSigFn = i -> ed25519Sig(
-			String.format("PK%d", i).getBytes(),
+			String.format("01234567890123456789012345678PK%d", i).getBytes(),
 			String.format("SIG%d", i).getBytes(),
 			String.format("DATA%d", i).getBytes());
 
@@ -211,5 +213,26 @@ class HederaKeyActivationTest {
 		given(accessor.getSigMeta()).willReturn(RationalizedSigMeta.noneAvailable());
 
 		assertFalse(HederaKeyActivation.payerSigIsActive(accessor, ONLY_IF_SIG_IS_VALID));
+	}
+
+	@Test
+	void cantMatchAnyBytesOtherThanExpectedLens() {
+		final var miscBytes = "asdf".getBytes();
+
+		assertFalse(HederaKeyActivation.keysMatch(miscBytes, miscBytes));
+	}
+
+	@Test
+	void checksParityOfYCoordWhenMatchingSecp256k1Keys() {
+		final var kp = KeyFactory.ecdsaKpGenerator.generateKeyPair();
+		final var q = ((ECPublicKeyParameters) kp.getPublic()).getQ();
+		final var uncompressed = Arrays.copyOfRange(q.getEncoded(false), 1, 65);
+
+		final var sameParityCompressed = q.getEncoded(true);
+		final var otherParityCompressed = Arrays.copyOfRange(sameParityCompressed, 0, sameParityCompressed.length);
+		otherParityCompressed[0] = sameParityCompressed[0] == (byte) 0x02 ? (byte) 0x03 : (byte) 0x02;
+
+		assertTrue(HederaKeyActivation.keysMatch(sameParityCompressed, uncompressed));
+		assertFalse(HederaKeyActivation.keysMatch(otherParityCompressed, uncompressed));
 	}
 }
