@@ -112,7 +112,7 @@ public class TxnAwareSoliditySigsVerifier implements SoliditySigsVerifier {
 		final var activeId = contractParsedFromSolidityAddress(recipient);
 		final var isDelegateCall = !contract.equals(recipient);
 
-		/* Note that when this observer is used directly above in isActive(), it will be called
+		/* Note that when this observer is used above in isActiveInFrame(), it will be called
 		 * with each primitive key in the top-level Hedera key of interest, along with that key's
 		 * verified cryptographic signature (if any was available in the sigMap). */
 		return (key, sig) -> {

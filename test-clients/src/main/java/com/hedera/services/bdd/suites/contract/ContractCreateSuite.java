@@ -77,9 +77,11 @@ import static com.hedera.services.bdd.spec.queries.QueryVerbs.getTxnRecord;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.contractCall;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.contractCreate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoCreate;
+import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoTransfer;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoUpdate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.fileCreate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.fileUpdate;
+import static com.hedera.services.bdd.spec.transactions.crypto.HapiCryptoTransfer.tinyBarsFromTo;
 import static com.hedera.services.bdd.spec.utilops.CustomSpecAssert.allRunFor;
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.contractListWithPropertiesInheritedFrom;
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.inParallel;
@@ -93,6 +95,7 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ERROR_DECODING
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INSUFFICIENT_GAS;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INSUFFICIENT_PAYER_BALANCE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INSUFFICIENT_TX_FEE;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_ACCOUNT_ID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_SIGNATURE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_SOLIDITY_ADDRESS;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_ZERO_BYTE_IN_STRING;
@@ -132,6 +135,7 @@ public class ContractCreateSuite extends HapiApiSuite {
 						cannotSendToNonExistentAccount(),
 						canCallPendingContractSafely(),
 						delegateContractIdRequiredForTransferInDelegateCall(),
+						payerSigReqsSameForCryptoTransferAndContractCall(),
 				}
 		);
 	}
@@ -178,7 +182,7 @@ public class ContractCreateSuite extends HapiApiSuite {
 												.bytecode(initcode)
 												.adminKey(THRESHOLD))
 								.toArray(HapiSpecOperation[]::new))
-				).when( ).then(
+				).when().then(
 						sourcing(() ->
 								contractCall(
 										"0.0." + (createdFileNum.get() + createBurstSize),
@@ -188,6 +192,53 @@ public class ContractCreateSuite extends HapiApiSuite {
 										.gas(300_000L)
 										.via(callTxn))
 				);
+	}
+
+	HapiApiSpec payerSigReqsSameForCryptoTransferAndContractCall() {
+		final var initcode = "multipurposeInitcode";
+		final var contractWithPayableFallback = "multipurpose";
+		final var multiSigKey = "multiSigKey";
+		final var multiSigPayer = "multiSigPayer";
+		final var randomBeneficiary = "randomBeneficiary";
+
+		final KeyShape multiSigKeyShape = listOf(SIMPLE, SIMPLE);
+		final var incompleteSig = multiSigKeyShape.signedWith(sigs(ON, OFF));
+		final var completeSig = multiSigKeyShape.signedWith(sigs(ON, ON));
+
+		return defaultHapiSpec("PayerSigReqsSameForCryptoTransferAndContractCall").given(
+				fileCreate(initcode).path(MULTIPURPOSE_BYTECODE_PATH),
+				contractCreate(contractWithPayableFallback).bytecode(initcode),
+
+				newKeyNamed(multiSigKey).shape(multiSigKeyShape),
+				cryptoCreate(multiSigPayer).key(multiSigKey),
+				cryptoCreate(randomBeneficiary)
+		).when( ).then(
+				/* Can't use native CryptoTransfer to send ℏ to a contract account */
+				cryptoTransfer(tinyBarsFromTo(multiSigPayer, contractWithPayableFallback, 1))
+						.payingWith(multiSigPayer)
+						.sigControl(forKey(multiSigKey, completeSig))
+						.hasKnownStatus(INVALID_ACCOUNT_ID),
+				/* Can't send ℏ to a random account with only one sig in the multi-sig list */
+				cryptoTransfer(tinyBarsFromTo(multiSigPayer, randomBeneficiary, 1))
+						.payingWith(multiSigPayer)
+						.sigControl(forKey(multiSigKey, incompleteSig))
+						/* Payer signature is verified in precheck */
+						.hasPrecheck(INVALID_SIGNATURE),
+				/* Can't send ℏ via ContractCall to payable method with only one sig in the multi-sig list */
+				contractCall(contractWithPayableFallback)
+						.sending(1)
+						.payingWith(multiSigPayer)
+						.sigControl(forKey(multiSigKey, incompleteSig))
+						.hasPrecheck(INVALID_SIGNATURE),
+				/* CAN send ℏ via either CryptoTransfer or ContractCall to payable with both sigs */
+				cryptoTransfer(tinyBarsFromTo(multiSigPayer, randomBeneficiary, 1))
+						.payingWith(multiSigPayer)
+						.sigControl(forKey(multiSigKey, completeSig)),
+				contractCall(contractWithPayableFallback)
+						.sending(1)
+						.payingWith(multiSigPayer)
+						.sigControl(forKey(multiSigKey, completeSig))
+		);
 	}
 
 	HapiApiSpec cannotSendToNonExistentAccount() {

@@ -42,6 +42,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
 
 import static com.hedera.services.keys.HederaKeyActivation.ONLY_IF_SIG_IS_VALID;
@@ -118,12 +119,17 @@ class HederaKeyActivationTest {
 	}
 
 	@Test
-	void contractAndDelegateContractKeysNeverActiveAtTopLevel() {
+	@SuppressWarnings("unchecked")
+	void contractAndDelegateContractKeysTestedWithInvalidSig() {
 		final var contractKey = new JContractIDKey(0, 0, 1234);
 		final var delegateContractKey = new JDelegateContractIDKey(0, 0, 12345);
+		final BiPredicate<JKey, TransactionSignature> mockTest = mock(BiPredicate.class);
 
-		assertFalse(HederaKeyActivation.isActive(contractKey, sigsFn, ONLY_IF_SIG_IS_VALID));
-		assertFalse(HederaKeyActivation.isActive(delegateContractKey, sigsFn, ONLY_IF_SIG_IS_VALID));
+		given(mockTest.test(contractKey, HederaKeyActivation.INVALID_MISSING_SIG)).willReturn(false);
+		given(mockTest.test(delegateContractKey, HederaKeyActivation.INVALID_MISSING_SIG)).willReturn(true);
+
+		assertFalse(HederaKeyActivation.isActive(contractKey, sigsFn, mockTest));
+		assertTrue(HederaKeyActivation.isActive(delegateContractKey, sigsFn, mockTest));
 	}
 
 	@Test

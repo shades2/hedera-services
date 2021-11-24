@@ -134,7 +134,7 @@ public final class HederaKeyActivation {
 		} else if (key.hasECDSAsecp256k1Key()) {
 			return validity.test(key, sigsFn.apply(key.getECDSASecp256k1Key()));
 		} else {
-			return false;
+			return validity.test(key, INVALID_MISSING_SIG);
 		}
 	}
 

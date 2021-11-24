@@ -34,7 +34,6 @@ import com.hedera.services.bdd.spec.keys.OverlappingKeyGenerator;
 import com.hedera.services.bdd.spec.keys.SigMapGenerator;
 import com.hedera.services.bdd.spec.stats.QueryObs;
 import com.hedera.services.bdd.spec.stats.TxnObs;
-import com.hedera.services.legacy.client.util.KeyExpansion;
 import com.hedera.services.legacy.proto.utils.CommonUtils;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.Query;
@@ -62,6 +61,7 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import static com.hedera.services.bdd.spec.fees.Payment.Reason.TXN_FEE;
+import static com.hedera.services.bdd.spec.keys.DefaultKeyGen.DEFAULT_KEY_GEN;
 import static com.hedera.services.bdd.spec.queries.QueryUtils.txnReceiptQueryFor;
 import static com.hedera.services.bdd.spec.transactions.TxnUtils.extractTxnId;
 import static com.hedera.services.bdd.spec.transactions.TxnUtils.txnToString;
@@ -486,7 +486,8 @@ public abstract class HapiTxnOp<T extends HapiTxnOp<T>> extends HapiSpecOperatio
 
 	protected KeyGenerator effectiveKeyGen() {
 		return (keyGen.orElse(KeyGenerator.Nature.RANDOMIZED) == KeyGenerator.Nature.WITH_OVERLAPPING_PREFIXES)
-				? OverlappingKeyGenerator.withDefaultOverlaps() : KeyExpansion::genSingleEd25519Key;
+				? OverlappingKeyGenerator.withDefaultOverlaps()
+				: DEFAULT_KEY_GEN;
 	}
 
 	/* Fluent builder methods to chain. */
