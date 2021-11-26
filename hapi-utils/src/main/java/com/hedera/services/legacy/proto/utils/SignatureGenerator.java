@@ -61,9 +61,37 @@ public final class SignatureGenerator {
 			final Signature ecdsaSign = Signature.getInstance(ECDSA_SECP256K1.signingAlgorithm());
 			ecdsaSign.initSign(privateKey);
 			ecdsaSign.update(msg);
-			return ecdsaSign.sign();
+			final var asn1Sig = ecdsaSign.sign();
+			return rawEcdsaSigFromAsn1Der(asn1Sig);
 		} else {
 			throw new IllegalArgumentException("Unusable private key " + privateKey);
 		}
+	}
+
+	private static byte[] rawEcdsaSigFromAsn1Der(final byte[] derSig) {
+		final var R_LEN_INDEX = 3;
+		final var rawBytes = new byte[64];
+
+		final var origRLen = derSig[R_LEN_INDEX] & 0xff;
+		int finalRLen = origRLen;
+		int rStart = R_LEN_INDEX + 1;
+		while (finalRLen > 32) {
+			rStart++;
+			finalRLen--;
+		}
+		System.arraycopy(derSig, rStart, rawBytes, 32 - finalRLen, Math.min(32, origRLen));
+
+		final var sLenPos = R_LEN_INDEX + (derSig[R_LEN_INDEX] & 0xff) + 2;
+
+		final var origSLen = derSig[sLenPos] & 0xff;
+		int finalSLen = origSLen;
+		int sStart = sLenPos + 1;
+		while (finalSLen > 32) {
+			sStart++;
+			finalSLen--;
+		}
+		System.arraycopy(derSig, sStart, rawBytes, 32 + (32 - finalSLen), Math.min(32, origSLen));
+
+		return rawBytes;
 	}
 }
