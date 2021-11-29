@@ -21,7 +21,7 @@ package com.hedera.services.keys;
  */
 
 import com.hedera.services.legacy.core.jproto.JContractIDKey;
-import com.hedera.services.legacy.core.jproto.JDelegateContractIDKey;
+import com.hedera.services.legacy.core.jproto.JDelegatableContractIDKey;
 import com.hedera.services.legacy.core.jproto.JECDSASecp256k1Key;
 import com.hedera.services.legacy.core.jproto.JKey;
 import com.hedera.services.legacy.core.jproto.JKeyList;
@@ -122,7 +122,7 @@ class HederaKeyActivationTest {
 	@SuppressWarnings("unchecked")
 	void contractAndDelegateContractKeysTestedWithInvalidSig() {
 		final var contractKey = new JContractIDKey(0, 0, 1234);
-		final var delegateContractKey = new JDelegateContractIDKey(0, 0, 12345);
+		final var delegateContractKey = new JDelegatableContractIDKey(0, 0, 12345);
 		final BiPredicate<JKey, TransactionSignature> mockTest = mock(BiPredicate.class);
 
 		given(mockTest.test(contractKey, HederaKeyActivation.INVALID_MISSING_SIG)).willReturn(false);
