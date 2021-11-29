@@ -33,7 +33,7 @@ public class KeyShape extends SigControl {
 	public static final KeyShape ED25519 = new KeyShape(Nature.SIG_ON, KeyAlgo.ED25519);
 	public static final KeyShape SECP256K1 = new KeyShape(Nature.SIG_ON, KeyAlgo.ECDSA_SECP256K1);
 	public static final KeyShape CONTRACT = new KeyShape(CONTRACT_ID);
-	public static final KeyShape DELEGATE_CONTRACT = new KeyShape(Nature.DELEGATE_CONTRACT_ID);
+	public static final KeyShape DELEGATE_CONTRACT = new KeyShape(Nature.DELEGATABLE_CONTRACT_ID);
 
 	protected KeyShape(SigControl.Nature nature) {
 		super(nature);
