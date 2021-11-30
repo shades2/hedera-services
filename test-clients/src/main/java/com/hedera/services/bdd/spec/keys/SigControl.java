@@ -48,7 +48,7 @@ public class SigControl implements Serializable {
 	}
 
 	public enum KeyAlgo {
-		UNSPECIFIED, ED25519, ECDSA_SECP256K1
+		UNSPECIFIED, ED25519, SECP256K1
 	}
 
 	private final Nature nature;
@@ -63,8 +63,8 @@ public class SigControl implements Serializable {
 	public static final SigControl OFF = new SigControl(SIG_OFF);
 	public static final SigControl ED25519_ON = new SigControl(SIG_ON, KeyAlgo.ED25519);
 	public static final SigControl ED25519_OFF = new SigControl(SIG_OFF, KeyAlgo.ED25519);
-	public static final SigControl SECP256K1_ON = new SigControl(SIG_ON, KeyAlgo.ECDSA_SECP256K1);
-	public static final SigControl SECP256K1_OFF = new SigControl(SIG_OFF, KeyAlgo.ECDSA_SECP256K1);
+	public static final SigControl SECP256K1_ON = new SigControl(SIG_ON, KeyAlgo.SECP256K1);
+	public static final SigControl SECP256K1_OFF = new SigControl(SIG_OFF, KeyAlgo.SECP256K1);
 	public static final SigControl ANY = new SigControl(SIG_ON);
 
 	public KeyAlgo keyAlgo() {

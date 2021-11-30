@@ -31,7 +31,7 @@ import static com.hedera.services.bdd.spec.keys.SigControl.Nature.CONTRACT_ID;
 public class KeyShape extends SigControl {
 	public static final KeyShape SIMPLE = new KeyShape(Nature.SIG_ON);
 	public static final KeyShape ED25519 = new KeyShape(Nature.SIG_ON, KeyAlgo.ED25519);
-	public static final KeyShape SECP256K1 = new KeyShape(Nature.SIG_ON, KeyAlgo.ECDSA_SECP256K1);
+	public static final KeyShape SECP256K1 = new KeyShape(Nature.SIG_ON, KeyAlgo.SECP256K1);
 	public static final KeyShape CONTRACT = new KeyShape(CONTRACT_ID);
 	public static final KeyShape DELEGATE_CONTRACT = new KeyShape(Nature.DELEGATABLE_CONTRACT_ID);
 
@@ -137,7 +137,7 @@ public class KeyShape extends SigControl {
 					return reqControl.getNature() == Nature.SIG_ON ? SigControl.ON : SigControl.OFF;
 				case ED25519:
 					return reqControl.getNature() == Nature.SIG_ON ? SigControl.ED25519_ON : SigControl.ED25519_OFF;
-				case ECDSA_SECP256K1:
+				case SECP256K1:
 					return reqControl.getNature() == Nature.SIG_ON ? SigControl.SECP256K1_ON : SigControl.SECP256K1_OFF;
 			}
 		} else if (this == CONTRACT || this == DELEGATE_CONTRACT) {

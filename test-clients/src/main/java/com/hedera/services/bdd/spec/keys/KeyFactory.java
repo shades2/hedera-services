@@ -408,7 +408,7 @@ public class KeyFactory implements Serializable {
 
 	private class Generation {
 		private final SigControl.KeyAlgo[] algoChoices = {
-			SigControl.KeyAlgo.ED25519, SigControl.KeyAlgo.ECDSA_SECP256K1
+			SigControl.KeyAlgo.ED25519, SigControl.KeyAlgo.SECP256K1
 		};
 
 		private final KeyLabel labels;
@@ -487,7 +487,7 @@ public class KeyFactory implements Serializable {
 		private Key generateByAlgo(final SigControl.KeyAlgo algo) {
 			if (algo == SigControl.KeyAlgo.ED25519) {
 				return keyGen.genEd25519AndUpdateMap(pkMap);
-			} else if (algo == SigControl.KeyAlgo.ECDSA_SECP256K1) {
+			} else if (algo == SigControl.KeyAlgo.SECP256K1) {
 				return keyGen.genEcdsaSecp256k1AndUpdate(pkMap);
 			} else {
 				throw new IllegalArgumentException(algo + " not supported");

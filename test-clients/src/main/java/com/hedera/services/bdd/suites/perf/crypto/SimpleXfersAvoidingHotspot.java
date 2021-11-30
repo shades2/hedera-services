@@ -28,6 +28,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -43,16 +44,16 @@ import static com.hedera.services.bdd.spec.transactions.crypto.HapiCryptoTransfe
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.inParallel;
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.runWithProvider;
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.sleepFor;
-import static java.util.concurrent.TimeUnit.MINUTES;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class SimpleXfersAvoidingHotspot extends HapiApiSuite {
 	private static final Logger log = LogManager.getLogger(SimpleXfersAvoidingHotspot.class);
 
-	private static final int NUM_ACCOUNTS = 1_000;
+	private static final int NUM_ACCOUNTS = 100;
 
-	private AtomicLong duration = new AtomicLong(60);
-	private AtomicReference<TimeUnit> unit = new AtomicReference<>(MINUTES);
-	private AtomicInteger maxOpsPerSec = new AtomicInteger(500);
+	private AtomicLong duration = new AtomicLong(600);
+	private AtomicReference<TimeUnit> unit = new AtomicReference<>(SECONDS);
+	private AtomicInteger maxOpsPerSec = new AtomicInteger(834);
 
 	public static void main(String... args) {
 		new SimpleXfersAvoidingHotspot().runSuiteSync();
@@ -68,12 +69,14 @@ public class SimpleXfersAvoidingHotspot extends HapiApiSuite {
 	}
 
 	private HapiApiSpec runSimpleXfers() {
-		return HapiApiSpec.defaultHapiSpec("RunTokenTransfers")
-				.given().when().then(
-						runWithProvider(avoidantXfersFactory())
-								.lasting(duration::get, unit::get)
-								.maxOpsPerSec(maxOpsPerSec::get)
-				);
+		return HapiApiSpec.customHapiSpec("RunTokenTransfers").withProperties(Map.of(
+				"default.keyAlgorithm", "SECP256K1"
+//				"default.keyAlgorithm", "ED25519"
+		)).given().when().then(
+				runWithProvider(avoidantXfersFactory())
+						.lasting(duration::get, unit::get)
+						.maxOpsPerSec(maxOpsPerSec::get)
+		);
 	}
 
 	private Function<HapiApiSpec, OpProvider> avoidantXfersFactory() {
@@ -85,11 +88,11 @@ public class SimpleXfersAvoidingHotspot extends HapiApiSuite {
 			public List<HapiSpecOperation> suggestedInitializers() {
 				return List.of(inParallel(IntStream.range(0, NUM_ACCOUNTS)
 								.mapToObj(i -> cryptoCreate(nameFn.apply(i))
+										.payingWith(GENESIS)
 										.balance(ONE_HUNDRED_HBARS * 1_000)
-										.key(GENESIS)
 										.deferStatusResolution())
 								.toArray(HapiSpecOperation[]::new)),
-						sleepFor(30_000L));
+						sleepFor(10_000L));
 			}
 
 			@Override
