@@ -22,6 +22,7 @@ package com.hedera.services.bdd.suites.perf.crypto;
 
 import com.hedera.services.bdd.spec.HapiApiSpec;
 import com.hedera.services.bdd.spec.HapiSpecOperation;
+import com.hedera.services.bdd.spec.keys.KeyFactory;
 import com.hedera.services.bdd.spec.utilops.LoadTest;
 import com.hedera.services.bdd.suites.perf.PerfTestLoadSettings;
 import org.apache.logging.log4j.LogManager;
@@ -32,6 +33,7 @@ import java.util.Random;
 import java.util.function.Supplier;
 
 import static com.hedera.services.bdd.spec.HapiApiSpec.defaultHapiSpec;
+import static com.hedera.services.bdd.spec.keys.KeyShape.SECP256K1;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getAccountBalance;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoCreate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoTransfer;
@@ -109,13 +111,16 @@ public class CryptoTransferLoadTest extends LoadTest {
 								.balance(ignore -> settings.getInitialBalance())
 								.payingWith(GENESIS)
 								.withRecharging()
-								.key(GENESIS)
+								.keyType(KeyFactory.KeyType.SIMPLE)
+								.keyShape(SECP256K1)
 								.rechargeWindow(3).logging()
 								.hasRetryPrecheckFrom(BUSY, DUPLICATE_TRANSACTION, PLATFORM_TRANSACTION_NOT_CREATED),
 						cryptoCreate("receiver")
 								.payingWith(GENESIS)
 								.hasRetryPrecheckFrom(BUSY, DUPLICATE_TRANSACTION, PLATFORM_TRANSACTION_NOT_CREATED)
-						        .key(GENESIS).logging()
+								.keyType(KeyFactory.KeyType.SIMPLE)
+								.keyShape(SECP256K1)
+								.logging()
 				).then(
 						defaultLoadTest(transferBurst, settings),
 						getAccountBalance("sender").logged()
