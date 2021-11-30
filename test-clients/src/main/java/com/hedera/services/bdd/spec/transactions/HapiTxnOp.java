@@ -348,8 +348,9 @@ public abstract class HapiTxnOp<T extends HapiTxnOp<T>> extends HapiSpecOperatio
 			Duplicate transactions and except for the client that gets its transaction handled first.. rest of the clients
 			will submit a similar transaction again, with new transaction IDs. No need to throw an exception. 
 			 */
-			log.warn("{} {} Memo didn't come from submitted transaction! actual memo {}, recorded {}."
-					, spec.logPrefix(), this, memo.get(), recordOfSubmission.getMemo());
+			log.warn("{} {} Memo didn't come from submitted transaction! actual memo {}, recorded {}.",
+					spec.logPrefix(), this, memo.get(), recordOfSubmission.getMemo());
+			throw new IllegalStateException("Resolved submission record was from a duplicate");
 		}
 	}
 
