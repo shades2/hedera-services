@@ -867,11 +867,11 @@ workflows:
   GCP-Daily-Services-Crypto-Restart-4N-1C:
     triggers:
       - schedule:
-          cron: "15 10 * * *"
+          cron: "55 23 * * *"
           filters:
             branches:
               only:
-                - vm-plus-020-test.3
+                - secp256k1
     jobs:
       - build-platform-and-services
       - jrs-regression:
@@ -936,11 +936,11 @@ workflows:
   GCP-Daily-Services-Update-Reconnect-4N-2C:
     triggers:
       - schedule:
-          cron: "15 22 * * *"
+          cron: "15 0 * * *"
           filters:
             branches:
               only:
-                - vm-plus-020-test.3
+                - secp256k1
     jobs:
       - build-platform-and-services
       - jrs-regression:
@@ -1029,11 +1029,11 @@ workflows:
   GCP-Daily-Services-Reconnect-6N-4C:
     triggers:
       - schedule:
-          cron: "40 9 * * *"
+          cron: "0 0 * * *"
           filters:
             branches:
               only:
-                - vm-plus-020-test.3
+                - secp256k1
     jobs:
       - build-platform-and-services
       - jrs-regression:
@@ -1099,11 +1099,11 @@ workflows:
   GCP-Daily-Services-Recovery-4N-1C:
     triggers:
       - schedule:
-          cron: "55 10 * * *"
+          cron: "45 23 * * *"
           filters:
             branches:
               only:
-                - vm-plus-020-test.3
+                - secp256k1
     jobs:
       - build-platform-and-services
       - jrs-regression:
@@ -1566,10 +1566,10 @@ jobs:
         default: true
       slack_results_channel:
         type: string
-        default: "hedera-regression"
+        default: "release-21-services-regression"
       slack_summary_channel:
         type: string
-        default: "hedera-regression-summary"
+        default: "release-21-services-regression"
       workflow-name:
         type: string
         default: ""
