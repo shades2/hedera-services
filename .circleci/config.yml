@@ -867,7 +867,7 @@ workflows:
   GCP-Daily-Services-Crypto-Restart-4N-1C:
     triggers:
       - schedule:
-          cron: "55 23 * * *"
+          cron: "35 14 * * *"
           filters:
             branches:
               only:
@@ -936,7 +936,7 @@ workflows:
   GCP-Daily-Services-Update-Reconnect-4N-2C:
     triggers:
       - schedule:
-          cron: "15 0 * * *"
+          cron: "35 14 * * *"
           filters:
             branches:
               only:
@@ -1029,7 +1029,7 @@ workflows:
   GCP-Daily-Services-Reconnect-6N-4C:
     triggers:
       - schedule:
-          cron: "0 0 * * *"
+          cron: "40 14 * * *"
           filters:
             branches:
               only:
@@ -1099,7 +1099,7 @@ workflows:
   GCP-Daily-Services-Recovery-4N-1C:
     triggers:
       - schedule:
-          cron: "45 23 * * *"
+          cron: "45 14 * * *"
           filters:
             branches:
               only:
@@ -1566,10 +1566,10 @@ jobs:
         default: true
       slack_results_channel:
         type: string
-        default: "release-21-services-regression"
+        default: "services-release-21-regression"
       slack_summary_channel:
         type: string
-        default: "release-21-services-regression"
+        default: "services-release-21-regression"
       workflow-name:
         type: string
         default: ""
