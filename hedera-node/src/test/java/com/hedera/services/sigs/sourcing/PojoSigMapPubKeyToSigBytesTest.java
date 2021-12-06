@@ -90,7 +90,6 @@ class PojoSigMapPubKeyToSigBytesTest {
 			numUnusedFullPrefixSigs.getAndIncrement();
 		});
 		assertEquals(2, numUnusedFullPrefixSigs.get());
-		assertTrue(subject.usesEcdsaSecp256k1());
 	}
 
 	@Test

@@ -45,7 +45,6 @@ import static com.hedera.services.keys.HederaKeyActivation.INVALID_MISSING_SIG;
 import static com.swirlds.common.crypto.VerificationStatus.INVALID;
 import static com.swirlds.common.crypto.VerificationStatus.VALID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 
 @ExtendWith(MockitoExtension.class)
@@ -79,7 +78,7 @@ class SigMapScheduleClassifierTest {
 
 	@Test
 	void returnsEmptyOptionalIfInvalidInner() {
-		given(sigsFn.apply(eq(a.getECDSASecp256k1Key()))).willReturn(INVALID_MISSING_SIG);
+		given(sigsFn.apply(a.getECDSASecp256k1Key())).willReturn(INVALID_MISSING_SIG);
 
 		// when:
 		var answer = subject.validScheduleKeys(List.of(a), sigMap, sigsFn, new MatchingInvalidASig());
@@ -90,7 +89,7 @@ class SigMapScheduleClassifierTest {
 
 	@Test
 	void ignoresInvalidInnerIfMatchingOuter() {
-		given(sigsFn.apply(eq(a.getECDSASecp256k1Key()))).willReturn(VALID_SIG);
+		given(sigsFn.apply(a.getECDSASecp256k1Key())).willReturn(VALID_SIG);
 
 		// when:
 		var answer = subject.validScheduleKeys(List.of(a), sigMap, sigsFn, new MatchingInvalidASig());

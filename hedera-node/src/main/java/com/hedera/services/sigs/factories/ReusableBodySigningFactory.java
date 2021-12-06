@@ -57,7 +57,7 @@ public class ReusableBodySigningFactory implements TxnScopedPlatformSigFactory {
 	@Override
 	public TransactionSignature signKeccak256DigestWithSecp256k1(final byte[] publicKey, final byte[] sigBytes) {
 		final var rawPublicKey = decoder.getDecoded(publicKey);
-		return ecdsaSecp256k1Sig(rawPublicKey, sigBytes, accessor.getKeccak256Hash());
+		return ecdsaSecp256k1Sig(rawPublicKey, sigBytes, accessor.getKeccak256HashOfBodyBytes());
 	}
 
 	/* --- Only used by unit tests --- */

@@ -156,7 +156,7 @@ class HederaKeyActivationTest {
 
 		final var accessor = mock(TxnAccessor.class);
 		given(accessor.getTxnBytes()).willReturn(mockTxnBytes);
-		given(accessor.getKeccak256Hash()).willReturn(digest);
+		given(accessor.getKeccak256HashOfBodyBytes()).willReturn(digest);
 
 		final var pointDecoder = new Secp256k1PointDecoder(1L);
 		final var cryptoSigs = createCryptoSigsFrom(

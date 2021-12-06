@@ -90,7 +90,7 @@ class ReusableBodySigningFactoryTest {
 		final var mockCompressed = "012345678901234567890123456789012".getBytes();
 		final var mockUncompressed = "0123456789012345678901234567890123456789012345678901234567890123".getBytes();
 		given(decoder.getDecoded(mockCompressed)).willReturn(mockUncompressed);
-		given(accessor.getKeccak256Hash()).willReturn(digest);
+		given(accessor.getKeccak256HashOfBodyBytes()).willReturn(digest);
 
 		final var expectedSig = expectedEcdsaSecp256k1Sig(mockUncompressed);
 

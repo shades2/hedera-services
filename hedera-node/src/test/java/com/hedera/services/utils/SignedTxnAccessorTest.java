@@ -78,7 +78,6 @@ import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -114,7 +113,7 @@ class SignedTxnAccessorTest {
 		doCallRealMethod().when(subject).availSubmitUsageMeta();
 		doCallRealMethod().when(subject).getSpanMap();
 		doCallRealMethod().when(subject).getSpanMapAccessor();
-		doCallRealMethod().when(subject).getKeccak256Hash();
+		doCallRealMethod().when(subject).getKeccak256HashOfBodyBytes();
 
 		assertThrows(UnsupportedOperationException.class, subject::getSigMeta);
 		assertThrows(UnsupportedOperationException.class, subject::getPkToSigsFn);
@@ -124,7 +123,7 @@ class SignedTxnAccessorTest {
 		assertThrows(UnsupportedOperationException.class, subject::getSpanMap);
 		assertThrows(UnsupportedOperationException.class, () -> subject.setSigMeta(null));
 		assertThrows(UnsupportedOperationException.class, subject::getSpanMapAccessor);
-		assertThrows(UnsupportedOperationException.class, subject::getKeccak256Hash);
+		assertThrows(UnsupportedOperationException.class, subject::getKeccak256HashOfBodyBytes);
 	}
 
 	@Test
@@ -172,7 +171,6 @@ class SignedTxnAccessorTest {
 		final var accessor = SignedTxnAccessor.uncheckedFrom(transaction);
 		final var txnUsageMeta = accessor.baseUsageMeta();
 
-		assertNull(accessor.getKeccak256HashDirect());
 		assertEquals(transaction, accessor.getSignedTxnWrapper());
 		assertArrayEquals(transaction.toByteArray(), accessor.getSignedTxnWrapperBytes());
 		assertEquals(body, accessor.getTxn());
@@ -192,7 +190,7 @@ class SignedTxnAccessorTest {
 		assertFalse(accessor.isTriggeredTxn());
 		assertFalse(accessor.canTriggerTxn());
 		assertEquals(memoUtf8Bytes.length, txnUsageMeta.getMemoUtf8Bytes());
-		assertArrayEquals(keccak256DigestOf(body.toByteArray()), accessor.getKeccak256Hash());
+		assertArrayEquals(keccak256DigestOf(body.toByteArray()), accessor.getKeccak256HashOfBodyBytes());
 	}
 
 	@Test
@@ -562,8 +560,6 @@ class SignedTxnAccessorTest {
 				.build();
 		final var topLevel = buildTransactionFrom(signedTxn.toByteString());
 		final var subject = SignedTxnAccessor.uncheckedFrom(topLevel);
-
-		assertArrayEquals(keccak256DigestOf(txnBody.toByteArray()), subject.getKeccak256HashDirect());
 	}
 
 	private Transaction signedCryptoCreateTxn() {

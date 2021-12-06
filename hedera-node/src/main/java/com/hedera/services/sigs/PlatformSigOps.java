@@ -88,13 +88,11 @@ public final class PlatformSigOps {
 				}
 			}
 		} catch (KeyPrefixMismatchException kmpe) {
-			kmpe.printStackTrace();
 			/* No problem if a signature map is ambiguous for a key linked to a scheduled transaction. */
 			if (!primitiveKey.isForScheduledTxn()) {
 				result.setTerminatingEx(kmpe);
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
 			result.setTerminatingEx(e);
 		}
 	}

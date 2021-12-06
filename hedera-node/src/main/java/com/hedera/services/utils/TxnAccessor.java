@@ -63,7 +63,7 @@ public interface TxnAccessor {
         }
     	return sigMeta.pkToVerifiedSigFn();
     }
-    default byte[] getKeccak256Hash() {
+    default byte[] getKeccak256HashOfBodyBytes() {
         throw new UnsupportedOperationException();
     }
 

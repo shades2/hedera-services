@@ -51,11 +51,6 @@ public class PojoSigMapPubKeyToSigBytes implements PubKeyToSigBytes {
 	}
 
 	@Override
-	public boolean usesEcdsaSecp256k1() {
-		return pojoSigMap.usesEcdsaSecp256k1();
-	}
-
-	@Override
 	public byte[] sigBytesFor(byte[] pubKey) throws Exception {
 		var chosenSigBytesIndex = MISSING_SIG_BYTES_INDEX;
 		byte[] sigBytes = EMPTY_SIG;

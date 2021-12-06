@@ -137,9 +137,6 @@ public class SignedTxnAccessor implements TxnAccessor {
 			hash = noThrowSha384HashOf(signedTxnBytes.toByteArray());
 		}
 		pubKeyToSigBytes = new PojoSigMapPubKeyToSigBytes(sigMap);
-		if (pubKeyToSigBytes.usesEcdsaSecp256k1()) {
-			keccak256Hash = keccak256DigestOf(txnBytes);
-		}
 
 		txn = TransactionBody.parseFrom(txnBytes);
 		memo = txn.getMemo();
@@ -307,11 +304,13 @@ public class SignedTxnAccessor implements TxnAccessor {
 
 	@Override
 	public long getGasLimitForContractTx() {
-		return getFunction() == ContractCreate ? getTxn().getContractCreateInstance().getGas() : getTxn().getContractCall().getGas();
+		return getFunction() == ContractCreate
+				? getTxn().getContractCreateInstance().getGas()
+				: getTxn().getContractCall().getGas();
 	}
 
 	@Override
-	public byte[] getKeccak256Hash() {
+	public byte[] getKeccak256HashOfBodyBytes() {
 		if (keccak256Hash == null) {
 			keccak256Hash = keccak256DigestOf(txnBytes);
 		}
@@ -426,10 +425,5 @@ public class SignedTxnAccessor implements TxnAccessor {
 		} else {
 			txnUsageMeta = new BaseTransactionMeta(utf8MemoBytes.length, 0);
 		}
-	}
-
-	/* --- Only used by unit tests --- */
-	byte[] getKeccak256HashDirect() {
-		return keccak256Hash;
 	}
 }

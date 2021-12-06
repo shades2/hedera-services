@@ -29,29 +29,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class PojoSigMapTest {
 	@Test
-	void distinguishesWhenSecp256k1IsPresent() {
-		final var noEcdsaSecp256k1Map = SignatureMap.newBuilder()
-				.addSigPair(SignaturePair.newBuilder()
-						.setPubKeyPrefix(ByteString.copyFromUtf8("a"))
-						.setEd25519(ByteString.copyFromUtf8("01234567890123456789012345678901")))
-				.build();
-		final var withEcdsaSecp256k1Map = SignatureMap.newBuilder()
-				.addSigPair(SignaturePair.newBuilder()
-						.setPubKeyPrefix(ByteString.copyFromUtf8("a"))
-						.setEd25519(ByteString.copyFromUtf8("01234567890123456789012345678901")))
-				.addSigPair(SignaturePair.newBuilder()
-						.setPubKeyPrefix(ByteString.copyFromUtf8("b"))
-						.setECDSASecp256K1(ByteString.copyFromUtf8("012345678901234567890123456789012")))
-				.build();
-
-		final var noEcdsaSubject = PojoSigMap.fromGrpc(noEcdsaSecp256k1Map);
-		final var yesEcdsaSubject = PojoSigMap.fromGrpc(withEcdsaSecp256k1Map);
-
-		assertFalse(noEcdsaSubject.usesEcdsaSecp256k1());
-		assertTrue(yesEcdsaSubject.usesEcdsaSecp256k1());
-	}
-
-	@Test
 	void distinguishesBetweenFullAndPartialEd25519Prefixes() {
 		final var partialEd25519Prefix = "a";
 		final var fullEd25519Prefix = "01234567890123456789012345678901";
