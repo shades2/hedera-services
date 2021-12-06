@@ -45,15 +45,18 @@ public class LoadState {
 
     public static void main(final String[] args) {
 
-        if (args.length != 2) {
-            System.err.println("Invalid number of arguments, 2 arguments expected (states to compare)");
-            return;
+        try {
+
+            if (args.length != 2) {
+                System.err.println("Invalid number of arguments, 2 arguments expected (states to compare)");
+                return;
+            }
+
+            final File state1 = new File(args[0]);
+            final File state2 = new File(args[1]);
+        } catch (final Exception ex) {
+            ex.printStackTrace();
         }
-
-        final File state1 = new File(args[0]);
-        final File state2 = new File(args[1]);
-
-
     }
 
 }
