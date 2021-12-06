@@ -136,6 +136,9 @@ public class LoadState {
             final State stateA = loadState(fileA);
             final State stateB = loadState(fileB);
 
+            System.out.println("Hash A: " + stateA.getHash());
+            System.out.println("Hash B: " + stateB.getHash());
+
             compareStates(stateA, stateB);
 
         } catch (final Exception ex) {
