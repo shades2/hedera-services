@@ -57,7 +57,7 @@ public class LoadState {
             if (node1 != null) {
 
                 if (nodeIndex.getAndIncrement() % 100_000 == 0) {
-                    System.out.println(nodeIndex.get() - 1);
+                    System.out.println(((nodeIndex.get() - 1) / 1000) + "k");
                 }
 
                 MerkleNode node2 = null;
