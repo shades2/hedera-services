@@ -56,8 +56,8 @@ public class LoadState {
         state1.forEachNode((final MerkleNode node1) -> {
             if (node1 != null) {
 
-                if (nodeIndex.getAndIncrement() % 10_000 == 0) {
-                    System.out.println(nodeIndex.get());
+                if (nodeIndex.getAndIncrement() % 100_000 == 0) {
+                    System.out.println(nodeIndex.get() - 1);
                 }
 
                 MerkleNode node2 = null;
