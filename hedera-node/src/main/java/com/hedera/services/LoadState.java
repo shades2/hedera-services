@@ -6,15 +6,18 @@ import com.swirlds.common.constructable.ConstructableRegistryException;
 import com.swirlds.common.crypto.CryptoFactory;
 import com.swirlds.common.crypto.Hash;
 import com.swirlds.common.merkle.MerkleNode;
+import com.swirlds.common.merkle.iterators.MerkleDepthFirstIterator;
 import com.swirlds.common.merkle.route.MerkleRoute;
 import com.swirlds.platform.SignedStateFileManager;
 import com.swirlds.platform.state.SignedState;
 import com.swirlds.platform.state.State;
 import org.apache.commons.lang3.tuple.Pair;
 import org.checkerframework.checker.units.qual.A;
+import org.springframework.util.CompositeIterator;
 
 import java.io.File;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -49,40 +52,66 @@ public class LoadState {
         }
     }
 
-    private static void compareStates(final State state1, final State state2) {
+    private static class ComparisonIterator extends MerkleDepthFirstIterator<MerkleNode, MerkleNode> {
 
-        final AtomicInteger nodeIndex = new AtomicInteger(0);
+        private final MerkleNode rootB;
 
-        state1.forEachNode((final MerkleNode node1) -> {
-            if (node1 != null) {
+        public ComparisonIterator(final MerkleNode rootA, final MerkleNode rootB) {
+            super(rootA);
+            this.rootB = rootB;
+        }
 
-                if (nodeIndex.getAndIncrement() % 100_000 == 0) {
-                    System.out.println(((nodeIndex.get() - 1) / 1000) + "k");
-                }
+        @Override
+        protected boolean shouldNodeBeVisited(MerkleNode nodeA) {
 
-                MerkleNode node2 = null;
-                try {
-                    node2 = state2.getNodeAtRoute(node1.getRoute());
-                } catch (final Exception ex) {
-                  // TODO
-                }
+            if (nodeA == null) {
+                return false;
+            }
 
-                if (node2 == null) {
-                    System.out.println("state 2 does not have that corresponds to " + node1.getClass().getSimpleName()
-                            + " @ " + node1.getRoute());
-                    return;
-                }
+            MerkleNode nodeB = null;
+            try {
+                nodeB = rootB.getNodeAtRoute(nodeA.getRoute());
+            } catch (final Exception ignored) {
 
-                if (node1.getClassId() != node2.getClassId()) {
-                    System.out.println("mismatched class IDs @ " + node1.getRoute() + ": " +
-                            node1.getClass().getSimpleName() + " vs " + node2.getClass().getSimpleName());
-                    return;
-                }
+            }
 
-                if (!node1.getHash().equals(node2.getHash())) {
-                    System.out.println("mismatched hashes @ " + node1.getRoute() + " for type " +
-                            node1.getClass().getSimpleName());
-                }
+            if (nodeB == null) {
+                return true;
+            }
+
+            final Hash hashA = nodeA.getHash();
+            final Hash hashB = nodeB.getHash();
+
+            return !hashA.equals(hashB);
+        }
+    }
+
+    private static void compareStates(final State stateA, final State stateB) {
+        final Iterator<MerkleNode> iterator = new ComparisonIterator(stateA, stateB);
+
+        iterator.forEachRemaining((final MerkleNode nodeA) -> {
+            MerkleNode nodeB = null;
+            try {
+                nodeB = stateB.getNodeAtRoute(nodeA.getRoute());
+            } catch (final Exception ignored) {
+
+            }
+
+            if (nodeB == null) {
+                System.out.println("state 2 does not have that corresponds to " + nodeA.getClass().getSimpleName()
+                        + " @ " + nodeA.getRoute());
+                return;
+            }
+
+            if (nodeA.getClassId() != nodeB.getClassId()) {
+                System.out.println("mismatched class IDs @ " + nodeA.getRoute() + ": " +
+                        nodeA.getClass().getSimpleName() + " vs " + nodeB.getClass().getSimpleName());
+                return;
+            }
+
+            if (!nodeA.getHash().equals(nodeB.getHash())) {
+                System.out.println("mismatched hashes @ " + nodeA.getRoute() + " for type " +
+                        nodeA.getClass().getSimpleName());
             }
         });
 
@@ -99,15 +128,15 @@ public class LoadState {
                 return;
             }
 
-            final File file1 = new File(args[0]);
-            final File file2 = new File(args[1]);
+            final File fileA = new File(args[0]);
+            final File fileB = new File(args[1]);
 
-            System.out.println("comparing " + file1 + " with " + file2);
+            System.out.println("comparing " + fileA + " with " + fileB);
 
-            final State state1 = loadState(file1);
-            final State state2 = loadState(file2);
+            final State stateA = loadState(fileA);
+            final State stateB = loadState(fileB);
 
-            compareStates(state1, state2);
+            compareStates(stateA, stateB);
 
         } catch (final Exception ex) {
             ex.printStackTrace();
