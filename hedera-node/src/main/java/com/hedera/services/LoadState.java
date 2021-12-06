@@ -11,10 +11,12 @@ import com.swirlds.platform.SignedStateFileManager;
 import com.swirlds.platform.state.SignedState;
 import com.swirlds.platform.state.State;
 import org.apache.commons.lang3.tuple.Pair;
+import org.checkerframework.checker.units.qual.A;
 
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class LoadState {
 
@@ -49,25 +51,41 @@ public class LoadState {
 
     private static void compareStates(final State state1, final State state2) {
 
-        final Map<MerkleRoute, Hash> state1Hashes = new HashMap<>();
+        final AtomicInteger nodeIndex = new AtomicInteger(0);
 
-        state1.forEachNode((final MerkleNode node) -> {
-            if (node != null) {
-                state1Hashes.put(node.getRoute(), node.getHash());
-            }
-        });
+        state1.forEachNode((final MerkleNode node1) -> {
+            if (node1 != null) {
 
-        state2.forEachNode((final MerkleNode node2) -> {
+                if (nodeIndex.getAndIncrement() % 10_000 == 0) {
+                    System.out.println(nodeIndex.get());
+                }
 
-            if (node2 != null) {
-                final Hash node1Hash = state1Hashes.get(node2.getRoute());
+                MerkleNode node2 = null;
+                try {
+                    node2 = state2.getNodeAtRoute(node1.getRoute());
+                } catch (final Exception ex) {
+                  // TODO
+                }
 
-                if (!node2.getHash().equals(node1Hash)) {
-                    System.out.println("differing hashes, node type = " +
-                            node2.getClass().getSimpleName() + " @ " + node2.getRoute());
+                if (node2 == null) {
+                    System.out.println("state 2 does not have that corresponds to " + node1.getClass().getSimpleName()
+                            + " @ " + node1.getRoute());
+                    return;
+                }
+
+                if (node1.getClassId() != node2.getClassId()) {
+                    System.out.println("mismatched class IDs @ " + node1.getRoute() + ": " +
+                            node1.getClass().getSimpleName() + " vs " + node2.getClass().getSimpleName());
+                    return;
+                }
+
+                if (!node1.getHash().equals(node2.getHash())) {
+                    System.out.println("mismatched hashes @ " + node1.getRoute() + " for type " +
+                            node1.getClass().getSimpleName());
                 }
             }
         });
+
     }
 
     public static void main(final String[] args) {
