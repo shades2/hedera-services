@@ -26,6 +26,7 @@ import com.hedera.services.legacy.core.jproto.JECDSASecp256k1Key;
 import com.hedera.services.legacy.core.jproto.JKey;
 import com.hedera.services.legacy.core.jproto.JKeyList;
 import com.hedera.services.sigs.factories.ReusableBodySigningFactory;
+import com.hedera.services.sigs.factories.Secp256k1PointDecoder;
 import com.hedera.services.sigs.sourcing.PubKeyToSigBytes;
 import com.hedera.services.utils.RationalizedSigMeta;
 import com.hedera.services.utils.TxnAccessor;
@@ -143,9 +144,10 @@ class HederaKeyActivationTest {
 
 		final var keyFactory = KeyFactory.getDefaultInstance();
 		final var mockSigs = mock(PubKeyToSigBytes.class);
+		final var digest = keccak256DigestOf(mockTxnBytes);
 		given(mockSigs.sigBytesFor(explicitList.get(0).getECDSASecp256k1Key()))
 				.willReturn(signBytes(
-						keccak256DigestOf(mockTxnBytes),
+						digest,
 						keyFactory.lookupPrivateKey(hex(secp256k1Key.getECDSASecp256k1Key()))));
 		given(mockSigs.sigBytesFor(explicitList.get(1).getEd25519()))
 				.willReturn(signBytes(
@@ -154,9 +156,11 @@ class HederaKeyActivationTest {
 
 		final var accessor = mock(TxnAccessor.class);
 		given(accessor.getTxnBytes()).willReturn(mockTxnBytes);
+		given(accessor.getKeccak256Hash()).willReturn(digest);
 
+		final var pointDecoder = new Secp256k1PointDecoder(1L);
 		final var cryptoSigs = createCryptoSigsFrom(
-				explicitList, mockSigs, new ReusableBodySigningFactory(accessor)
+				explicitList, mockSigs, new ReusableBodySigningFactory(accessor, pointDecoder)
 		).getPlatformSigs();
 		new CryptoEngine().verifySync(cryptoSigs);
 		final var subject = pkToSigMapFrom(cryptoSigs);

@@ -9,9 +9,9 @@ package com.hedera.services.sigs.sourcing;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -28,6 +28,29 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class PojoSigMapTest {
+	@Test
+	void distinguishesWhenSecp256k1IsPresent() {
+		final var noEcdsaSecp256k1Map = SignatureMap.newBuilder()
+				.addSigPair(SignaturePair.newBuilder()
+						.setPubKeyPrefix(ByteString.copyFromUtf8("a"))
+						.setEd25519(ByteString.copyFromUtf8("01234567890123456789012345678901")))
+				.build();
+		final var withEcdsaSecp256k1Map = SignatureMap.newBuilder()
+				.addSigPair(SignaturePair.newBuilder()
+						.setPubKeyPrefix(ByteString.copyFromUtf8("a"))
+						.setEd25519(ByteString.copyFromUtf8("01234567890123456789012345678901")))
+				.addSigPair(SignaturePair.newBuilder()
+						.setPubKeyPrefix(ByteString.copyFromUtf8("b"))
+						.setECDSASecp256K1(ByteString.copyFromUtf8("012345678901234567890123456789012")))
+				.build();
+
+		final var noEcdsaSubject = PojoSigMap.fromGrpc(noEcdsaSecp256k1Map);
+		final var yesEcdsaSubject = PojoSigMap.fromGrpc(withEcdsaSecp256k1Map);
+
+		assertFalse(noEcdsaSubject.usesEcdsaSecp256k1());
+		assertTrue(yesEcdsaSubject.usesEcdsaSecp256k1());
+	}
+
 	@Test
 	void distinguishesBetweenFullAndPartialEd25519Prefixes() {
 		final var partialEd25519Prefix = "a";
@@ -70,8 +93,8 @@ class PojoSigMapTest {
 		// given:
 		final var grpc = SignatureMap.newBuilder()
 				.addSigPair(SignaturePair.newBuilder()
-								.setPubKeyPrefix(ByteString.copyFromUtf8(fakePrefix))
-								.setEd25519(ByteString.copyFromUtf8(fakeSig)))
+						.setPubKeyPrefix(ByteString.copyFromUtf8(fakePrefix))
+						.setEd25519(ByteString.copyFromUtf8(fakeSig)))
 				.addSigPair(SignaturePair.newBuilder()
 						.setPubKeyPrefix(ByteString.copyFromUtf8(secondFakePrefix))
 						.setEd25519(ByteString.copyFromUtf8(secondFakeSig)))

@@ -20,10 +20,12 @@ package com.hedera.services.sigs;
  * ‍
  */
 
+import com.hedera.services.context.properties.NodeLocalProperties;
 import com.hedera.services.legacy.core.jproto.JKey;
 import com.hedera.services.legacy.exception.KeyPrefixMismatchException;
 import com.hedera.services.sigs.factories.PlatformSigFactory;
 import com.hedera.services.sigs.factories.ReusableBodySigningFactory;
+import com.hedera.services.sigs.factories.Secp256k1PointDecoder;
 import com.hedera.services.sigs.order.SigRequirements;
 import com.hedera.services.sigs.order.SigningOrderResult;
 import com.hedera.services.sigs.sourcing.PubKeyToSigBytes;
@@ -66,6 +68,7 @@ class HederaToPlatformSigOpsTest {
 	private static List<JKey> payerKey;
 	private static List<JKey> otherKeys;
 	private static List<JKey> fullPrefixKeys;
+	private static Secp256k1PointDecoder pointDecoder;
 	private PubKeyToSigBytes allSigBytes;
 	private PlatformTxnAccessor platformTxn;
 	private SigRequirements keyOrdering;
@@ -77,12 +80,14 @@ class HederaToPlatformSigOpsTest {
 				KeyTree.withRoot(ed25519()).asJKey(),
 				KeyTree.withRoot(ed25519()).asJKey());
 		fullPrefixKeys = List.of(KeyTree.withRoot(ed25519()).asJKey());
+		pointDecoder = new Secp256k1PointDecoder(10L);
 	}
 
 	@BeforeEach
 	private void setup() throws Throwable {
 		allSigBytes = mock(PubKeyToSigBytes.class);
 		keyOrdering = mock(SigRequirements.class);
+		final var mockProps = mock(NodeLocalProperties.class);
 		platformTxn = new PlatformTxnAccessor(PlatformTxnFactory.from(newSignedSystemDelete().get()));
 	}
 
@@ -108,7 +113,7 @@ class HederaToPlatformSigOpsTest {
 	void includesSuccessfulExpansions() throws Exception {
 		wellBehavedOrdersAndSigSources();
 
-		final var status = expandIn(platformTxn, keyOrdering, allSigBytes);
+		final var status = expandIn(platformTxn, keyOrdering, allSigBytes, pointDecoder);
 
 		assertEquals(OK, status);
 		assertEquals(expectedSigsWithNoErrors(), platformTxn.getPlatformTxn().getSignatures());
@@ -119,7 +124,7 @@ class HederaToPlatformSigOpsTest {
 		given(keyOrdering.keysForPayer(platformTxn.getTxn(), CODE_ORDER_RESULT_FACTORY))
 				.willReturn(new SigningOrderResult<>(INVALID_ACCOUNT_ID));
 
-		final var status = expandIn(platformTxn, keyOrdering, allSigBytes);
+		final var status = expandIn(platformTxn, keyOrdering, allSigBytes, pointDecoder);
 
 		assertEquals(INVALID_ACCOUNT_ID, status);
 	}
@@ -135,7 +140,7 @@ class HederaToPlatformSigOpsTest {
 				.willReturn("2".getBytes())
 				.willThrow(KeyPrefixMismatchException.class);
 
-		final var status = expandIn(platformTxn, keyOrdering, allSigBytes);
+		final var status = expandIn(platformTxn, keyOrdering, allSigBytes, pointDecoder);
 
 		assertEquals(OK, status);
 		assertEquals(expectedSigsWithOtherPartiesCreationError(), platformTxn.getPlatformTxn().getSignatures());
@@ -143,7 +148,8 @@ class HederaToPlatformSigOpsTest {
 
 	@Test
 	void rationalizesMissingSigs() throws Exception {
-		final var rationalization = new Rationalization(ALWAYS_VALID, keyOrdering, new ReusableBodySigningFactory());
+		final var rationalization = new Rationalization(
+				ALWAYS_VALID, keyOrdering, new ReusableBodySigningFactory(pointDecoder));
 		final var captor = ArgumentCaptor.forClass(RationalizedSigMeta.class);
 		final var mockAccessor = mock(PlatformTxnAccessor.class);
 
@@ -167,7 +173,8 @@ class HederaToPlatformSigOpsTest {
 	void stopImmediatelyOnPayerKeyOrderFailure() {
 		given(keyOrdering.keysForPayer(platformTxn.getTxn(), CODE_ORDER_RESULT_FACTORY))
 				.willReturn(new SigningOrderResult<>(INVALID_ACCOUNT_ID));
-		final var rationalization = new Rationalization(ALWAYS_VALID, keyOrdering, new ReusableBodySigningFactory());
+		final var rationalization = new Rationalization(
+				ALWAYS_VALID, keyOrdering, new ReusableBodySigningFactory(pointDecoder));
 
 		rationalization.performFor(platformTxn);
 
@@ -179,7 +186,8 @@ class HederaToPlatformSigOpsTest {
 		wellBehavedOrdersAndSigSources();
 		given(keyOrdering.keysForOtherParties(platformTxn.getTxn(), CODE_ORDER_RESULT_FACTORY))
 				.willReturn(new SigningOrderResult<>(INVALID_ACCOUNT_ID));
-		final var rationalization = new Rationalization(ALWAYS_VALID, keyOrdering, new ReusableBodySigningFactory());
+		final var rationalization = new Rationalization(
+				ALWAYS_VALID, keyOrdering, new ReusableBodySigningFactory(pointDecoder));
 
 		rationalization.performFor(platformTxn);
 
@@ -198,7 +206,8 @@ class HederaToPlatformSigOpsTest {
 				.willReturn("2".getBytes())
 				.willThrow(KeyPrefixMismatchException.class);
 		givenMirrorMock(mockAccessor, platformTxn);
-		final var rationalization = new Rationalization(ALWAYS_VALID, keyOrdering, new ReusableBodySigningFactory());
+		final var rationalization = new Rationalization(
+				ALWAYS_VALID, keyOrdering, new ReusableBodySigningFactory(pointDecoder));
 
 		rationalization.performFor(mockAccessor);
 
@@ -220,7 +229,8 @@ class HederaToPlatformSigOpsTest {
 		final var mockAccessor = mock(PlatformTxnAccessor.class);
 		final var captor = ArgumentCaptor.forClass(RationalizedSigMeta.class);
 		givenMirrorMock(mockAccessor, platformTxn);
-		final var rationalization = new Rationalization(syncVerifier, keyOrdering, new ReusableBodySigningFactory());
+		final var rationalization = new Rationalization(
+				syncVerifier, keyOrdering, new ReusableBodySigningFactory(pointDecoder));
 
 		rationalization.performFor(mockAccessor);
 
@@ -243,7 +253,8 @@ class HederaToPlatformSigOpsTest {
 		final SyncVerifier syncVerifier = l -> {
 			throw new AssertionError("All sigs were verified async!");
 		};
-		final var rationalization = new Rationalization(syncVerifier, keyOrdering, new ReusableBodySigningFactory());
+		final var rationalization = new Rationalization(
+				syncVerifier, keyOrdering, new ReusableBodySigningFactory(pointDecoder));
 
 		rationalization.performFor(platformTxn);
 

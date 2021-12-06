@@ -23,6 +23,7 @@ package com.hedera.services.sigs.verification;
 import com.hedera.services.legacy.core.jproto.JKey;
 import com.hedera.services.sigs.PlatformSigsCreationResult;
 import com.hedera.services.sigs.factories.ReusableBodySigningFactory;
+import com.hedera.services.sigs.factories.Secp256k1PointDecoder;
 import com.hedera.services.utils.SignedTxnAccessor;
 import com.swirlds.common.crypto.TransactionSignature;
 
@@ -50,10 +51,16 @@ import static com.hedera.services.sigs.PlatformSigOps.createCryptoSigsFrom;
 public class PrecheckVerifier {
 	private final SyncVerifier syncVerifier;
 	private final PrecheckKeyReqs precheckKeyReqs;
+	private final Secp256k1PointDecoder pointDecoder;
 
 	@Inject
-	public PrecheckVerifier(SyncVerifier syncVerifier, PrecheckKeyReqs precheckKeyReqs) {
+	public PrecheckVerifier(
+			final SyncVerifier syncVerifier,
+			final PrecheckKeyReqs precheckKeyReqs,
+			final Secp256k1PointDecoder pointDecoder
+	) {
 		this.syncVerifier = syncVerifier;
+		this.pointDecoder = pointDecoder;
 		this.precheckKeyReqs = precheckKeyReqs;
 	}
 
@@ -79,7 +86,7 @@ public class PrecheckVerifier {
 
 	private List<TransactionSignature> getAvailSigs(List<JKey> reqKeys, SignedTxnAccessor accessor) throws Exception {
 		final var pkToSigFn = accessor.getPkToSigsFn();
-		final var sigFactory = new ReusableBodySigningFactory(accessor);
+		final var sigFactory = new ReusableBodySigningFactory(accessor, pointDecoder);
 		PlatformSigsCreationResult creationResult = createCryptoSigsFrom(reqKeys, pkToSigFn, sigFactory);
 		if (creationResult.hasFailed()) {
 			throw creationResult.getTerminatingEx();

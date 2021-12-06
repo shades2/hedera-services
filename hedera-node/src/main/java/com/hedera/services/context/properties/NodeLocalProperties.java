@@ -65,6 +65,7 @@ public class NodeLocalProperties {
 	private int prefetchQueueCapacity;
 	private int prefetchThreadPoolSize;
 	private int prefetchCodeCacheTtlSecs;
+	private long sec256k1PointCacheMaxSize;
 
 	@Inject
 	public NodeLocalProperties(@CompositeProps PropertySource properties) {
@@ -79,7 +80,8 @@ public class NodeLocalProperties {
 		precheckLookupRetries = properties.getIntProperty("precheck.account.maxLookupRetries");
 		precheckLookupRetryBackoffMs = properties.getIntProperty("precheck.account.lookupRetryBackoffIncrementMs");
 		activeProfile = properties.getProfileProperty("hedera.profiles.active");
-		statsHapiOpsSpeedometerUpdateIntervalMs = properties.getLongProperty("stats.hapiOps.speedometerUpdateIntervalMs");
+		statsHapiOpsSpeedometerUpdateIntervalMs = properties.getLongProperty(
+				"stats.hapiOps.speedometerUpdateIntervalMs");
 		statsSpeedometerHalfLifeSecs = properties.getDoubleProperty("stats.speedometerHalfLifeSecs");
 		statsRunningAvgHalfLifeSecs = properties.getDoubleProperty("stats.runningAvgHalfLifeSecs");
 		recordLogDir = properties.getStringProperty("hedera.recordStream.logDir");
@@ -110,6 +112,7 @@ public class NodeLocalProperties {
 		prefetchQueueCapacity = properties.getIntProperty("hedera.prefetch.queueCapacity");
 		prefetchThreadPoolSize = properties.getIntProperty("hedera.prefetch.threadPoolSize");
 		prefetchCodeCacheTtlSecs = properties.getIntProperty("hedera.prefetch.codeCacheTtlSecs");
+		sec256k1PointCacheMaxSize = properties.getLongProperty("keys.secp256k1CacheMaxSize");
 	}
 
 	public int port() {
@@ -244,9 +247,19 @@ public class NodeLocalProperties {
 		return issRoundsToDump;
 	}
 
-	public int prefetchQueueCapacity() { return prefetchQueueCapacity; }
+	public int prefetchQueueCapacity() {
+		return prefetchQueueCapacity;
+	}
 
-	public int prefetchThreadPoolSize() { return prefetchThreadPoolSize; }
+	public int prefetchThreadPoolSize() {
+		return prefetchThreadPoolSize;
+	}
 
-	public int prefetchCodeCacheTtlSecs() { return prefetchCodeCacheTtlSecs; }
+	public int prefetchCodeCacheTtlSecs() {
+		return prefetchCodeCacheTtlSecs;
+	}
+
+	public long sec256k1PointCacheMaxSize() {
+		return sec256k1PointCacheMaxSize;
+	}
 }

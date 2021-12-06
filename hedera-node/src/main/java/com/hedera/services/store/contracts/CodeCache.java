@@ -24,13 +24,13 @@ import com.github.benmanes.caffeine.cache.CacheLoader;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.hedera.services.context.properties.NodeLocalProperties;
+import com.hedera.services.utils.BytesKey;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.evm.Code;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 import static com.hedera.services.utils.EntityIdUtils.accountParsedFromSolidityAddress;
@@ -76,29 +76,4 @@ public class CodeCache {
 
     public long size() { return cache.estimatedSize(); }
 
-    public static class BytesKey {
-        byte[] array;
-
-        public BytesKey(byte[] array) {
-            this.array = array;
-        }
-
-        public byte[] getArray() { return array; }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o)
-                return true;
-            if (o == null || getClass() != o.getClass())
-                return false;
-
-            BytesKey bytesKey = (BytesKey) o;
-            return Arrays.equals(array, bytesKey.array);
-        }
-
-        @Override
-        public int hashCode() {
-            return Arrays.hashCode(array);
-        }
-    }
 }

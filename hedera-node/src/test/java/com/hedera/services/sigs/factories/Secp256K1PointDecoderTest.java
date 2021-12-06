@@ -1,4 +1,4 @@
-package com.hedera.services.sigs.utils;
+package com.hedera.services.sigs.factories;
 
 /*-
  * ‌
@@ -20,37 +20,40 @@ package com.hedera.services.sigs.utils;
  * ‍
  */
 
+import com.hedera.services.context.properties.NodeLocalProperties;
 import com.hedera.test.factories.keys.KeyFactory;
-import com.swirlds.common.CommonUtils;
 import org.bouncycastle.crypto.params.ECPublicKeyParameters;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Arrays;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.BDDMockito.given;
 
-class MiscCryptoUtilsTest {
-	@Test
-	void computesExpectedHashes() {
-		final var data = "AHOTMESS".getBytes();
+@ExtendWith(MockitoExtension.class)
+class Secp256K1PointDecoderTest {
+	@Mock
+	private NodeLocalProperties properties;
 
-		final var expectedHexedHash = "9eed2a3d8a3987c15d6ec326012c8a3b91346341921a09cc75eb38df28101e8d";
+	private Secp256k1PointDecoder subject;
 
-		final var actualHexedHash = CommonUtils.hex(MiscCryptoUtils.keccak256DigestOf(data));
-
-		assertEquals(expectedHexedHash, actualHexedHash);
+	@BeforeEach
+	void setUp() {
+		given(properties.sec256k1PointCacheMaxSize()).willReturn(1L);
+		subject = new Secp256k1PointDecoder(properties);
 	}
 
 	@Test
-	void recoversUncompressedSecp256k1PubKey() {
+	void loadsMissingPoint() {
 		final var kp = KeyFactory.ecdsaKpGenerator.generateKeyPair();
 		final var q = ((ECPublicKeyParameters) kp.getPublic()).getQ();
 		final var compressed = q.getEncoded(true);
-		final var uncompressed = q.getEncoded(false);
+		final var uncompressed = Arrays.copyOfRange(q.getEncoded(false), 1, 65);
 
-		assertArrayEquals(
-				Arrays.copyOfRange(uncompressed, 1, 65),
-				MiscCryptoUtils.decompressSecp256k1(compressed));
+		assertArrayEquals(uncompressed, subject.getDecoded(compressed));
 	}
 }

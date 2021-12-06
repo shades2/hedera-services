@@ -232,7 +232,11 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 			// so get this step started before synchronous signature expansion.
 			app.prefetchProcessor().offer(accessor);
 
-			app.expansionHelper().expandIn(accessor, app.retryingSigReqs(), accessor.getPkToSigsFn());
+			app.expansionHelper().expandIn(
+					accessor,
+					app.retryingSigReqs(),
+					accessor.getPkToSigsFn(),
+					app.pointDecoder());
 		} catch (InvalidProtocolBufferException e) {
 			log.warn("Method expandSignatures called with non-gRPC txn", e);
 		} catch (Exception race) {

@@ -68,6 +68,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.function.Function;
 
+import static com.hedera.services.sigs.utils.MiscCryptoUtils.keccak256DigestOf;
 import static com.hedera.services.state.submerkle.FcCustomFee.fixedFee;
 import static com.hedera.services.state.submerkle.FcCustomFee.fractionalFee;
 import static com.hedera.test.utils.IdUtils.asAccount;
@@ -77,6 +78,7 @@ import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -112,6 +114,7 @@ class SignedTxnAccessorTest {
 		doCallRealMethod().when(subject).availSubmitUsageMeta();
 		doCallRealMethod().when(subject).getSpanMap();
 		doCallRealMethod().when(subject).getSpanMapAccessor();
+		doCallRealMethod().when(subject).getKeccak256Hash();
 
 		assertThrows(UnsupportedOperationException.class, subject::getSigMeta);
 		assertThrows(UnsupportedOperationException.class, subject::getPkToSigsFn);
@@ -121,6 +124,7 @@ class SignedTxnAccessorTest {
 		assertThrows(UnsupportedOperationException.class, subject::getSpanMap);
 		assertThrows(UnsupportedOperationException.class, () -> subject.setSigMeta(null));
 		assertThrows(UnsupportedOperationException.class, subject::getSpanMapAccessor);
+		assertThrows(UnsupportedOperationException.class, subject::getKeccak256Hash);
 	}
 
 	@Test
@@ -150,7 +154,8 @@ class SignedTxnAccessorTest {
 	@Test
 	void parsesLegacyCorrectly() throws Exception {
 		final long offeredFee = 100_000_000L;
-		var transaction = RequestBuilder.getCryptoTransferRequest(1234l, 0l, 0l,
+		var transaction = RequestBuilder.getCryptoTransferRequest(
+				1234l, 0l, 0l,
 				3l, 0l, 0l,
 				offeredFee,
 				Timestamp.getDefaultInstance(),
@@ -167,6 +172,7 @@ class SignedTxnAccessorTest {
 		final var accessor = SignedTxnAccessor.uncheckedFrom(transaction);
 		final var txnUsageMeta = accessor.baseUsageMeta();
 
+		assertNull(accessor.getKeccak256HashDirect());
 		assertEquals(transaction, accessor.getSignedTxnWrapper());
 		assertArrayEquals(transaction.toByteArray(), accessor.getSignedTxnWrapperBytes());
 		assertEquals(body, accessor.getTxn());
@@ -183,9 +189,10 @@ class SignedTxnAccessorTest {
 		assertEquals(FeeBuilder.getSignatureCount(accessor.getSignedTxnWrapper()), accessor.numSigPairs());
 		assertEquals(FeeBuilder.getSignatureSize(accessor.getSignedTxnWrapper()), accessor.sigMapSize());
 		assertEquals(zeroByteMemo, accessor.getMemo());
-		assertEquals(false, accessor.isTriggeredTxn());
-		assertEquals(false, accessor.canTriggerTxn());
+		assertFalse(accessor.isTriggeredTxn());
+		assertFalse(accessor.canTriggerTxn());
 		assertEquals(memoUtf8Bytes.length, txnUsageMeta.getMemoUtf8Bytes());
+		assertArrayEquals(keccak256DigestOf(body.toByteArray()), accessor.getKeccak256Hash());
 	}
 
 	@Test
@@ -539,6 +546,24 @@ class SignedTxnAccessorTest {
 		final var subject = SignedTxnAccessor.uncheckedFrom(txn);
 
 		assertEquals(123456789L, subject.getGasLimitForContractTx());
+	}
+
+	@Test
+	void precomputesKeccakHashIfSigMapIncludesEcdsaSecp256k1() {
+		final var txnBody = cryptoCreateOp();
+		final var sigMap = SignatureMap.newBuilder()
+				.addSigPair(SignaturePair.newBuilder()
+				.setPubKeyPrefix(ByteString.copyFromUtf8("a"))
+						.setECDSASecp256K1(ByteString.copyFromUtf8("012345678901234567890123456789012")))
+				.build();
+		final var signedTxn = SignedTransaction.newBuilder()
+				.setBodyBytes(txnBody.toByteString())
+				.setSigMap(sigMap)
+				.build();
+		final var topLevel = buildTransactionFrom(signedTxn.toByteString());
+		final var subject = SignedTxnAccessor.uncheckedFrom(topLevel);
+
+		assertArrayEquals(keccak256DigestOf(txnBody.toByteArray()), subject.getKeccak256HashDirect());
 	}
 
 	private Transaction signedCryptoCreateTxn() {

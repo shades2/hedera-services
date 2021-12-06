@@ -28,25 +28,25 @@ import javax.inject.Singleton;
 
 import static com.hedera.services.sigs.factories.PlatformSigFactory.ecdsaSecp256k1Sig;
 import static com.hedera.services.sigs.factories.PlatformSigFactory.ed25519Sig;
-import static com.hedera.services.sigs.utils.MiscCryptoUtils.decompressSecp256k1;
-import static com.hedera.services.sigs.utils.MiscCryptoUtils.keccak256DigestOf;
 
 @Singleton
 public class ReusableBodySigningFactory implements TxnScopedPlatformSigFactory {
-	private byte[] keccak256Digest;
+	private final Secp256k1PointDecoder decoder;
+
 	private TxnAccessor accessor;
 
 	@Inject
-	public ReusableBodySigningFactory() {
+	public ReusableBodySigningFactory(final Secp256k1PointDecoder decoder) {
+		this.decoder = decoder;
 	}
 
-	public ReusableBodySigningFactory(final TxnAccessor accessor) {
+	public ReusableBodySigningFactory(final TxnAccessor accessor, final Secp256k1PointDecoder decoder) {
+		this.decoder = decoder;
 		this.accessor = accessor;
 	}
 
 	public void resetFor(final TxnAccessor accessor) {
 		this.accessor = accessor;
-		this.keccak256Digest = null;
 	}
 
 	@Override
@@ -56,19 +56,12 @@ public class ReusableBodySigningFactory implements TxnScopedPlatformSigFactory {
 
 	@Override
 	public TransactionSignature signKeccak256DigestWithSecp256k1(final byte[] publicKey, final byte[] sigBytes) {
-		if (keccak256Digest == null) {
-			keccak256Digest = keccak256DigestOf(accessor.getTxnBytes());
-		}
-		final var rawPublicKey = decompressSecp256k1(publicKey);
-		return ecdsaSecp256k1Sig(rawPublicKey, sigBytes, keccak256Digest);
+		final var rawPublicKey = decoder.getDecoded(publicKey);
+		return ecdsaSecp256k1Sig(rawPublicKey, sigBytes, accessor.getKeccak256Hash());
 	}
 
 	/* --- Only used by unit tests --- */
 	TxnAccessor getAccessor() {
 		return accessor;
-	}
-
-	byte[] getKeccak256Digest() {
-		return keccak256Digest;
 	}
 }

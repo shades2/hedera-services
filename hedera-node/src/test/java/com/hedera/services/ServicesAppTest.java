@@ -33,6 +33,7 @@ import com.hedera.services.grpc.GrpcStarter;
 import com.hedera.services.grpc.NettyGrpcServerManager;
 import com.hedera.services.ledger.backing.BackingAccounts;
 import com.hedera.services.sigs.ExpansionHelper;
+import com.hedera.services.sigs.factories.Secp256k1PointDecoder;
 import com.hedera.services.sigs.order.SigRequirements;
 import com.hedera.services.state.DualStateAccessor;
 import com.hedera.services.state.StateAccessor;
@@ -166,6 +167,7 @@ class ServicesAppTest {
 		assertThat(subject.upgradeActions(), instanceOf(UpgradeActions.class));
 		assertThat(subject.virtualMapFactory(), instanceOf(VirtualMapFactory.class));
 		assertThat(subject.prefetchProcessor(), instanceOf(PrefetchProcessor.class));
+		assertThat(subject.pointDecoder(), instanceOf(Secp256k1PointDecoder.class));
 		assertSame(subject.nodeId(), selfNodeId);
 		assertSame(subject.pause(), SLEEPING_PAUSE);
 		assertTrue(subject.consoleOut().isEmpty());

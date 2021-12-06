@@ -22,6 +22,7 @@ package com.hedera.services.sigs;
 
 import com.hedera.services.legacy.core.jproto.JKey;
 import com.hedera.services.sigs.factories.ReusableBodySigningFactory;
+import com.hedera.services.sigs.factories.Secp256k1PointDecoder;
 import com.hedera.services.sigs.order.SigRequirements;
 import com.hedera.services.sigs.sourcing.PubKeyToSigBytes;
 import com.hedera.services.utils.PlatformTxnAccessor;
@@ -77,16 +78,19 @@ public final class HederaToPlatformSigOps {
 	 * 		facility for listing Hedera keys required to sign the gRPC txn
 	 * @param pkToSigFn
 	 * 		source of crypto sigs for the simple keys in the Hedera key leaves
+	 * @param pointDecoder
+	 * 		decoder to use for decompressing secp256k1 curve points
 	 * @return a representation of the outcome
 	 */
 	public static ResponseCodeEnum expandIn(
 			final PlatformTxnAccessor txnAccessor,
 			final SigRequirements keyOrderer,
-			final PubKeyToSigBytes pkToSigFn
+			final PubKeyToSigBytes pkToSigFn,
+			final Secp256k1PointDecoder pointDecoder
 	) {
 		txnAccessor.getPlatformTxn().clear();
 
-		final var scopedSigFactory = new ReusableBodySigningFactory(txnAccessor);
+		final var scopedSigFactory = new ReusableBodySigningFactory(txnAccessor, pointDecoder);
 		return new Expansion(txnAccessor, keyOrderer, pkToSigFn, scopedSigFactory).execute();
 	}
 }

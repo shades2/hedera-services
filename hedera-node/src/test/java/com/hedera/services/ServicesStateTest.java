@@ -23,6 +23,7 @@ package com.hedera.services;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.services.context.init.ServicesInitFlow;
 import com.hedera.services.sigs.ExpansionHelper;
+import com.hedera.services.sigs.factories.Secp256k1PointDecoder;
 import com.hedera.services.sigs.order.SigRequirements;
 import com.hedera.services.sigs.sourcing.PubKeyToSigBytes;
 import com.hedera.services.state.DualStateAccessor;
@@ -37,7 +38,6 @@ import com.hedera.services.state.migration.ReleaseTwentyMigration;
 import com.hedera.services.state.migration.StateChildIndices;
 import com.hedera.services.state.migration.StateVersions;
 import com.hedera.services.state.org.StateMetadata;
-import com.hedera.services.store.contracts.CodeCache;
 import com.hedera.services.txns.ProcessLogic;
 import com.hedera.services.txns.prefetch.PrefetchProcessor;
 import com.hedera.services.txns.span.ExpandHandleSpan;
@@ -74,7 +74,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.ConcurrentModificationException;
 import java.util.List;
-import java.util.function.Consumer;
 
 import static com.hedera.services.ServicesState.CANONICAL_JDB_LOC;
 import static com.hedera.services.context.AppsManager.APPS;
@@ -149,11 +148,9 @@ class ServicesStateTest {
 	@Mock
 	private ServicesState.BinaryObjectStoreMigrator blobMigrator;
 	@Mock
-	private Consumer<Boolean> blobMigrationFlag;
-	@Mock
 	private PrefetchProcessor prefetchProcessor;
 	@Mock
-	private CodeCache codeCache;
+	private Secp256k1PointDecoder pointDecoder;
 
 	@LoggingTarget
 	private LogCaptor logCaptor;
@@ -266,6 +263,7 @@ class ServicesStateTest {
 		given(app.expandHandleSpan()).willReturn(expandHandleSpan);
 		given(app.retryingSigReqs()).willReturn(retryingKeyOrder);
 		given(app.prefetchProcessor()).willReturn(prefetchProcessor);
+		given(app.pointDecoder()).willReturn(pointDecoder);
 		given(txnAccessor.getPkToSigsFn()).willReturn(pubKeyToSigBytes);
 		given(expandHandleSpan.track(transaction)).willReturn(txnAccessor);
 
@@ -273,7 +271,7 @@ class ServicesStateTest {
 		subject.expandSignatures(transaction);
 
 		// then:
-		verify(expansionHelper).expandIn(txnAccessor, retryingKeyOrder, pubKeyToSigBytes);
+		verify(expansionHelper).expandIn(txnAccessor, retryingKeyOrder, pubKeyToSigBytes, pointDecoder);
 		verify(prefetchProcessor).offer(txnAccessor);
 	}
 

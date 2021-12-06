@@ -24,6 +24,7 @@ import com.hedera.services.legacy.core.jproto.JKey;
 import com.hedera.services.legacy.exception.KeyPrefixMismatchException;
 import com.hedera.services.sigs.PlatformSigOps;
 import com.hedera.services.sigs.factories.ReusableBodySigningFactory;
+import com.hedera.services.sigs.factories.Secp256k1PointDecoder;
 import com.hedera.services.sigs.sourcing.PubKeyToSigBytes;
 import com.hedera.services.utils.PlatformTxnAccessor;
 import com.hedera.services.utils.SignedTxnAccessor;
@@ -57,6 +58,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.mock;
 
 class PrecheckVerifierTest {
+	private static final Secp256k1PointDecoder pointDecoder = new Secp256k1PointDecoder(10L);
 	private static List<JKey> reqKeys;
 	private static final TransactionBody txnBody = TransactionBody.newBuilder()
 			.setTransactionID(TransactionID.newBuilder().setAccountID(IdUtils.asAccount("0.0.2")))
@@ -77,6 +79,11 @@ class PrecheckVerifierTest {
 		public byte[] sigBytesFor(byte[] pubKey) {
 			return VALID_SIG_BYTES[i++];
 		}
+
+		@Override
+		public boolean usesEcdsaSecp256k1() {
+			return false;
+		}
 	};
 	private static List<TransactionSignature> expectedSigs = EMPTY_LIST;
 
@@ -90,7 +97,7 @@ class PrecheckVerifierTest {
 				KeyTree.withRoot(list(ed25519(), list(ed25519(), ed25519()))).asJKey(),
 				KeyTree.withRoot(ed25519()).asJKey());
 		expectedSigs = PlatformSigOps.createCryptoSigsFrom(
-				reqKeys, VALID_PROVIDER_FACTORY.get(), new ReusableBodySigningFactory(realAccessor)
+				reqKeys, VALID_PROVIDER_FACTORY.get(), new ReusableBodySigningFactory(realAccessor, pointDecoder)
 		).getPlatformSigs();
 	}
 
@@ -140,12 +147,20 @@ class PrecheckVerifierTest {
 	@Test
 	void propagatesSigCreationFailure() throws Exception {
 		// setup:
-		given(mockAccessor.getPkToSigsFn()).willReturn(bytes -> {
-			throw new KeyPrefixMismatchException("Oops!");
+		given(mockAccessor.getPkToSigsFn()).willReturn(new PubKeyToSigBytes() {
+			@Override
+			public byte[] sigBytesFor(byte[] pubKey) throws Exception {
+				throw new KeyPrefixMismatchException("Oops!");
+			}
+
+			@Override
+			public boolean usesEcdsaSecp256k1() {
+				return false;
+			}
 		});
 
 		given(precheckKeyReqs.getRequiredKeys(txnBody)).willReturn(reqKeys);
-		subject = new PrecheckVerifier(ALWAYS_VALID, precheckKeyReqs);
+		subject = new PrecheckVerifier(ALWAYS_VALID, precheckKeyReqs, pointDecoder);
 
 		// expect:
 		assertThrows(KeyPrefixMismatchException.class, () -> subject.hasNecessarySignatures(mockAccessor));
@@ -193,6 +208,6 @@ class PrecheckVerifierTest {
 	}
 
 	private void givenImpliedSubject(SyncVerifier syncVerifier) {
-		subject = new PrecheckVerifier(syncVerifier, precheckKeyReqs);
+		subject = new PrecheckVerifier(syncVerifier, precheckKeyReqs, pointDecoder);
 	}
 }

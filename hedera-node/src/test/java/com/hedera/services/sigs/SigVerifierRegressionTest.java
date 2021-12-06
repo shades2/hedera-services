@@ -27,6 +27,7 @@ import com.hedera.services.config.MockEntityNumbers;
 import com.hedera.services.config.MockGlobalDynamicProps;
 import com.hedera.services.legacy.exception.InvalidAccountIDException;
 import com.hedera.services.legacy.exception.KeyPrefixMismatchException;
+import com.hedera.services.sigs.factories.Secp256k1PointDecoder;
 import com.hedera.services.sigs.order.PolicyBasedSigWaivers;
 import com.hedera.services.sigs.order.SigRequirements;
 import com.hedera.services.sigs.order.SignatureWaivers;
@@ -73,6 +74,7 @@ import static org.mockito.BDDMockito.mock;
 import static org.mockito.BDDMockito.verify;
 
 class SigVerifierRegressionTest {
+	private final Secp256k1PointDecoder pointDecoder = new Secp256k1PointDecoder(10L);
 	private PrecheckKeyReqs precheckKeyReqs;
 	private PrecheckVerifier precheckVerifier;
 	private SigRequirements keyOrder;
@@ -229,7 +231,7 @@ class SigVerifierRegressionTest {
 		isQueryPayment = PrecheckUtils.queryPaymentTestFor(DEFAULT_NODE);
 		SyncVerifier syncVerifier = new CryptoEngine()::verifySync;
 		precheckKeyReqs = new PrecheckKeyReqs(keyOrder, retryingKeyOrder, isQueryPayment);
-		precheckVerifier = new PrecheckVerifier(syncVerifier, precheckKeyReqs);
+		precheckVerifier = new PrecheckVerifier(syncVerifier, precheckKeyReqs, pointDecoder);
 	}
 }
 

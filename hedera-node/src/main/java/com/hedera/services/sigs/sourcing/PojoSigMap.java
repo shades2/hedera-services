@@ -37,30 +37,34 @@ public class PojoSigMap {
 		}
 	}
 
+	private final boolean usesEcdsaSecp256k1;
 	private final KeyType[] keyTypes;
 	private final byte[][][] rawMap;
 
-	private PojoSigMap(final byte[][][] rawMap, final KeyType[] keyTypes) {
+	private PojoSigMap(final byte[][][] rawMap, final KeyType[] keyTypes, final boolean usesEcdsaSecp256k1) {
 		this.rawMap = rawMap;
 		this.keyTypes = keyTypes;
+		this.usesEcdsaSecp256k1 = usesEcdsaSecp256k1;
 	}
 
 	public static PojoSigMap fromGrpc(final SignatureMap sigMap) {
 		final var n = sigMap.getSigPairCount();
 		final var rawMap = new byte[n][DATA_PER_SIG_PAIR][];
 		final var keyTypes = new KeyType[n];
+		var usesEcdsaSecp256k1 = false;
 		for (var i = 0; i < n; i++) {
 			final var sigPair = sigMap.getSigPair(i);
 			rawMap[i][PUB_KEY_PREFIX_INDEX] = sigPair.getPubKeyPrefix().toByteArray();
 			if (!sigPair.getECDSASecp256K1().isEmpty()) {
 				rawMap[i][SIG_BYTES_INDEX] = sigPair.getECDSASecp256K1().toByteArray();
 				keyTypes[i] = KeyType.ECDSA_SECP256K1;
+				usesEcdsaSecp256k1 = true;
 			} else {
 				rawMap[i][SIG_BYTES_INDEX] = sigPair.getEd25519().toByteArray();
 				keyTypes[i] = KeyType.ED25519;
 			}
 		}
-		return new PojoSigMap(rawMap, keyTypes);
+		return new PojoSigMap(rawMap, keyTypes, usesEcdsaSecp256k1);
 	}
 
 	public boolean isFullPrefixAt(final int i) {
@@ -68,6 +72,10 @@ public class PojoSigMap {
 			throw new IllegalArgumentException("Requested prefix at index " + i + ", not in [0, " + rawMap.length + ")");
 		}
 		return keyTypes[i].length == rawMap[i][PUB_KEY_PREFIX_INDEX].length;
+	}
+
+	public boolean usesEcdsaSecp256k1() {
+		return usesEcdsaSecp256k1;
 	}
 
 	public byte[] pubKeyPrefix(int i) {

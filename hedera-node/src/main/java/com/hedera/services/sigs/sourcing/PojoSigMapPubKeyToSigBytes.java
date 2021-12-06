@@ -45,9 +45,14 @@ public class PojoSigMapPubKeyToSigBytes implements PubKeyToSigBytes {
 	private final PojoSigMap pojoSigMap;
 	private final boolean[] used;
 
-	public PojoSigMapPubKeyToSigBytes(SignatureMap sigMap) {
+	public PojoSigMapPubKeyToSigBytes(final SignatureMap sigMap) {
 		pojoSigMap = PojoSigMap.fromGrpc(sigMap);
 		used = new boolean[pojoSigMap.numSigsPairs()];
+	}
+
+	@Override
+	public boolean usesEcdsaSecp256k1() {
+		return pojoSigMap.usesEcdsaSecp256k1();
 	}
 
 	@Override

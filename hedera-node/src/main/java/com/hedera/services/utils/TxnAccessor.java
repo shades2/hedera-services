@@ -63,6 +63,9 @@ public interface TxnAccessor {
         }
     	return sigMeta.pkToVerifiedSigFn();
     }
+    default byte[] getKeccak256Hash() {
+        throw new UnsupportedOperationException();
+    }
 
     default BaseTransactionMeta baseUsageMeta() {
         throw new UnsupportedOperationException();

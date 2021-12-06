@@ -22,24 +22,19 @@ package com.hedera.services.sigs.factories;
 
 import com.hedera.services.sigs.utils.MiscCryptoUtils;
 import com.hedera.services.utils.TxnAccessor;
-import com.hedera.test.factories.keys.KeyFactory;
 import com.swirlds.common.crypto.SignatureType;
 import com.swirlds.common.crypto.TransactionSignature;
-import org.bouncycastle.crypto.params.ECPublicKeyParameters;
-import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Arrays;
-
 import static com.hedera.services.sigs.factories.PlatformSigFactoryTest.EXPECTED_SIG;
 import static com.hedera.services.sigs.factories.PlatformSigFactoryTest.data;
 import static com.hedera.services.sigs.factories.PlatformSigFactoryTest.pk;
 import static com.hedera.services.sigs.factories.PlatformSigFactoryTest.sig;
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.BDDMockito.given;
 
@@ -47,8 +42,15 @@ import static org.mockito.BDDMockito.given;
 class ReusableBodySigningFactoryTest {
 	@Mock
 	private TxnAccessor accessor;
+	@Mock
+	private Secp256k1PointDecoder decoder;
 
-	private ReusableBodySigningFactory subject = new ReusableBodySigningFactory();
+	private ReusableBodySigningFactory subject;
+
+	@BeforeEach
+	void setUp() {
+		subject = new ReusableBodySigningFactory(decoder);
+	}
 
 	@Test
 	void resetWorks() {
@@ -63,11 +65,11 @@ class ReusableBodySigningFactoryTest {
 	void createsExpectedBodySigGivenInjectedAccessor() {
 		given(accessor.getTxnBytes()).willReturn(data);
 
-		subject = new ReusableBodySigningFactory(accessor);
+		subject = new ReusableBodySigningFactory(accessor, decoder);
 
 		final var actualSig = subject.signBodyWithEd25519(pk, sig);
 
-		Assertions.assertEquals(EXPECTED_SIG, actualSig);
+		assertEquals(EXPECTED_SIG, actualSig);
 	}
 
 	@Test
@@ -80,34 +82,25 @@ class ReusableBodySigningFactoryTest {
 		final var actualSig = subject.signBodyWithEd25519(pk, sig);
 
 		// then:
-		Assertions.assertEquals(EXPECTED_SIG, actualSig);
+		assertEquals(EXPECTED_SIG, actualSig);
 	}
 
 	@Test
 	void createsExpectedKeccak256Sig() {
-		final var kp = KeyFactory.ecdsaKpGenerator.generateKeyPair();
-		final var q = ((ECPublicKeyParameters) kp.getPublic()).getQ();
-		final var compressed = q.getEncoded(true);
-		final var uncompressed = Arrays.copyOfRange(q.getEncoded(false), 1, 65);
+		final var mockCompressed = "012345678901234567890123456789012".getBytes();
+		final var mockUncompressed = "0123456789012345678901234567890123456789012345678901234567890123".getBytes();
+		given(decoder.getDecoded(mockCompressed)).willReturn(mockUncompressed);
+		given(accessor.getKeccak256Hash()).willReturn(digest);
 
-		given(accessor.getTxnBytes()).willReturn(data);
-
-		final var digest = MiscCryptoUtils.keccak256DigestOf(data);
-
-		final var expectedSig = expectedEcdsaSecp256k1Sig(uncompressed);
+		final var expectedSig = expectedEcdsaSecp256k1Sig(mockUncompressed);
 
 		subject.resetFor(accessor);
-		final var actualSig = subject.signKeccak256DigestWithSecp256k1(compressed, sig);
+		final var actualSig = subject.signKeccak256DigestWithSecp256k1(mockCompressed, sig);
 
-		Assertions.assertEquals(expectedSig, actualSig);
-
-		assertArrayEquals(digest, subject.getKeccak256Digest());
-		subject.resetFor(accessor);
-		assertNull(subject.getKeccak256Digest());
+		assertEquals(expectedSig, actualSig);
 	}
 
 	private TransactionSignature expectedEcdsaSecp256k1Sig(final byte[] pk) {
-		final var digest = MiscCryptoUtils.keccak256DigestOf(data);
 		final var expectedContents = new byte[digest.length + sig.length];
 		System.arraycopy(sig, 0, expectedContents, 0, sig.length);
 		System.arraycopy(digest, 0, expectedContents, sig.length, digest.length);
@@ -117,4 +110,6 @@ class ReusableBodySigningFactoryTest {
 				pk, 0, pk.length,
 				sig.length, digest.length, SignatureType.ECDSA_SECP256K1);
 	}
+
+	static final byte[] digest = MiscCryptoUtils.keccak256DigestOf(data);
 }

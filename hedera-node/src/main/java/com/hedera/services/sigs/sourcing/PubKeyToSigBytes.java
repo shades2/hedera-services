@@ -48,6 +48,14 @@ public interface PubKeyToSigBytes {
 	byte[] sigBytesFor(byte[] pubKey) throws Exception;
 
 	/**
+	 * Returns whether the public-key-to-signature-bytes mapping includes any
+	 * ECDSA(secp256k1) public keys.
+	 *
+	 * @return if the any of the public keys are ECDSA(secp256k1)
+	 */
+	boolean usesEcdsaSecp256k1();
+
+	/**
 	 * For each full-public-key-to-signature mapping that has not been used by
 	 * {@link PubKeyToSigBytes#sigBytesFor(byte[])} since the last call to
 	 * {@link PubKeyToSigBytes#resetAllSigsToUnused()} on this instance, invokes

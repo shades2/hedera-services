@@ -51,6 +51,7 @@ import java.util.Map;
 import java.util.function.Function;
 
 import static com.hedera.services.legacy.proto.utils.CommonUtils.noThrowSha384HashOf;
+import static com.hedera.services.sigs.utils.MiscCryptoUtils.keccak256DigestOf;
 import static com.hedera.services.usage.token.TokenOpsUsageUtils.TOKEN_OPS_USAGE_UTILS;
 import static com.hedera.services.utils.MiscUtils.functionOf;
 import static com.hederahashgraph.api.proto.java.HederaFunctionality.ConsensusSubmitMessage;
@@ -88,6 +89,7 @@ public class SignedTxnAccessor implements TxnAccessor {
 	private int numSigPairs;
 	private byte[] hash;
 	private byte[] txnBytes;
+	private byte[] keccak256Hash;
 	private byte[] utf8MemoBytes;
 	private byte[] signedTxnWrapperBytes;
 	private String memo;
@@ -135,6 +137,9 @@ public class SignedTxnAccessor implements TxnAccessor {
 			hash = noThrowSha384HashOf(signedTxnBytes.toByteArray());
 		}
 		pubKeyToSigBytes = new PojoSigMapPubKeyToSigBytes(sigMap);
+		if (pubKeyToSigBytes.usesEcdsaSecp256k1()) {
+			keccak256Hash = keccak256DigestOf(txnBytes);
+		}
 
 		txn = TransactionBody.parseFrom(txnBytes);
 		memo = txn.getMemo();
@@ -290,16 +295,6 @@ public class SignedTxnAccessor implements TxnAccessor {
 		return pubKeyToSigBytes;
 	}
 
-	private void setBaseUsageMeta() {
-		if (function == CryptoTransfer) {
-			txnUsageMeta = new BaseTransactionMeta(
-					utf8MemoBytes.length,
-					txn.getCryptoTransfer().getTransfers().getAccountAmountsCount());
-		} else {
-			txnUsageMeta = new BaseTransactionMeta(utf8MemoBytes.length, 0);
-		}
-	}
-
 	@Override
 	public Map<String, Object> getSpanMap() {
 		return spanMap;
@@ -313,6 +308,14 @@ public class SignedTxnAccessor implements TxnAccessor {
 	@Override
 	public long getGasLimitForContractTx() {
 		return getFunction() == ContractCreate ? getTxn().getContractCreateInstance().getGas() : getTxn().getContractCall().getGas();
+	}
+
+	@Override
+	public byte[] getKeccak256Hash() {
+		if (keccak256Hash == null) {
+			keccak256Hash = keccak256DigestOf(txnBytes);
+		}
+		return keccak256Hash;
 	}
 
 	private void setOpUsageMeta() {
@@ -413,5 +416,20 @@ public class SignedTxnAccessor implements TxnAccessor {
 		final var cryptoUpdateMeta = new CryptoUpdateMeta(txn.getCryptoUpdateAccount(),
 				txn.getTransactionID().getTransactionValidStart().getSeconds());
 		SPAN_MAP_ACCESSOR.setCryptoUpdate(this, cryptoUpdateMeta);
+	}
+
+	private void setBaseUsageMeta() {
+		if (function == CryptoTransfer) {
+			txnUsageMeta = new BaseTransactionMeta(
+					utf8MemoBytes.length,
+					txn.getCryptoTransfer().getTransfers().getAccountAmountsCount());
+		} else {
+			txnUsageMeta = new BaseTransactionMeta(utf8MemoBytes.length, 0);
+		}
+	}
+
+	/* --- Only used by unit tests --- */
+	byte[] getKeccak256HashDirect() {
+		return keccak256Hash;
 	}
 }

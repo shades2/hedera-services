@@ -94,6 +94,7 @@ class NodeLocalPropertiesTest {
 		assertEquals(Profile.PROD, subject.nettyMode());
 		assertEquals(24L, subject.nettyStartRetryIntervalMs());
 		assertTrue(subject.shouldDumpFcmsOnIss());
+		assertEquals(31L, subject.sec256k1PointCacheMaxSize());
 	}
 
 	@Test
@@ -151,6 +152,7 @@ class NodeLocalPropertiesTest {
 		assertEquals(Profile.TEST, subject.nettyMode());
 		assertEquals(25L, subject.nettyStartRetryIntervalMs());
 		assertFalse(subject.shouldDumpFcmsOnIss());
+		assertEquals(32L, subject.sec256k1PointCacheMaxSize());
 	}
 
 	private void givenPropsWithSeed(int i) {
@@ -191,6 +193,7 @@ class NodeLocalPropertiesTest {
 		given(properties.getIntProperty("hedera.prefetch.queueCapacity")).willReturn(i + 27);
 		given(properties.getIntProperty("hedera.prefetch.threadPoolSize")).willReturn(i + 28);
 		given(properties.getIntProperty("hedera.prefetch.codeCacheTtlSecs")).willReturn(i + 29);
+		given(properties.getLongProperty("keys.secp256k1CacheMaxSize")).willReturn(i + 30L);
 	}
 
 	static String logDir(int num) {

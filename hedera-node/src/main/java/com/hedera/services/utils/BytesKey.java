@@ -1,4 +1,4 @@
-package com.hedera.services.sigs;
+package com.hedera.services.utils;
 
 /*-
  * ‌
@@ -20,16 +20,32 @@ package com.hedera.services.sigs;
  * ‍
  */
 
-import com.hedera.services.sigs.factories.Secp256k1PointDecoder;
-import com.hedera.services.sigs.order.SigRequirements;
-import com.hedera.services.sigs.sourcing.PubKeyToSigBytes;
-import com.hedera.services.utils.PlatformTxnAccessor;
-import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
+import java.util.Arrays;
 
-public interface ExpansionHelper {
-	ResponseCodeEnum expandIn(
-			PlatformTxnAccessor txnAccessor,
-			SigRequirements keyOrderer,
-			PubKeyToSigBytes pkToSigFn,
-			Secp256k1PointDecoder pointDecoder);
+public class BytesKey {
+	byte[] array;
+
+	public BytesKey(byte[] array) {
+		this.array = array;
+	}
+
+	public byte[] getArray() {
+		return array;
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o)
+			return true;
+		if (o == null || getClass() != o.getClass())
+			return false;
+
+		BytesKey bytesKey = (BytesKey) o;
+		return Arrays.equals(array, bytesKey.array);
+	}
+
+	@Override
+	public int hashCode() {
+		return Arrays.hashCode(array);
+	}
 }

@@ -275,6 +275,7 @@ public final class BootstrapProperties implements PropertySource {
 			"iss.dumpFcms",
 			"iss.resetPeriod",
 			"iss.roundsToDump",
+			"keys.secp256k1CacheMaxSize",
 			"netty.mode",
 			"netty.prod.flowControlWindow",
 			"netty.prod.maxConcurrentCalls",
@@ -418,6 +419,7 @@ public final class BootstrapProperties implements PropertySource {
 			entry("stats.speedometerHalfLifeSecs", AS_DOUBLE),
 			entry("consensus.message.maxBytesAllowed", AS_INT),
 			entry("tokens.nfts.areEnabled", AS_BOOLEAN),
-			entry("stats.executionTimesToTrack", AS_INT)
+			entry("stats.executionTimesToTrack", AS_INT),
+			entry("keys.secp256k1CacheMaxSize", AS_LONG)
 	);
 }
