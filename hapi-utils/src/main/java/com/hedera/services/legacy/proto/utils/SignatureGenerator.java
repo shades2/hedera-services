@@ -39,7 +39,16 @@ public final class SignatureGenerator {
 		throw new UnsupportedOperationException("Utility Class");
 	}
 
-	private static final Provider BOUNCYCASTLE_PROVIDER = new BouncyCastleProvider();
+
+	private static final Provider bcProvider = new BouncyCastleProvider();
+	private static final ThreadLocal<Signature> secp256k1Sigs = ThreadLocal.withInitial(() -> {
+		try {
+			return Signature.getInstance(ECDSA_SECP256K1.signingAlgorithm(), bcProvider);
+		} catch (NoSuchAlgorithmException e) {
+			throw new IllegalStateException(e);
+		}
+	});
+
 
 	/**
 	 * Signs a message with a private key.
@@ -49,9 +58,12 @@ public final class SignatureGenerator {
 	 * @param privateKey
 	 * 		private key
 	 * @return signature in hex format
-	 * @throws InvalidKeyException if the key is invalid
-	 * @throws SignatureException if there is an error in the signature
-	 * @throws NoSuchAlgorithmException if an expected signing algorithm is unavailable
+	 * @throws InvalidKeyException
+	 * 		if the key is invalid
+	 * @throws SignatureException
+	 * 		if there is an error in the signature
+	 * @throws NoSuchAlgorithmException
+	 * 		if an expected signing algorithm is unavailable
 	 */
 	public static byte[] signBytes(
 			final byte[] msg,
@@ -62,7 +74,7 @@ public final class SignatureGenerator {
 			engine.initSign(privateKey);
 			return engine.signOneShot(msg);
 		} else if (privateKey instanceof ECPrivateKey) {
-			final Signature ecdsaSign = Signature.getInstance(ECDSA_SECP256K1.signingAlgorithm(), BOUNCYCASTLE_PROVIDER);
+			final Signature ecdsaSign = secp256k1Sigs.get();
 			ecdsaSign.initSign(privateKey);
 			ecdsaSign.update(msg);
 			final var asn1Sig = ecdsaSign.sign();

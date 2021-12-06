@@ -79,11 +79,6 @@ class PrecheckVerifierTest {
 		public byte[] sigBytesFor(byte[] pubKey) {
 			return VALID_SIG_BYTES[i++];
 		}
-
-		@Override
-		public boolean usesEcdsaSecp256k1() {
-			return false;
-		}
 	};
 	private static List<TransactionSignature> expectedSigs = EMPTY_LIST;
 
@@ -147,16 +142,8 @@ class PrecheckVerifierTest {
 	@Test
 	void propagatesSigCreationFailure() throws Exception {
 		// setup:
-		given(mockAccessor.getPkToSigsFn()).willReturn(new PubKeyToSigBytes() {
-			@Override
-			public byte[] sigBytesFor(byte[] pubKey) throws Exception {
-				throw new KeyPrefixMismatchException("Oops!");
-			}
-
-			@Override
-			public boolean usesEcdsaSecp256k1() {
-				return false;
-			}
+		given(mockAccessor.getPkToSigsFn()).willReturn(pubKey -> {
+			throw new KeyPrefixMismatchException("Oops!");
 		});
 
 		given(precheckKeyReqs.getRequiredKeys(txnBody)).willReturn(reqKeys);
