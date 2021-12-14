@@ -78,7 +78,13 @@ import static com.hederahashgraph.api.proto.java.HederaFunctionality.TokenUpdate
 import static com.hederahashgraph.api.proto.java.HederaFunctionality.TransactionGetReceipt;
 import static com.hederahashgraph.api.proto.java.HederaFunctionality.TransactionGetRecord;
 
+/**
+ * Utility class for custom throttles
+ */
 public final class ExpectedCustomThrottles {
+	/**
+	 * Set of Hedera operations on which custom throttles can be applied on
+	 */
 	public static final Set<HederaFunctionality> OPS_FOR_RELEASE_0160 = EnumSet.of(
 			CryptoCreate,
 			CryptoTransfer,

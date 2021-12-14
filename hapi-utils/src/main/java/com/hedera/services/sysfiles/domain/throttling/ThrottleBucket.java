@@ -47,34 +47,79 @@ public final class ThrottleBucket {
 
 	private static final String BUCKET_PREFIX = "Bucket ";
 
+	/**
+	 * getter for the burst period in milli secs
+	 *
+	 * @return burst period in milli secs
+	 */
 	public long getBurstPeriodMs() {
 		return burstPeriodMs;
 	}
 
+	/**
+	 * setter for burst period in milli secs
+	 *
+	 * @param burstPeriodMs
+	 * 		given burst period
+	 */
 	public void setBurstPeriodMs(final long burstPeriodMs) {
 		this.burstPeriodMs = burstPeriodMs;
 	}
 
+	/**
+	 * Getter for the burst period
+	 *
+	 * @return burst period value in secs
+	 */
 	public int getBurstPeriod() {
 		return burstPeriod;
 	}
 
+	/**
+	 * setter for the burst period
+	 *
+	 * @param burstPeriod
+	 * 		burst period in secs
+	 */
 	public void setBurstPeriod(final int burstPeriod) {
 		this.burstPeriod = burstPeriod;
 	}
 
+	/**
+	 * Getter for the name of throttle bucket
+	 *
+	 * @return name of the throttle bucket
+	 */
 	public String getName() {
 		return name;
 	}
 
+	/**
+	 * Setter for name of throttle bucket
+	 *
+	 * @param name
+	 * 		given name
+	 */
 	public void setName(final String name) {
 		this.name = name;
 	}
 
+	/**
+	 * getter for list of throttle groups
+	 *
+	 * @return list of throttle groups
+	 */
 	public List<ThrottleGroup> getThrottleGroups() {
 		return throttleGroups;
 	}
 
+	/**
+	 * Construct POJO {@code ThrottleBucket} from the protobuf
+	 *
+	 * @param bucket
+	 * 		given protobuf
+	 * @return {@code ThrottleBucket} constructed
+	 */
 	public static ThrottleBucket fromProto(final com.hederahashgraph.api.proto.java.ThrottleBucket bucket) {
 		final var pojo = new ThrottleBucket();
 		pojo.name = bucket.getName();
@@ -85,6 +130,12 @@ public final class ThrottleBucket {
 		return pojo;
 	}
 
+	/**
+	 * Construct {@code com.hederahashgraph.api.proto.java.ThrottleBucket} protobuf for given POJO {@code
+	 * ThrottleBucket}
+	 *
+	 * @return constructed protobuf
+	 */
 	public com.hederahashgraph.api.proto.java.ThrottleBucket toProto() {
 		return com.hederahashgraph.api.proto.java.ThrottleBucket.newBuilder()
 				.setName(name)

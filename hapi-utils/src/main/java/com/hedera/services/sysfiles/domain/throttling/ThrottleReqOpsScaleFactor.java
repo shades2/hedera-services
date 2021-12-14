@@ -9,9 +9,9 @@ package com.hedera.services.sysfiles.domain.throttling;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -22,6 +22,9 @@ package com.hedera.services.sysfiles.domain.throttling;
 
 import com.google.common.base.MoreObjects;
 
+/**
+ * Scaling up or down the throttles
+ */
 public class ThrottleReqOpsScaleFactor {
 	private final int numerator;
 	private final int denominator;
@@ -31,6 +34,14 @@ public class ThrottleReqOpsScaleFactor {
 		this.denominator = denominator;
 	}
 
+	/**
+	 * Given a string in a valid format, construct the throttle scale factor
+	 * by parsing the string and splitting at literal ':'
+	 *
+	 * @param literal
+	 * 		throttle scaling formatted string
+	 * @return scale factor with numerator and denominator set
+	 */
 	public static ThrottleReqOpsScaleFactor from(String literal) {
 		final var splitIndex = literal.indexOf(':');
 		if (splitIndex == -1) {
@@ -47,6 +58,13 @@ public class ThrottleReqOpsScaleFactor {
 		return new ThrottleReqOpsScaleFactor(n, d);
 	}
 
+	/**
+	 * Scale up or down the given ops based on the scale factor
+	 *
+	 * @param nominalOps
+	 * 		given ops rate
+	 * @return ops rate after scaling
+	 */
 	public int scaling(int nominalOps) {
 		final int maxUnscaledOps = Integer.MAX_VALUE / numerator;
 		if (nominalOps > maxUnscaledOps) {
@@ -80,10 +98,20 @@ public class ThrottleReqOpsScaleFactor {
 		return this.numerator == that.numerator && this.denominator == that.denominator;
 	}
 
+	/**
+	 * Numerator in the scaling factor
+	 *
+	 * @return numerator value
+	 */
 	public int getNumerator() {
 		return numerator;
 	}
 
+	/**
+	 * denominator of the scaling factor
+	 *
+	 * @return denominator value
+	 */
 	public int getDenominator() {
 		return denominator;
 	}

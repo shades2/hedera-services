@@ -24,6 +24,9 @@ import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 
 import java.util.Optional;
 
+/**
+ * Utility class for error codes
+ */
 public final class ErrorCodeUtils {
 	private static final String EXC_MSG_TPL = "%s :: %s";
 
@@ -31,10 +34,26 @@ public final class ErrorCodeUtils {
 		throw new UnsupportedOperationException("Utility Class");
 	}
 
+	/**
+	 * Exception message for the given response code and the cause
+	 *
+	 * @param error
+	 * 		errored response code
+	 * @param details
+	 * 		error details
+	 * @return exception message
+	 */
 	public static String exceptionMsgFor(final ResponseCodeEnum error, final String details) {
 		return String.format(EXC_MSG_TPL, error, details);
 	}
 
+	/**
+	 * Parse the response code from the given exception message
+	 *
+	 * @param exceptionMsg
+	 * 		given exception message
+	 * @return response code
+	 */
 	public static Optional<ResponseCodeEnum> errorFrom(final String exceptionMsg) {
 		final var parts = exceptionMsg.split(" :: ");
 		if (parts.length != 2) {
