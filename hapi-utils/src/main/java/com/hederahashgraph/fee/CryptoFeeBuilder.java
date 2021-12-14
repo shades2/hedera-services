@@ -39,6 +39,9 @@ import java.util.List;
 
 @Singleton
 public final class CryptoFeeBuilder extends FeeBuilder {
+	/**
+	 * Default constructor
+	 */
 	@Inject
 	public CryptoFeeBuilder() {
 		/* No-op */

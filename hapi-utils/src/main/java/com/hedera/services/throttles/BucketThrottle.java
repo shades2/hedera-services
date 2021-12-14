@@ -55,6 +55,10 @@ package com.hedera.services.throttles;
 public class BucketThrottle {
 	private static final int DEFAULT_BURST_PERIOD = 1;
 
+	/**
+	 * Capacity units for each transaction
+	 * @return value of the capacity units
+	 */
 	public static long capacityUnitsPerTxn() {
 		return CAPACITY_UNITS_PER_TXN;
 	}
@@ -145,10 +149,20 @@ public class BucketThrottle {
 		return bucket;
 	}
 
+	/**
+	 * The transaction rate of the bucket in milli tps
+	 * @return mtps value
+	 */
 	long mtps() {
 		return mtps;
 	}
 
+	/**
+	 * Checks whether the bucket capacity is outside the numeric range
+	 * @param multiplier given units
+	 * @param multiplicand multiplicand value to calculate max units
+	 * @return true if it overflows , false otherwise
+	 */
 	public static boolean productWouldOverflow(long multiplier, long multiplicand) {
 		final var maxMultiplier = Long.MAX_VALUE / multiplicand;
 		return multiplier > maxMultiplier;

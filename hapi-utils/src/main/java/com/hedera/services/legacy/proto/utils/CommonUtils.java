@@ -29,17 +29,10 @@ import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionOrBuilder;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.ObjectOutput;
-import java.io.ObjectOutputStream;
-import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
@@ -48,260 +41,303 @@ import java.util.Base64;
  * Common utilities.
  */
 public final class CommonUtils {
-  private CommonUtils() {
-    throw new UnsupportedOperationException("Utility Class");
-  }
+	private CommonUtils() {
+		throw new UnsupportedOperationException("Utility Class");
+	}
 
-  /**
-   * Sleep given seconds.
-   *
-   * @param timeInMillis time to sleep in milliseconds
-   * @throws InterruptedException when thread sleep interruption
-   */
-  public static void napMillis(long timeInMillis) throws InterruptedException {
-    Thread.sleep(timeInMillis);
-  }
+	/**
+	 * Sleep given seconds.
+	 *
+	 * @param timeInSec
+	 * 		time to sleep in seconds
+	 * @throws InterruptedException
+	 * 		when thread sleep interruption
+	 */
+	public static void nap(int timeInSec) throws InterruptedException {
+		Thread.sleep(timeInSec * 1000L);
+	}
 
-  /**
-   * Sleep given seconds.
-   *
-   * @param timeInSec time to sleep in seconds
-   *
-   * @throws InterruptedException when thread sleep interruption
-   */
-  public static void nap(int timeInSec)  throws InterruptedException {
-    Thread.sleep(timeInSec * 1000L);
-   }
-
-  public static void nap(double timeInSec)  throws InterruptedException {
-    Thread.sleep((long) timeInSec * 1000);
-  }
+	public static void nap(double timeInSec) throws InterruptedException {
+		Thread.sleep((long) timeInSec * 1000);
+	}
 
 
-  /**
-   * Write bytes to a file.
-   *
-   * @param path the file path to write bytes
-   * @param data the byte array data
-   *
-   * @throws IOException when error with IO
-   */
-  public static void writeToFile(String path, byte[] data) throws IOException {
-    writeToFile(path, data, false);
-  }
+	/**
+	 * Write bytes to a file.
+	 *
+	 * @param path
+	 * 		the file path to write bytes
+	 * @param data
+	 * 		the byte array data
+	 * @throws IOException
+	 * 		when error with IO
+	 */
+	public static void writeToFile(String path, byte[] data) throws IOException {
+		writeToFile(path, data, false);
+	}
 
-  /**
-   * Write bytes to a file.
-   *
-   * @param path file write path
-   * @param data byte array representation of data to write
-   * @param append append to existing file if true
-   *
-   * @throws IOException when error with IO
-   */
-  public static void writeToFile(String path, byte[] data, boolean append) throws IOException {
-    File f = new File(path);
-    File parent = f.getParentFile();
-    if (!parent.exists()) {
-      parent.mkdirs();
-    }
-    try (FileOutputStream fos = new FileOutputStream(f, append)) {
-      fos.write(data);
-      fos.flush();
-    } catch (IOException e) {
-      throw e;
-    }
-  }
+	/**
+	 * Write bytes to a file.
+	 *
+	 * @param path
+	 * 		file write path
+	 * @param data
+	 * 		byte array representation of data to write
+	 * @param append
+	 * 		append to existing file if true
+	 * @throws IOException
+	 * 		when error with IO
+	 */
+	public static void writeToFile(String path, byte[] data, boolean append) throws IOException {
+		File f = new File(path);
+		File parent = f.getParentFile();
+		if (!parent.exists()) {
+			parent.mkdirs();
+		}
+		try (FileOutputStream fos = new FileOutputStream(f, append)) {
+			fos.write(data);
+			fos.flush();
+		} catch (IOException e) {
+			throw e;
+		}
+	}
 
-  /**
-   * Write string to a file using UTF_8 encoding.
-   *
-   * @param path the file path to write bytes
-   * @param data the byte array data
-   * @throws IOException when error with IO
-   */
-  public static void writeToFileUTF8(String path, String data) throws IOException {
-    byte[] bytes = data.getBytes(StandardCharsets.UTF_8);
-    writeToFile(path, bytes);
-  }
+	/**
+	 * Write string to a file using UTF_8 encoding.
+	 *
+	 * @param data
+	 * 		data represented as string
+	 * @param path
+	 * 		file write path
+	 * @param append
+	 * 		append to existing file if true
+	 * @throws IOException
+	 * 		when error with IO
+	 */
+	public static void writeToFileUTF8(String path, String data, boolean append) throws IOException {
+		byte[] bytes = data.getBytes(StandardCharsets.UTF_8);
+		writeToFile(path, bytes, append);
+	}
 
-  /**
-   * Write string to a file using UTF_8 encoding.
-   *
-   * @param data data represented as string
-   * @param path file write path
-   * @param append append to existing file if true
-   * @throws IOException when error with IO
-   */
-  public static void writeToFileUTF8(String path, String data, boolean append) throws IOException {
-    byte[] bytes = data.getBytes(StandardCharsets.UTF_8);
-    writeToFile(path, bytes, append);
-  }
+	/**
+	 * Encode bytes as base64.
+	 *
+	 * @param bytes
+	 * 		to be encoded
+	 * @return base64 string
+	 */
+	public static String base64encode(byte[] bytes) {
+		String rv = null;
+		rv = Base64.getEncoder().encodeToString(bytes);
+		return rv;
+	}
 
-  /**
-   * Encode bytes as base64.
-   *
-   * @param bytes to be encoded
-   * @return base64 string
-   */
-  public static String base64encode(byte[] bytes) {
-    String rv = null;
-    rv = Base64.getEncoder().encodeToString(bytes);
-    return rv;
-  }
+	/**
+	 * Copy bytes.
+	 *
+	 * @param start
+	 * 		from position
+	 * @param length
+	 * 		number of bytes to copy
+	 * @param bytes
+	 * 		source byte array
+	 * @return copied byte array
+	 */
+	public static byte[] copyBytes(int start, int length, byte[] bytes) {
+		byte[] rv = new byte[length];
+		for (int i = 0; i < length; i++) {
+			rv[i] = bytes[start + i];
+		}
+		return rv;
+	}
 
-  /**
-   * Serialize a Java object to bytes.
-   *
-   * @param object the Java object to be serialized
-   * @return converted bytes
-   * @throws IOException when error with IO
-   */
-  public static byte[] convertToBytes(Object object) throws IOException {
-    try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
-         ObjectOutput out = new ObjectOutputStream(bos)) {
-      out.writeObject(object);
-      return bos.toByteArray();
-    }
-  }
+	/**
+	 * Generates a human readable string for grpc transaction.
+	 *
+	 * @param grpcTransaction
+	 * 		GRPC transaction
+	 * @return generated readable string
+	 * @throws InvalidProtocolBufferException
+	 * 		when protocol buffer is invalid
+	 */
+	public static String toReadableString(Transaction grpcTransaction) throws InvalidProtocolBufferException {
+		String rv = null;
+		try {
+			TransactionBody body = extractTransactionBody(grpcTransaction);
+			rv = "body=" + TextFormat.shortDebugString(body) + "; sigs="
+					+ TextFormat.shortDebugString(extractSignatureMap(grpcTransaction));
+		} catch (InvalidProtocolBufferException e) {
+			throw e;
+		}
+		return rv;
+	}
 
-  /**
-   * Copy bytes.
-   *
-   * @param start from position
-   * @param length number of bytes to copy
-   * @param bytes source byte array
-   *
-   * @return copied byte array
-   */
-  public static byte[] copyBytes(int start, int length, byte[] bytes) {
-    byte[] rv = new byte[length];
-    for (int i = 0; i < length; i++) {
-      rv[i] = bytes[start + i];
-    }
-    return rv;
-  }
+	/**
+	 * Generates a short human readable string for grpc transaction.
+	 *
+	 * @param grpcTransaction
+	 * 		GRPC transaction
+	 * @return generated readable string
+	 * @throws InvalidProtocolBufferException
+	 * 		when protocol buffer is invalid
+	 */
+	public static String toReadableTransactionID(
+			Transaction grpcTransaction) throws InvalidProtocolBufferException {
+		TransactionBody body = extractTransactionBody(grpcTransaction);
+		return "txID=" + TextFormat.shortDebugString(body.getTransactionID());
+	}
 
-  /**
-   * Reads a resource file
-   *
-   * @param filePath the resource file to be read
-   * @param myClass the calling class
-   * @param <T> type to read binary into
-   *
-   * @return type T from the binary input
-   * @throws IOException when error with IO
-   * @throws URISyntaxException when invalid URI syntax
-   */
-  public static <T> byte[] readBinaryFileAsResource(String filePath, Class<T> myClass)
-      throws IOException, URISyntaxException {
-    Path path = Paths.get(myClass.getClassLoader().getResource(filePath).toURI());
-    return Files.readAllBytes(path);
-  }
+	/**
+	 * Extract transaction body bytes in {@code ByteString} from transaction
+	 *
+	 * @param transaction
+	 * 		given transaction or builder
+	 * @return transaction body byte string extracted
+	 * @throws InvalidProtocolBufferException
+	 */
+	public static ByteString extractTransactionBodyByteString(TransactionOrBuilder transaction)
+			throws InvalidProtocolBufferException {
+		ByteString signedTransactionBytes = transaction.getSignedTransactionBytes();
+		if (!signedTransactionBytes.isEmpty()) {
+			return SignedTransaction.parseFrom(signedTransactionBytes).getBodyBytes();
+		}
 
-  /**
-   * Generates a human readable string for grpc transaction.
-   *
-   * @param grpcTransaction GRPC transaction
-   *
-   * @return generated readable string
-   * @throws InvalidProtocolBufferException when protocol buffer is invalid
-   */
-  public static String toReadableString(Transaction grpcTransaction) throws InvalidProtocolBufferException {
-    String rv = null;
-    try {
-      TransactionBody body = extractTransactionBody(grpcTransaction);
-      rv = "body=" + TextFormat.shortDebugString(body) + "; sigs="
-              + TextFormat.shortDebugString(extractSignatureMap(grpcTransaction));
-    } catch (InvalidProtocolBufferException e) {
-      throw e;
-    }
-    return rv;
-  }
+		return transaction.getBodyBytes();
+	}
 
-  /**
-   * Generates a short human readable string for grpc transaction.
-   *
-   * @param grpcTransaction GRPC transaction
-   *
-   * @return generated readable string
-   * @throws InvalidProtocolBufferException when protocol buffer is invalid
-   */
-  public static String toReadableTransactionID(
-          Transaction grpcTransaction) throws InvalidProtocolBufferException {
-    TransactionBody body = extractTransactionBody(grpcTransaction);
-    return "txID=" + TextFormat.shortDebugString(body.getTransactionID());
-  }
+	/**
+	 * Extract transaction body bytes from transaction
+	 *
+	 * @param transaction
+	 * 		given transaction or builder
+	 * @return transaction body bytes extracted
+	 * @throws InvalidProtocolBufferException
+	 */
+	public static byte[] extractTransactionBodyBytes(TransactionOrBuilder transaction)
+			throws InvalidProtocolBufferException {
+		return extractTransactionBodyByteString(transaction).toByteArray();
+	}
 
-  public static ByteString extractTransactionBodyByteString(TransactionOrBuilder transaction)
-      throws InvalidProtocolBufferException {
-    ByteString signedTransactionBytes = transaction.getSignedTransactionBytes();
-    if (!signedTransactionBytes.isEmpty()) {
-      return SignedTransaction.parseFrom(signedTransactionBytes).getBodyBytes();
-    }
+	/**
+	 * Extract the transaction body from given transaction or builder
+	 *
+	 * @param transaction
+	 * 		given transaction or builder
+	 * @return transaction body extracted
+	 * @throws InvalidProtocolBufferException
+	 */
+	public static TransactionBody extractTransactionBody(TransactionOrBuilder transaction)
+			throws InvalidProtocolBufferException {
+		return TransactionBody.parseFrom(extractTransactionBodyByteString(transaction));
+	}
 
-    return transaction.getBodyBytes();
-  }
+	/**
+	 * Extract the signature map from the transaction
+	 *
+	 * @param transaction
+	 * 		given transaction
+	 * @return signature map extracted
+	 * @throws InvalidProtocolBufferException
+	 */
+	public static SignatureMap extractSignatureMap(TransactionOrBuilder transaction)
+			throws InvalidProtocolBufferException {
+		ByteString signedTransactionBytes = transaction.getSignedTransactionBytes();
+		if (!signedTransactionBytes.isEmpty()) {
+			return SignedTransaction.parseFrom(signedTransactionBytes).getSigMap();
+		}
 
-  public static byte[] extractTransactionBodyBytes(TransactionOrBuilder transaction)
-          throws InvalidProtocolBufferException {
-    return extractTransactionBodyByteString(transaction).toByteArray();
-  }
+		return transaction.getSigMap();
+	}
 
-  public static TransactionBody extractTransactionBody(TransactionOrBuilder transaction)
-          throws InvalidProtocolBufferException {
-    return TransactionBody.parseFrom(extractTransactionBodyByteString(transaction));
-  }
+	/**
+	 * Extract signature map from transaction or use the default instance of signature map
+	 *
+	 * @param transaction
+	 * 		given transaction
+	 * @return signature map
+	 */
+	public static SignatureMap extractSignatureMapOrUseDefault(TransactionOrBuilder transaction) {
+		try {
+			return extractSignatureMap(transaction);
+		} catch (InvalidProtocolBufferException ignoreToReturnDefault) {
+		}
+		return SignatureMap.getDefaultInstance();
+	}
 
-  public static SignatureMap extractSignatureMap(TransactionOrBuilder transaction)
-          throws InvalidProtocolBufferException {
-    ByteString signedTransactionBytes = transaction.getSignedTransactionBytes();
-    if (!signedTransactionBytes.isEmpty()) {
-      return SignedTransaction.parseFrom(signedTransactionBytes).getSigMap();
-    }
+	/**
+	 * Construct a {@code Transaction.Builder} from a {@code Transaction} or other {@code Transaction.Builder}
+	 *
+	 * @param transactionOrBuilder
+	 * 		provided {@code Transaction} or {@code Transaction.Builder}
+	 * @return {@code Transaction.Builder}
+	 */
+	public static Transaction.Builder toTransactionBuilder(TransactionOrBuilder transactionOrBuilder) {
+		if (transactionOrBuilder instanceof Transaction) {
+			return ((Transaction) transactionOrBuilder).toBuilder();
+		}
 
-    return transaction.getSigMap();
-  }
+		return (Transaction.Builder) transactionOrBuilder;
+	}
 
-  public static SignatureMap extractSignatureMapOrUseDefault(TransactionOrBuilder transaction) {
-    try {
-      return extractSignatureMap(transaction);
-    } catch (InvalidProtocolBufferException ignoreToReturnDefault) { }
-    return SignatureMap.getDefaultInstance();
-  }
+	/**
+	 * Get the sha 384 hash {@code MessageDigest} instance
+	 *
+	 * @return {@code MessageDigest} instance
+	 * @throws NoSuchAlgorithmException
+	 */
+	public static MessageDigest getSha384Hash() throws NoSuchAlgorithmException {
+		return MessageDigest.getInstance("SHA-384");
+	}
 
-  public static Transaction.Builder toTransactionBuilder(TransactionOrBuilder transactionOrBuilder) {
-    if (transactionOrBuilder instanceof Transaction) {
-      return ((Transaction) transactionOrBuilder).toBuilder();
-    }
+	/**
+	 * Get the sha-384 hash of given byte array
+	 *
+	 * @param byteArray
+	 * 		given byte array
+	 * @return sha-384 digested byte array
+	 */
+	public static byte[] noThrowSha384HashOf(byte[] byteArray) {
+		try {
+			return getSha384Hash().digest(byteArray);
+		} catch (NoSuchAlgorithmException ignoreToReturnEmptyByteArray) {
+		}
+		return new byte[0];
+	}
 
-    return (Transaction.Builder) transactionOrBuilder;
-  }
+	/**
+	 * Get the sha-384 hash of given byte array
+	 *
+	 * @param byteArray
+	 * 		given byte array
+	 * @return {@code ByteString} format of the sha-384 digested byte array
+	 */
+	public static ByteString sha384HashOf(byte[] byteArray) {
+		return ByteString.copyFrom(noThrowSha384HashOf(byteArray));
+	}
 
-  public static MessageDigest getSha384Hash() throws NoSuchAlgorithmException {
-    return MessageDigest.getInstance("SHA-384");
-  }
+	/**
+	 * Get the sha-384 hash of given {@code Transaction}
+	 *
+	 * @param transaction
+	 * 		given transaction
+	 * @return {@code ByteString} format of the sha-384 digested Transaction bytes
+	 */
+	public static ByteString sha384HashOf(Transaction transaction) {
+		if (transaction.getSignedTransactionBytes().isEmpty()) {
+			return sha384HashOf(transaction.toByteArray());
+		}
 
-  public static byte[] noThrowSha384HashOf(byte[] byteArray) {
-    try {
-      return getSha384Hash().digest(byteArray);
-    } catch (NoSuchAlgorithmException ignoreToReturnEmptyByteArray) { }
-    return new byte[0];
-  }
+		return sha384HashOf(transaction.getSignedTransactionBytes().toByteArray());
+	}
 
-  public static ByteString sha384HashOf(byte[] byteArray) {
-    return ByteString.copyFrom(noThrowSha384HashOf(byteArray));
-  }
-
-  public static ByteString sha384HashOf(Transaction transaction) {
-    if (transaction.getSignedTransactionBytes().isEmpty()) {
-      return sha384HashOf(transaction.toByteArray());
-    }
-
-    return sha384HashOf(transaction.getSignedTransactionBytes().toByteArray());
-  }
-
-  public static void writeTxId2File(String txIdString) throws IOException {
-    writeToFileUTF8("output/txIds.txt", ProtoCommonUtils.getCurrentInstantUTC() + "-->" + txIdString + "\n", true);
-  }
+	/**
+	 * Write the given Transaction ID string to a file
+	 *
+	 * @param txIdString
+	 * 		given string
+	 * @throws IOException
+	 */
+	public static void writeTxId2File(String txIdString) throws IOException {
+		writeToFileUTF8("output/txIds.txt", ProtoCommonUtils.getCurrentInstantUTC() + "-->" + txIdString + "\n", true);
+	}
 }

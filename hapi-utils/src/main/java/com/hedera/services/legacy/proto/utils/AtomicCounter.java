@@ -30,10 +30,17 @@ public class AtomicCounter {
 
   private AtomicInteger c = new AtomicInteger(0);
 
+  /**
+   * Increment the counter
+   */
   public void increment() {
     c.incrementAndGet();
   }
 
+  /**
+   * Value of the counter
+   * @return value of the counter
+   */
   public int value() {
     return c.get();
   }
