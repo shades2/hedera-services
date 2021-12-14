@@ -455,7 +455,6 @@ class RequestBuilderTest {
 				transactionDuration,
 				generateRecord,
 				memo,
-				thresholdValue,
 				keyList,
 				initBal,
 				sendRecordThreshold,
