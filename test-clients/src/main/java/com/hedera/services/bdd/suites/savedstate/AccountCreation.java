@@ -43,12 +43,11 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.PLATFORM_TRANS
 public class AccountCreation extends HapiApiSuite {
 	private static final Logger log = LogManager.getLogger(AccountCreation.class);
 
-	public static final int CREATION_LIMIT = 1_000_000;
-	public static final int CREATION_TPS = 100;
-	public static final int CREATION_THREADS = 5;
-	public static final int CREATION_MINS = 35;
+	public static final int CREATION_TPS = 10;
+	public static final int CREATION_THREADS = 20;
+	public static final int CREATION_MINS = 50;
 
-	private static final AtomicInteger accountNumber = new AtomicInteger(0);
+	private static final AtomicInteger accountNumber = new AtomicInteger(1);
 
 	public static void main(String... args) {
 		new AccountCreation().runSuiteSync();
@@ -63,10 +62,6 @@ public class AccountCreation extends HapiApiSuite {
 
 	private synchronized HapiSpecOperation generateCreateAccountOperation() {
 		final var accNumber = accountNumber.getAndIncrement();
-		if (accNumber >= CREATION_LIMIT) {
-			return noOp();
-		}
-
 		return cryptoCreate("account" + accNumber)
 				.balance(THOUSAND_HBAR)
 				.payingWith(GENESIS)
