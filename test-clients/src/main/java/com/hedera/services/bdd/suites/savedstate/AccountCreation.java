@@ -45,7 +45,7 @@ public class AccountCreation extends HapiApiSuite {
 
 	public static final int CREATION_TPS = 10;
 	public static final int CREATION_THREADS = 20;
-	public static final int CREATION_MINS = 50;
+	public static final int CREATION_MINS = 25;
 
 	private static final AtomicInteger accountNumber = new AtomicInteger(1);
 
