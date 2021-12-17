@@ -182,7 +182,6 @@ class TypedTokenStoreTest {
 
 		// then:
 		verify(tokenRels).remove(miscTokenRelId);
-		verify(backingTokenRels).removeFromExistingRels(legacyReprOf(destroyedRel));
 		verify(sideEffectsTracker).trackTokenBalanceChanges(List.of(destroyedRel));
 	}
 
