@@ -91,7 +91,6 @@ public class TypedTokenStore {
 	private final Supplier<MerkleMap<EntityNumPair, MerkleTokenRelStatus>> tokenRels;
 
 	/* Only needed for interoperability with legacy HTS during refactor */
-	private final BackingTokenRels backingTokenRels;
 	private final LegacyTreasuryRemover delegate;
 	private final LegacyTreasuryAdder addKnownTreasury;
 
@@ -101,7 +100,6 @@ public class TypedTokenStore {
 			final Supplier<MerkleMap<EntityNum, MerkleToken>> tokens,
 			final Supplier<MerkleMap<EntityNumPair, MerkleUniqueToken>> uniqueTokens,
 			final Supplier<MerkleMap<EntityNumPair, MerkleTokenRelStatus>> tokenRels,
-			final BackingTokenRels backingTokenRels,
 			final UniqTokenViewsManager uniqTokenViewsManager,
 			final LegacyTreasuryAdder legacyStoreDelegate,
 			final LegacyTreasuryRemover delegate,
@@ -114,7 +112,6 @@ public class TypedTokenStore {
 		this.accountStore = accountStore;
 		this.sideEffectsTracker = sideEffectsTracker;
 		this.delegate = delegate;
-		this.backingTokenRels = backingTokenRels;
 		this.addKnownTreasury = legacyStoreDelegate;
 	}
 
