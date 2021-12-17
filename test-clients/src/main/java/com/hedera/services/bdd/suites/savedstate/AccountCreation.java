@@ -65,6 +65,7 @@ public class AccountCreation extends HapiApiSuite {
 		return cryptoCreate("account" + accNumber)
 				.balance(THOUSAND_HBAR)
 				.payingWith(GENESIS)
+				.key(GENESIS)
 				.noLogging()
 				.hasRetryPrecheckFrom(BUSY, DUPLICATE_TRANSACTION, PLATFORM_TRANSACTION_NOT_CREATED)
 				.deferStatusResolution();
