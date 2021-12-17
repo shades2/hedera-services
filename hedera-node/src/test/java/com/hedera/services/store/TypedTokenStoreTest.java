@@ -107,7 +107,6 @@ class TypedTokenStoreTest {
 				() -> tokens,
 				() -> uniqueTokens,
 				() -> tokenRels,
-				backingTokenRels,
 				uniqTokenViewsManager,
 				tokenStore::addKnownTreasury,
 				legacyStore::removeKnownTreasuryForToken,
