@@ -1,7 +1,7 @@
-/ SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.6.12;
-import "./HederaTokenService.sol";
-import "./HederaResponseCodes.sol";
+// SPDX-License-Identifier: Apache-2.0
+pragma solidity ^0.8.9;
+import "./hip-206/HederaTokenService.sol";
+import "./hip-206/HederaResponseCodes.sol";
 
 contract TransferAmountAndToken is HederaTokenService {
 
