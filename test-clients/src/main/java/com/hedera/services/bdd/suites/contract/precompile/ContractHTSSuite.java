@@ -34,7 +34,8 @@ import java.util.List;
 import static com.google.protobuf.ByteString.copyFromUtf8;
 import static com.hedera.services.bdd.spec.HapiApiSpec.defaultHapiSpec;
 import static com.hedera.services.bdd.spec.infrastructure.meta.ContractResources.DISSOCIATE_TOKEN;
-import static com.hedera.services.bdd.spec.infrastructure.meta.ContractResources.TRANSFER_AMOUNT_AND_TOKEN_TRANSFER_TO_ADDRESS;
+import static com.hedera.services.bdd.spec.infrastructure.meta.ContractResources.TRANSFER_AMOUNT_AND_FUNGIBLE_TOKEN_TRANSFER_TO_ADDRESS;
+import static com.hedera.services.bdd.spec.infrastructure.meta.ContractResources.TRANSFER_AMOUNT_AND_NFT_TOKEN_TRANSFER_TO_ADDRESS;
 import static com.hedera.services.bdd.spec.infrastructure.meta.ContractResources.ZENOS_BANK_DEPOSIT_TOKENS;
 import static com.hedera.services.bdd.spec.infrastructure.meta.ContractResources.ZENOS_BANK_WITHDRAW_TOKENS;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getAccountInfo;
@@ -89,11 +90,82 @@ public class ContractHTSSuite extends HapiApiSuite {
 
 	List<HapiApiSpec> positiveSpecs() {
 		return List.of(
-				depositAndWithdraw(),
-				associateToken(),
-				dissociateToken(),
-				HSCS_PREC_017_rollback_after_insufficient_balance()
+//				depositAndWithdraw(),
+//				associateToken(),
+//				dissociateToken(),
+//				HSCS_PREC_017_rollback_after_insufficient_balance(),
+				HSCS_PREC_001_happy_fungible_transfer()
 		);
+	}
+
+	private HapiApiSpec HSCS_PREC_001_happy_fungible_transfer() {
+		final var alice = "alice";
+		final var bob = "bob";
+		final var treasuryForToken = "treasuryForToken";
+		final var feeCollector = "feeCollector";
+		final var supplyKey = "supplyKey";
+		final var tokenWithHbarFee = "tokenWithHbarFee";
+		final var theContract = "theContract";
+
+		return defaultHapiSpec("HSCS_PREC_001_happy_fungible_transfer")
+				.given(
+						newKeyNamed(supplyKey),
+
+						cryptoCreate(alice).balance(10 * ONE_HBAR),
+						cryptoCreate(bob).balance(ONE_HUNDRED_HBARS),
+						cryptoCreate(treasuryForToken).balance(ONE_HUNDRED_HBARS),
+						cryptoCreate(feeCollector).balance(0L),
+
+						tokenCreate(tokenWithHbarFee)
+								.tokenType(TokenType.FUNGIBLE_COMMON)
+								.supplyKey(supplyKey)
+								.initialSupply(0L)
+								.treasury(treasuryForToken)
+								.withCustom(fixedHbarFee(2 * ONE_HBAR, feeCollector)),
+						mintToken(tokenWithHbarFee, 1L),
+						fileCreate("bytecode").payingWith(bob),
+						updateLargeFile(bob, "bytecode",
+								extractByteCode(ContractResources.TRANSFER_AMOUNT_AND_TOKEN_CONTRACT)),
+						withOpContext(
+								(spec, opLog) ->
+										allRunFor(
+												spec,
+												contractCreate(theContract,
+														ContractResources.TRANSFER_AMOUNT_AND_TOKEN_CONSTRUCTOR,
+														asAddress(spec.registry().getTokenID(tokenWithHbarFee)))
+														.payingWith(bob)
+														.bytecode("bytecode")
+														.gas(28_000))),
+
+						tokenAssociate(alice, tokenWithHbarFee),
+						tokenAssociate(bob, tokenWithHbarFee),
+						tokenAssociate(theContract, tokenWithHbarFee),
+
+						cryptoTransfer(moving(1L, tokenWithHbarFee).between(treasuryForToken, alice))
+								.payingWith(GENESIS),
+						getAccountInfo(feeCollector).has(AccountInfoAsserts.accountWith().balance(0L))
+				)
+				.when(
+						withOpContext(
+								(spec, opLog) -> {
+									allRunFor(
+											spec,
+											contractCall(theContract,
+													TRANSFER_AMOUNT_AND_FUNGIBLE_TOKEN_TRANSFER_TO_ADDRESS,
+													asAddress(spec.registry().getAccountID(alice)),
+													asAddress(spec.registry().getAccountID(bob)),
+													1L)
+													.payingWith(alice)
+													.alsoSigningWithFullPrefix(alice)
+													.gas(70_000)
+													.via("contractCallTxn"));
+								})
+				)
+				.then(
+						getTxnRecord("contractCallTxn").andAllChildRecords().logged(),
+						getAccountInfo(feeCollector).has(AccountInfoAsserts.accountWith().balance(2 * ONE_HBAR))
+				);
+
 	}
 
 	private HapiApiSpec HSCS_PREC_017_rollback_after_insufficient_balance() {
@@ -127,7 +199,8 @@ public class ContractHTSSuite extends HapiApiSuite {
 								(spec, opLog) ->
 										allRunFor(
 												spec,
-												contractCreate(theContract, ContractResources.TRANSFER_AMOUNT_AND_TOKEN_CONSTRUCTOR,
+												contractCreate(theContract,
+														ContractResources.TRANSFER_AMOUNT_AND_TOKEN_CONSTRUCTOR,
 														asAddress(spec.registry().getTokenID(tokenWithHbarFee)))
 														.payingWith(bob)
 														.bytecode("bytecode")
@@ -146,7 +219,7 @@ public class ContractHTSSuite extends HapiApiSuite {
 								(spec, opLog) -> {
 									allRunFor(
 											spec,
-											contractCall(theContract, TRANSFER_AMOUNT_AND_TOKEN_TRANSFER_TO_ADDRESS,
+											contractCall(theContract, TRANSFER_AMOUNT_AND_NFT_TOKEN_TRANSFER_TO_ADDRESS,
 													asAddress(spec.registry().getAccountID(alice)),
 													asAddress(spec.registry().getAccountID(bob)),
 													1L, 2L)
@@ -228,7 +301,8 @@ public class ContractHTSSuite extends HapiApiSuite {
 								(spec, opLog) ->
 										allRunFor(
 												spec,
-												contractCreate(theContract, ContractResources.ASSOCIATE_DISSOCIATE_CONSTRUCTOR,
+												contractCreate(theContract,
+														ContractResources.ASSOCIATE_DISSOCIATE_CONSTRUCTOR,
 														asAddress(spec.registry().getTokenID(A_TOKEN)))
 														.payingWith(theAccount)
 														.bytecode("associateDissociateContractByteCode")
@@ -239,7 +313,8 @@ public class ContractHTSSuite extends HapiApiSuite {
 										)
 						)
 				).when(
-						contractCall(theContract, ContractResources.ASSOCIATE_TOKEN).payingWith(theAccount).via("associateMethodCall")
+						contractCall(theContract, ContractResources.ASSOCIATE_TOKEN).payingWith(theAccount).via(
+								"associateMethodCall")
 				).then(
 						cryptoTransfer(moving(200, A_TOKEN).between(TOKEN_TREASURY, theAccount))
 								.hasKnownStatus(ResponseCodeEnum.SUCCESS)
@@ -264,13 +339,15 @@ public class ContractHTSSuite extends HapiApiSuite {
 								(spec, opLog) ->
 										allRunFor(
 												spec,
-												contractCreate(theContract, ContractResources.ASSOCIATE_DISSOCIATE_CONSTRUCTOR,
+												contractCreate(theContract,
+														ContractResources.ASSOCIATE_DISSOCIATE_CONSTRUCTOR,
 														asAddress(spec.registry().getTokenID(A_TOKEN)))
 														.payingWith(theAccount)
 														.bytecode("associateDissociateContractByteCode")
 														.via("associateTxn")
 														.gas(100000),
-												contractCall(theContract, ContractResources.ASSOCIATE_TOKEN).payingWith(theAccount).via("associateMethodCall"),
+												contractCall(theContract, ContractResources.ASSOCIATE_TOKEN).payingWith(
+														theAccount).via("associateMethodCall"),
 												cryptoTransfer(moving(200, A_TOKEN).between(TOKEN_TREASURY, theAccount))
 														.hasKnownStatus(SUCCESS),
 												cryptoTransfer(moving(200, A_TOKEN).between(theAccount, TOKEN_TREASURY))
