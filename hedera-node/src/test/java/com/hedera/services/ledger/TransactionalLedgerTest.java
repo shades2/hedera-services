@@ -102,6 +102,24 @@ class TransactionalLedgerTest {
 	}
 
 	@Test
+	void canUndoCreations() {
+		subject.begin();
+
+		subject.create(2L);
+
+		subject.undoCreations();
+
+		subject.commit();
+
+		verify(backingAccounts, never()).put(any(), any());
+	}
+
+	@Test
+	void canUndoCreationsOnlyInTxn() {
+		assertThrows(IllegalStateException.class, subject::undoCreations);
+	}
+
+	@Test
 	void rollbackClearsChanges() {
 		given(backingAccounts.contains(1L)).willReturn(true);
 
@@ -135,6 +153,18 @@ class TransactionalLedgerTest {
 		assertEquals(newAccount1, account);
 		// and:
 		verify(backingAccounts).getRef(1L);
+	}
+
+	@Test
+	void zombieIsResurrectedIfPutAgain() {
+		subject.begin();
+
+		subject.create(1L);
+		subject.destroy(1L);
+		subject.put(1L, account1);
+
+		subject.commit();
+		verify(backingAccounts).put(1L, account1);
 	}
 
 	@Test
