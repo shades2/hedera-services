@@ -25,6 +25,7 @@ import com.hedera.services.bdd.spec.keys.KeyFactory;
 import com.hedera.services.bdd.spec.keys.SigControl;
 import com.hedera.services.bdd.spec.props.JutilPropertySource;
 import com.hedera.services.bdd.spec.props.MapPropertySource;
+import com.hedera.services.bdd.spec.transactions.crypto.HapiCryptoCreate;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.Duration;
@@ -137,6 +138,10 @@ public interface HapiPropertySource {
 
 	default Duration getDurationFromSecs(String property) {
 		return Duration.newBuilder().setSeconds(getInteger(property)).build();
+	}
+
+	default HapiCryptoCreate.Mode getCreationMode(String property) {
+		return HapiCryptoCreate.Mode.valueOf(get(property));
 	}
 
 	default boolean getBoolean(String property) {

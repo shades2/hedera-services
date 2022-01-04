@@ -1419,7 +1419,7 @@ workflows:
             filters:
               branches:
                 ignore:
-                  - NONE
+                  - 02688-M-RejectAliasInAccountIdSentinel
             workflow-name: "Continuous-integration"
         - sonar-check:
             context: SonarCloud

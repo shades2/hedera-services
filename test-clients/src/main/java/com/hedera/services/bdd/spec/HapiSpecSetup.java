@@ -25,6 +25,7 @@ import com.hedera.services.bdd.spec.keys.SigControl;
 import com.hedera.services.bdd.spec.props.JutilPropertySource;
 import com.hedera.services.bdd.spec.props.MapPropertySource;
 import com.hedera.services.bdd.spec.props.NodeConnectInfo;
+import com.hedera.services.bdd.spec.transactions.crypto.HapiCryptoCreate;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.Duration;
@@ -143,6 +144,9 @@ public class HapiSpecSetup {
 			ciPropertiesMap = MapPropertySource.parsedFromCommaDelimited(props.get("ci.properties.map"));
 		}
 		return ciPropertiesMap;
+	}
+	public HapiCryptoCreate.Mode creationMode() {
+		return props.getCreationMode("creation.mode");
 	}
 	public Duration defaultAutoRenewPeriod() {
 		return props.getDurationFromSecs("default.autorenew.secs");
