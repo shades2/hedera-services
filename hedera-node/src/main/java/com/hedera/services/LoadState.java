@@ -90,13 +90,12 @@ public class LoadState {
 
 			}
 
-			if (nodeB == null) {
+			if (nodeB == null && nodeA != null) {
 
-				final String classA = nodeA == null ? "NULL" : nodeA.getClass().getSimpleName();
-				final String classB = "NULL";
-				final String position = nodeA != null ? nodeA.getRoute().toString() : "NULL";
+				final String classA = nodeA.getClass().getSimpleName();
+				final String position = nodeA.getRoute().toString();
 
-				System.out.println("Mismatched types. Type A = " + classA + ", Type B = " + classB + " @ " + position);
+				System.out.println("Mismatched types. Type A = " + classA + ", Type B = NULL @ " + position);
 				return;
 			}
 
