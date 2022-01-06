@@ -1,6 +1,10 @@
 package com.hedera.services;
 
+import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.state.submerkle.ExpirableTxnRecord;
+import com.hedera.services.state.virtual.VirtualBlobKey;
+import com.hedera.services.state.virtual.VirtualBlobValue;
+import com.hedera.services.utils.EntityNum;
 import com.swirlds.blob.internal.db.DbManager;
 import com.swirlds.common.constructable.ConstructableRegistry;
 import com.swirlds.common.constructable.ConstructableRegistryException;
@@ -17,7 +21,11 @@ import com.swirlds.platform.state.SignedState;
 import com.swirlds.platform.state.State;
 import org.apache.commons.lang3.tuple.Pair;
 
+import java.io.BufferedOutputStream;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 
@@ -149,6 +157,20 @@ public class LoadState {
 
 	}
 
+	private static void extractContract(final State state) throws IOException {
+
+		final ServicesState sstate = state.getSwirldState().cast();
+
+		final VirtualBlobValue value =
+				sstate.storage().get(new VirtualBlobKey(VirtualBlobKey.Type.CONTRACT_BYTECODE, 88011));
+
+		final BufferedOutputStream out =
+				new BufferedOutputStream(new FileOutputStream(new File("badContract.dat")));
+		out.write(value.getData());
+		out.close();
+
+	}
+
 	public static void main(final String[] args) {
 
 		try {
@@ -172,7 +194,8 @@ public class LoadState {
 			System.out.println("Hash B: " + stateB.getHash());
 
 //			compareStates(stateA, stateB);
-			lookAtBadLeaves(stateA, stateB);
+//			lookAtBadLeaves(stateA, stateB);
+			extractContract(stateA);
 
 		} catch (final Exception ex) {
 			ex.printStackTrace();
