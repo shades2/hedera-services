@@ -66,7 +66,8 @@ public class ExpirableTxnRecord implements FCQueueElement {
 	static final int RELEASE_0160_VERSION = 4;
 	static final int RELEASE_0180_VERSION = 5;
 	static final int RELEASE_0210_VERSION = 6;
-	static final int MERKLE_VERSION = RELEASE_0210_VERSION;
+	static final int RELEASE_PERF_ISSUE_VERSION = 7;
+	static final int MERKLE_VERSION = RELEASE_PERF_ISSUE_VERSION;
 
 	static final int MAX_MEMO_BYTES = 32 * 1_024;
 	static final int MAX_TXN_HASH_BYTES = 1_024;
@@ -345,7 +346,9 @@ public class ExpirableTxnRecord implements FCQueueElement {
 			if (hasParentConsensusTime) {
 				packedParentConsensusTime = in.readLong();
 			}
-			alias = ByteString.copyFrom(in.readByteArray(Integer.MAX_VALUE));
+			if (version >= RELEASE_PERF_ISSUE_VERSION) {
+				alias = ByteString.copyFrom(in.readByteArray(Integer.MAX_VALUE));
+			}
 		}
 	}
 
