@@ -90,7 +90,11 @@ public class LoadState {
 
 			}
 
-			if (nodeB == null && nodeA != null) {
+			if (nodeA == null) {
+				return;
+			}
+
+			if (nodeB == null) {
 
 				final String classA = nodeA.getClass().getSimpleName();
 				final String position = nodeA.getRoute().toString();
