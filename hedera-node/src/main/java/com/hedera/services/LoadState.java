@@ -39,9 +39,8 @@ public class LoadState {
     private static State loadState(final File stateFile) {
 
         try {
-            final Pair<Hash, SignedState> pair = SignedStateFileManager.readSignedStateFromFile(stateFile);
-
             System.out.println("loading state @ " + stateFile);
+            final Pair<Hash, SignedState> pair = SignedStateFileManager.readSignedStateFromFile(stateFile);
             final State state = pair.getRight().getState();
             System.out.println("hashing state @ " + stateFile);
             CryptoFactory.getInstance().digestTreeAsync(state).get();
