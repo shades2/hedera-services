@@ -1,5 +1,6 @@
 package com.hedera.services;
 
+import com.hedera.services.state.submerkle.ExpirableTxnRecord;
 import com.swirlds.blob.internal.db.DbManager;
 import com.swirlds.common.constructable.ConstructableRegistry;
 import com.swirlds.common.constructable.ConstructableRegistryException;
@@ -7,6 +8,10 @@ import com.swirlds.common.crypto.CryptoFactory;
 import com.swirlds.common.crypto.Hash;
 import com.swirlds.common.merkle.MerkleNode;
 import com.swirlds.common.merkle.iterators.MerkleDepthFirstIterator;
+import com.swirlds.common.merkle.iterators.MerkleRandomHashIterator;
+import com.swirlds.common.merkle.route.MerkleRoute;
+import com.swirlds.common.merkle.route.MerkleRouteFactory;
+import com.swirlds.fcqueue.FCQueue;
 import com.swirlds.platform.SignedStateFileManager;
 import com.swirlds.platform.state.SignedState;
 import com.swirlds.platform.state.State;
@@ -14,6 +19,7 @@ import org.apache.commons.lang3.tuple.Pair;
 
 import java.io.File;
 import java.util.Iterator;
+import java.util.List;
 
 public class LoadState {
 
@@ -117,6 +123,32 @@ public class LoadState {
 
 	}
 
+	private static final List<Integer> steps =
+			List.of(0, 4, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1);
+	private static final MerkleRoute route = MerkleRouteFactory.buildRoute(steps);
+
+	private static void lookAtBadLeaves(final State stateA, final State stateB) {
+
+		final FCQueue<ExpirableTxnRecord> queueA = stateA.getNodeAtRoute(route).cast();
+		final FCQueue<ExpirableTxnRecord> queueB = stateB.getNodeAtRoute(route).cast();
+
+		System.out.println("Size of queue A: " + queueA.size());
+		System.out.println("Size of queue B: " + queueB.size());
+
+		System.out.println("Elements in A: ");
+		for (final ExpirableTxnRecord record : queueA) {
+			System.out.println("  " + record);
+		}
+
+		System.out.println("-------------------------------------------------------");
+
+		System.out.println("Elements in B: ");
+		for (final ExpirableTxnRecord record : queueB) {
+			System.out.println("  " + record);
+		}
+
+	}
+
 	public static void main(final String[] args) {
 
 		try {
@@ -139,7 +171,8 @@ public class LoadState {
 			System.out.println("Hash A: " + stateA.getHash());
 			System.out.println("Hash B: " + stateB.getHash());
 
-			compareStates(stateA, stateB);
+//			compareStates(stateA, stateB);
+			lookAtBadLeaves(stateA, stateB);
 
 		} catch (final Exception ex) {
 			ex.printStackTrace();
