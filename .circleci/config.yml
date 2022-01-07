@@ -766,7 +766,7 @@ workflows:
           filters:
             branches:
               only:
-                - vm-plus-020-test.3
+                - master
     jobs:
       - build-platform-and-services
       - jrs-regression:
@@ -819,7 +819,7 @@ workflows:
           filters:
             branches:
               only:
-                - vm-plus-020-test.3
+                - master
     jobs:
       - build-platform-and-services
       - jrs-regression:
@@ -871,7 +871,7 @@ workflows:
           filters:
             branches:
               only:
-                - vm-plus-020-test.3
+                - master
     jobs:
       - build-platform-and-services
       - jrs-regression:
@@ -940,7 +940,7 @@ workflows:
           filters:
             branches:
               only:
-                - vm-plus-020-test.3
+                - master
     jobs:
       - build-platform-and-services
       - jrs-regression:
@@ -963,7 +963,7 @@ workflows:
           filters:
             branches:
               only:
-                - vm-plus-020-test.3
+                - master
     jobs:
       - build-platform-and-services
       - jrs-regression:
@@ -987,7 +987,7 @@ workflows:
           filters:
             branches:
               only:
-                - vm-plus-020-test.3
+                - master
     jobs:
       - build-platform-and-services
       - jrs-regression:
@@ -1011,7 +1011,7 @@ workflows:
           filters:
             branches:
               only:
-                - vm-plus-020-test.3
+                - master
     jobs:
       - build-platform-and-services
       - jrs-regression:
@@ -1034,7 +1034,7 @@ workflows:
           filters:
             branches:
               only:
-                - vm-plus-020-test.3
+                - master
     jobs:
       - build-platform-and-services
       - jrs-regression:
@@ -1057,7 +1057,7 @@ workflows:
           filters:
             branches:
               only:
-                - vm-plus-020-test.3
+                - master
     jobs:
       - build-platform-and-services
       - jrs-regression:
@@ -1080,7 +1080,7 @@ workflows:
           filters:
             branches:
               only:
-                - vm-plus-020-test.3
+                - master
     jobs:
       - build-platform-and-services
       - jrs-regression:
@@ -1103,7 +1103,7 @@ workflows:
           filters:
             branches:
               only:
-                - vm-plus-020-test.3
+                - master
     jobs:
       - build-platform-and-services
       - jrs-regression:
@@ -1126,7 +1126,7 @@ workflows:
           filters:
             branches:
               only:
-                - vm-plus-020-test.3
+                - master
     jobs:
       - build-platform-and-services
       - jrs-regression:
@@ -1150,7 +1150,7 @@ workflows:
           filters:
             branches:
               only:
-                - vm-plus-020-test.3
+                - master
     jobs:
       - build-platform-and-services
       - jrs-regression:
@@ -1173,7 +1173,7 @@ workflows:
           filters:
             branches:
               only:
-                - vm-plus-020-test.3
+                - master
     jobs:
       - build-platform-and-services
       - jrs-regression:
@@ -1196,7 +1196,7 @@ workflows:
           filters:
             branches:
               only:
-                - vm-plus-020-test.3
+                - master
     jobs:
       - build-platform-and-services
       - jrs-regression:
@@ -1219,7 +1219,7 @@ workflows:
           filters:
             branches:
               only:
-                - vm-plus-020-test.3
+                - master
     jobs:
       - build-platform-and-services
       - jrs-regression:
