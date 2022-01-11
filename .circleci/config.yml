@@ -1419,7 +1419,7 @@ workflows:
             filters:
               branches:
                 ignore:
-                  - candidate-0.22.0-alpha.2
+                  - candidate-0.22.0-alpha.2-disableSsExpansion
             workflow-name: "Continuous-integration"
         - sonar-check:
             context: SonarCloud
