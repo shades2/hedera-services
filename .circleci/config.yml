@@ -1419,7 +1419,7 @@ workflows:
             filters:
               branches:
                 ignore:
-                  - NONE
+                  - hts-contracts-alpha4sdk-sans-fcotmr
             workflow-name: "Continuous-integration"
         - sonar-check:
             context: SonarCloud
