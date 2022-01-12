@@ -22,6 +22,7 @@ package com.hedera.services.utils;
 
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
+import com.hedera.services.context.primitives.StateView;
 import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.store.models.Id;
 import com.hederahashgraph.api.proto.java.AccountID;
@@ -53,32 +54,25 @@ public final class EntityIdUtils {
 	}
 
 	public static String readableId(final Object o) {
-		if (o instanceof Id) {
-			final var id = (Id) o;
-			return String.format(ENTITY_ID_FORMAT, id.getShard(), id.getRealm(), id.getNum());
+		if (o instanceof Id id) {
+			return String.format(ENTITY_ID_FORMAT, id.shard(), id.realm(), id.num());
 		}
-		if (o instanceof AccountID) {
-			final var id = (AccountID) o;
+		if (o instanceof AccountID id) {
 			return String.format(ENTITY_ID_FORMAT, id.getShardNum(), id.getRealmNum(), id.getAccountNum());
 		}
-		if (o instanceof FileID) {
-			final var id = (FileID) o;
+		if (o instanceof FileID id) {
 			return String.format(ENTITY_ID_FORMAT, id.getShardNum(), id.getRealmNum(), id.getFileNum());
 		}
-		if (o instanceof TopicID) {
-			final var id = (TopicID) o;
+		if (o instanceof TopicID id) {
 			return String.format(ENTITY_ID_FORMAT, id.getShardNum(), id.getRealmNum(), id.getTopicNum());
 		}
-		if (o instanceof TokenID) {
-			final var id = (TokenID) o;
+		if (o instanceof TokenID id) {
 			return String.format(ENTITY_ID_FORMAT, id.getShardNum(), id.getRealmNum(), id.getTokenNum());
 		}
-		if (o instanceof ScheduleID) {
-			final var id = (ScheduleID) o;
+		if (o instanceof ScheduleID id) {
 			return String.format(ENTITY_ID_FORMAT, id.getShardNum(), id.getRealmNum(), id.getScheduleNum());
 		}
-		if (o instanceof NftID) {
-			final var id = (NftID) o;
+		if (o instanceof NftID id) {
 			final var tokenID = id.getTokenID();
 			return String.format(ENTITY_ID_FORMAT + ".%d",
 					tokenID.getShardNum(), tokenID.getRealmNum(), tokenID.getTokenNum(), id.getSerialNumber());
@@ -177,7 +171,7 @@ public final class EntityIdUtils {
 
 	public static AccountID asAccount(final EntityId jId) {
 		if (jId == null || jId.equals(EntityId.MISSING_ENTITY_ID)) {
-			return AccountID.getDefaultInstance();
+			return StateView.WILDCARD_OWNER;
 		}
 		return AccountID.newBuilder()
 				.setRealmNum(jId.realm())
@@ -193,11 +187,13 @@ public final class EntityIdUtils {
 	public static byte[] asSolidityAddress(final ContractID id) {
 		return asSolidityAddress((int) id.getShardNum(), id.getRealmNum(), id.getContractNum());
 	}
+
 	public static byte[] asSolidityAddress(final AccountID id) {
 		return asSolidityAddress((int) id.getShardNum(), id.getRealmNum(), id.getAccountNum());
 	}
+
 	public static String asSolidityAddressHex(Id id) {
-		return CommonUtils.hex(asSolidityAddress((int) id.getShard(), id.getRealm(), id.getNum()));
+		return CommonUtils.hex(asSolidityAddress((int) id.shard(), id.realm(), id.num()));
 	}
 
 	public static byte[] asSolidityAddress(final int shard, final long realm, final long num) {

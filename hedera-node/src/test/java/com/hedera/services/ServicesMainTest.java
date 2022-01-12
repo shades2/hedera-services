@@ -34,7 +34,6 @@ import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.state.validation.LedgerValidator;
 import com.hedera.services.stats.ServicesStatsManager;
 import com.hedera.services.stream.RecordStreamManager;
-import com.hedera.services.txns.network.UpgradeActions;
 import com.hedera.services.utils.EntityNum;
 import com.hedera.services.utils.NamedDigestFactory;
 import com.hedera.services.utils.SystemExits;
@@ -127,8 +126,6 @@ class ServicesMainTest {
 	private GrpcStarter grpcStarter;
 	@Mock
 	private CurrentPlatformStatus currentPlatformStatus;
-	@Mock
-	private UpgradeActions upgradeActions;
 	@Mock
 	private RecordStreamManager recordStreamManager;
 	@Mock

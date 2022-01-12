@@ -76,6 +76,8 @@ class GlobalDynamicPropertiesTest {
 		assertTrue(subject.shouldExportTokenBalances());
 		assertFalse(subject.autoRenewEnabled());
 		assertTrue(subject.areNftsEnabled());
+		assertFalse(subject.isAutoCreationEnabled());
+		assertFalse(subject.expandSigsFromLastSignedState());
 	}
 
 	@Test
@@ -126,6 +128,7 @@ class GlobalDynamicPropertiesTest {
 		assertEquals(36, subject.maxCustomFeesAllowed());
 		assertEquals(46, subject.maxXferBalanceChanges());
 		assertEquals(47, subject.maxCustomFeeDepth());
+		assertEquals(49, subject.changeHistorianMemorySecs());
 	}
 
 	@Test
@@ -174,6 +177,8 @@ class GlobalDynamicPropertiesTest {
 		assertFalse(subject.shouldExportTokenBalances());
 		assertTrue(subject.autoRenewEnabled());
 		assertFalse(subject.areNftsEnabled());
+		assertTrue(subject.isAutoCreationEnabled());
+		assertTrue(subject.expandSigsFromLastSignedState());
 	}
 
 	@Test
@@ -208,6 +213,7 @@ class GlobalDynamicPropertiesTest {
 		assertEquals(37, subject.maxCustomFeesAllowed());
 		assertEquals(47, subject.maxXferBalanceChanges());
 		assertEquals(48, subject.maxCustomFeeDepth());
+		assertEquals(50, subject.changeHistorianMemorySecs());
 	}
 
 	@Test
@@ -303,6 +309,9 @@ class GlobalDynamicPropertiesTest {
 				.willReturn(i % 2 == 0 ? evenFactor : oddFactor);
 		given(properties.getStringProperty("upgrade.artifacts.path")).willReturn(upgradeArtifactLocs[i % 2]);
 		given(properties.getLongProperty("scheduling.triggerTxn.windBackNanos")).willReturn(i + 47L);
+		given(properties.getIntProperty("ledger.changeHistorian.memorySecs")).willReturn(i + 48);
+		given(properties.getBooleanProperty("autoCreation.enabled")).willReturn(i % 2 == 0);
+		given(properties.getBooleanProperty("sigs.expandFromLastSignedState")).willReturn(i % 2 == 0);
 	}
 
 	private AccountID accountWith(long shard, long realm, long num) {

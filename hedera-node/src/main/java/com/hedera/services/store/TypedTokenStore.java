@@ -22,7 +22,6 @@ package com.hedera.services.store;
 
 import com.hedera.services.context.SideEffectsTracker;
 import com.hedera.services.exceptions.InvalidTransactionException;
-import com.hedera.services.ledger.accounts.BackingTokenRels;
 import com.hedera.services.records.TransactionRecordService;
 import com.hedera.services.state.merkle.MerkleToken;
 import com.hedera.services.state.merkle.MerkleTokenRelStatus;
@@ -91,7 +90,6 @@ public class TypedTokenStore {
 	private final Supplier<MerkleMap<EntityNumPair, MerkleTokenRelStatus>> tokenRels;
 
 	/* Only needed for interoperability with legacy HTS during refactor */
-	private final BackingTokenRels backingTokenRels;
 	private final LegacyTreasuryRemover delegate;
 	private final LegacyTreasuryAdder addKnownTreasury;
 
@@ -101,7 +99,6 @@ public class TypedTokenStore {
 			final Supplier<MerkleMap<EntityNum, MerkleToken>> tokens,
 			final Supplier<MerkleMap<EntityNumPair, MerkleUniqueToken>> uniqueTokens,
 			final Supplier<MerkleMap<EntityNumPair, MerkleTokenRelStatus>> tokenRels,
-			final BackingTokenRels backingTokenRels,
 			final UniqTokenViewsManager uniqTokenViewsManager,
 			final LegacyTreasuryAdder legacyStoreDelegate,
 			final LegacyTreasuryRemover delegate,
@@ -114,7 +111,6 @@ public class TypedTokenStore {
 		this.accountStore = accountStore;
 		this.sideEffectsTracker = sideEffectsTracker;
 		this.delegate = delegate;
-		this.backingTokenRels = backingTokenRels;
 		this.addKnownTreasury = legacyStoreDelegate;
 	}
 
@@ -213,7 +209,6 @@ public class TypedTokenStore {
 			final var key = EntityNumPair.fromModelRel(tokenRelationship);
 			if (tokenRelationship.isDestroyed()) {
 				currentTokenRels.remove(key);
-				backingTokenRels.removeFromExistingRels(legacyReprOf(tokenRelationship));
 			} else {
 				persistNonDestroyed(tokenRelationship, key, currentTokenRels);
 			}
@@ -257,7 +252,6 @@ public class TypedTokenStore {
 		mutableTokenRel.setAutomaticAssociation(modelRel.isAutomaticAssociation());
 		if (isNewRel) {
 			currentTokenRels.put(key, mutableTokenRel);
-			alertTokenBackingStoreOfNew(modelRel);
 		}
 	}
 
@@ -402,7 +396,7 @@ public class TypedTokenStore {
 	 * 		the token to save
 	 */
 	public void persistToken(Token token) {
-		final var key = EntityNum.fromLong(token.getId().getNum());
+		final var key = EntityNum.fromLong(token.getId().num());
 		final var mutableToken = tokens.get().getForModify(key);
 		mapModelChangesToMutable(token, mutableToken);
 
@@ -434,7 +428,7 @@ public class TypedTokenStore {
 	 */
 	public void persistNew(Token token) {
 		/* create new merkle token */
-		final var newMerkleTokenId = EntityNum.fromLong(token.getId().getNum());
+		final var newMerkleTokenId = EntityNum.fromLong(token.getId().num());
 		final var newMerkleToken = new MerkleToken(
 				token.getExpiry(),
 				token.getTotalSupply(),
@@ -457,7 +451,7 @@ public class TypedTokenStore {
 	private void destroyRemoved(List<UniqueToken> nfts, EntityId treasury) {
 		final var curNfts = uniqueTokens.get();
 		for (var nft : nfts) {
-			final var merkleNftId = EntityNumPair.fromLongs(nft.getTokenId().getNum(), nft.getSerialNumber());
+			final var merkleNftId = EntityNumPair.fromLongs(nft.getTokenId().num(), nft.getSerialNumber());
 			curNfts.remove(merkleNftId);
 			if (treasury.matches(nft.getOwner())) {
 				uniqTokenViewsManager.burnNotice(merkleNftId, treasury);
@@ -470,7 +464,7 @@ public class TypedTokenStore {
 	private void persistMinted(List<UniqueToken> nfts, EntityId treasury) {
 		final var curNfts = uniqueTokens.get();
 		for (var nft : nfts) {
-			final var merkleNftId = EntityNumPair.fromLongs(nft.getTokenId().getNum(), nft.getSerialNumber());
+			final var merkleNftId = EntityNumPair.fromLongs(nft.getTokenId().num(), nft.getSerialNumber());
 			final var merkleNft = new MerkleUniqueToken(MISSING_ENTITY_ID, nft.getMetadata(), nft.getCreationTime());
 			curNfts.put(merkleNftId, merkleNft);
 			uniqTokenViewsManager.mintNotice(merkleNftId, treasury);
@@ -567,10 +561,6 @@ public class TypedTokenStore {
 		uniqueToken.setCreationTime(immutableUniqueToken.getCreationTime());
 		uniqueToken.setMetadata(immutableUniqueToken.getMetadata());
 		uniqueToken.setOwner(immutableUniqueToken.getOwner().asId());
-	}
-
-	private void alertTokenBackingStoreOfNew(TokenRelationship newRel) {
-		backingTokenRels.addToExistingRels(legacyReprOf(newRel));
 	}
 
 	@FunctionalInterface

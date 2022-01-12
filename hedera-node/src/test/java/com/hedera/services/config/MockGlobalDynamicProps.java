@@ -230,4 +230,14 @@ public class MockGlobalDynamicProps extends GlobalDynamicProperties {
 	public long ratesMidnightCheckInterval() {
 		return 1L;
 	}
+
+	@Override
+	public int changeHistorianMemorySecs() {
+		return 20;
+	}
+
+	@Override
+	public boolean isAutoCreationEnabled() {
+		return true;
+	}
 }

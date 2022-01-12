@@ -41,7 +41,6 @@ import java.util.stream.Stream;
 import static com.hedera.services.context.properties.PropUtils.loadOverride;
 import static java.util.Collections.unmodifiableSet;
 import static java.util.Map.entry;
-import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
 
 @Singleton
@@ -97,7 +96,7 @@ public final class BootstrapProperties implements PropertySource {
 		final var missingProps = BOOTSTRAP_PROP_NAMES.stream()
 				.filter(name -> !resourceProps.containsKey(name))
 				.sorted()
-				.collect(toList());
+				.toList();
 		if (!missingProps.isEmpty()) {
 			final var msg = String.format(
 					"'%s' is missing properties: %s!",
@@ -110,8 +109,8 @@ public final class BootstrapProperties implements PropertySource {
 	private void resolveBootstrapProps(final Properties resourceProps) {
 		bootstrapProps = new HashMap<>();
 		BOOTSTRAP_PROP_NAMES.forEach(prop -> bootstrapProps.put(
-						prop,
-						transformFor(prop).apply(resourceProps.getProperty(prop))));
+				prop,
+				transformFor(prop).apply(resourceProps.getProperty(prop))));
 
 		final var msg = "Resolved bootstrap properties:\n  " + BOOTSTRAP_PROP_NAMES.stream()
 				.sorted()
@@ -130,7 +129,7 @@ public final class BootstrapProperties implements PropertySource {
 		}
 	}
 
-	void ensureProps() throws IllegalStateException{
+	void ensureProps() throws IllegalStateException {
 		if (bootstrapProps == MISSING_PROPS) {
 			initPropsFromResource();
 		}
@@ -201,6 +200,7 @@ public final class BootstrapProperties implements PropertySource {
 	);
 
 	static final Set<String> GLOBAL_DYNAMIC_PROPS = Set.of(
+			"autoCreation.enabled",
 			"balances.exportDir.path",
 			"balances.exportEnabled",
 			"balances.exportPeriodSecs",
@@ -224,6 +224,7 @@ public final class BootstrapProperties implements PropertySource {
 			"autorenew.numberOfEntitiesToScan",
 			"autorenew.maxNumberOfEntitiesToRenewOrDelete",
 			"autorenew.gracePeriod",
+			"ledger.changeHistorian.memorySecs",
 			"ledger.autoRenewPeriod.maxDuration",
 			"ledger.autoRenewPeriod.minDuration",
 			"ledger.xferBalanceChanges.maxLen",
@@ -237,6 +238,7 @@ public final class BootstrapProperties implements PropertySource {
 			"rates.midnightCheckInterval",
 			"scheduling.whitelist",
 			"scheduling.triggerTxn.windBackNanos",
+			"sigs.expandFromLastSignedState",
 			"tokens.maxPerAccount",
 			"tokens.maxSymbolUtf8Bytes",
 			"tokens.maxTokenNameUtf8Bytes",
@@ -283,8 +285,6 @@ public final class BootstrapProperties implements PropertySource {
 			"netty.tlsCrt.path",
 			"netty.tlsKey.path",
 			"queries.blob.lookupRetries",
-			"precheck.account.maxLookupRetries",
-			"precheck.account.lookupRetryBackoffIncrementMs",
 			"stats.executionTimesToTrack",
 			"stats.hapiOps.speedometerUpdateIntervalMs",
 			"stats.runningAvgHalfLifeSecs",
@@ -338,6 +338,7 @@ public final class BootstrapProperties implements PropertySource {
 			entry("hedera.transaction.maxValidDuration", AS_LONG),
 			entry("hedera.transaction.minValidDuration", AS_LONG),
 			entry("hedera.transaction.minValidityBufferSecs", AS_INT),
+			entry("autoCreation.enabled", AS_BOOLEAN),
 			entry("autorenew.isEnabled", AS_BOOLEAN),
 			entry("autorenew.numberOfEntitiesToScan", AS_INT),
 			entry("autorenew.maxNumberOfEntitiesToRenewOrDelete", AS_INT),
@@ -345,8 +346,6 @@ public final class BootstrapProperties implements PropertySource {
 			entry("ledger.autoRenewPeriod.maxDuration", AS_LONG),
 			entry("ledger.autoRenewPeriod.minDuration", AS_LONG),
 			entry("netty.mode", AS_PROFILE),
-			entry("precheck.account.maxLookupRetries", AS_INT),
-			entry("precheck.account.lookupRetryBackoffIncrementMs", AS_INT),
 			entry("queries.blob.lookupRetries", AS_INT),
 			entry("netty.startRetries", AS_INT),
 			entry("netty.startRetryIntervalMs", AS_LONG),
@@ -361,6 +360,7 @@ public final class BootstrapProperties implements PropertySource {
 			entry("fees.tokenTransferUsageMultiplier", AS_INT),
 			entry("fees.percentCongestionMultipliers", AS_CONGESTION_MULTIPLIERS),
 			entry("files.maxSizeKb", AS_INT),
+			entry("ledger.changeHistorian.memorySecs", AS_INT),
 			entry("ledger.xferBalanceChanges.maxLen", AS_INT),
 			entry("ledger.fundingAccount", AS_LONG),
 			entry("ledger.maxAccountNum", AS_LONG),
@@ -401,6 +401,7 @@ public final class BootstrapProperties implements PropertySource {
 			entry("contracts.chainId", AS_INT),
 			entry("rates.intradayChangeLimitPercent", AS_INT),
 			entry("rates.midnightCheckInterval", AS_LONG),
+			entry("sigs.expandFromLastSignedState", AS_BOOLEAN),
 			entry("scheduling.whitelist", AS_FUNCTIONS),
 			entry("scheduling.triggerTxn.windBackNanos", AS_LONG),
 			entry("stats.hapiOps.speedometerUpdateIntervalMs", AS_LONG),
