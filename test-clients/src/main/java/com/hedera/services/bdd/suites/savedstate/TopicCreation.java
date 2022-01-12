@@ -32,55 +32,51 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 import static com.hedera.services.bdd.spec.HapiApiSpec.defaultHapiSpec;
-import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoCreate;
+import static com.hedera.services.bdd.spec.transactions.TxnVerbs.createTopic;
 import static com.hedera.services.bdd.spec.utilops.LoadTest.defaultLoadTest;
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.logIt;
+import static com.hedera.services.bdd.suites.savedstate.AccountCreation.CREATION_MINS;
+import static com.hedera.services.bdd.suites.savedstate.AccountCreation.CREATION_THREADS;
+import static com.hedera.services.bdd.suites.savedstate.AccountCreation.CREATION_TPS;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.BUSY;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.DUPLICATE_TRANSACTION;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.PLATFORM_TRANSACTION_NOT_CREATED;
 
-public final class AccountCreation extends HapiApiSuite {
-	private static final Logger log = LogManager.getLogger(AccountCreation.class);
-
-	public static final int CREATION_TPS = 10;
-	public static final int CREATION_THREADS = 20;
-	public static final int CREATION_MINS = 30;
-
-	private static final AtomicInteger accountNumber = new AtomicInteger(1);
+public final class TopicCreation extends HapiApiSuite {
+	private static final Logger log = LogManager.getLogger(TopicCreation.class);
+	private static final AtomicInteger topicNumber = new AtomicInteger(1);
 
 	public static void main(String... args) {
-		new AccountCreation().runSuiteSync();
+		new TopicCreation().runSuiteSync();
 	}
 
 	@Override
 	protected List<HapiApiSpec> getSpecsInSuite() {
 		return List.of(
-				createAccounts()
+				createTopics()
 		);
 	}
 
-	private synchronized HapiSpecOperation generateCreateAccountOperation() {
-		final var num = accountNumber.getAndIncrement();
-		return cryptoCreate("account" + num)
-				.balance(THOUSAND_HBAR)
+	private synchronized HapiSpecOperation generateCreateTopicOperation() {
+		final var num = topicNumber.getAndIncrement();
+		return createTopic("topic" + num)
 				.payingWith(GENESIS)
-				.key(GENESIS)
 				.noLogging()
 				.hasRetryPrecheckFrom(BUSY, DUPLICATE_TRANSACTION, PLATFORM_TRANSACTION_NOT_CREATED)
 				.deferStatusResolution();
 	}
 
-	private HapiApiSpec createAccounts() {
+	private HapiApiSpec createTopics() {
 		PerfTestLoadSettings settings = new PerfTestLoadSettings(
 				CREATION_TPS,
 				CREATION_MINS,
 				CREATION_THREADS);
 
 		Supplier<HapiSpecOperation[]> createBurst = () -> new HapiSpecOperation[] {
-				generateCreateAccountOperation()
+				generateCreateTopicOperation()
 		};
 
-		return defaultHapiSpec("CreateAccounts")
+		return defaultHapiSpec("CreateTopics")
 				.given(
 						logIt(ignore -> settings.toString())
 				).when()

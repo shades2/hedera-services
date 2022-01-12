@@ -158,6 +158,7 @@ import com.hedera.services.bdd.suites.regression.JrsRestartTestTemplate;
 import com.hedera.services.bdd.suites.regression.SteadyStateThrottlingCheck;
 import com.hedera.services.bdd.suites.regression.UmbrellaRedux;
 import com.hedera.services.bdd.suites.savedstate.AccountCreation;
+import com.hedera.services.bdd.suites.savedstate.TopicCreation;
 import com.hedera.services.bdd.suites.schedule.ScheduleCreateSpecs;
 import com.hedera.services.bdd.suites.schedule.ScheduleDeleteSpecs;
 import com.hedera.services.bdd.suites.schedule.ScheduleExecutionSpecStateful;
@@ -472,6 +473,7 @@ public class SuiteRunner {
 		put("MemoValidation", aof(MemoValidation::new));
 		/* Create saved state */
 		put("AccountCreationForSavedState", aof(AccountCreation::new));
+		put("TopicCreationForSavedState", aof(TopicCreation::new));
 	}};
 
 	static boolean runAsync;
