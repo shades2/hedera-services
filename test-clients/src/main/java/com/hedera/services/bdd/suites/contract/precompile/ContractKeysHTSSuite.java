@@ -45,7 +45,7 @@ import static com.hedera.services.bdd.spec.HapiPropertySource.asDotDelimitedLong
 import static com.hedera.services.bdd.spec.HapiPropertySource.asToken;
 import static com.hedera.services.bdd.spec.assertions.SomeFungibleTransfers.changingFungibleBalances;
 import static com.hedera.services.bdd.spec.assertions.TransactionRecordAsserts.recordWith;
-import static com.hedera.services.bdd.spec.infrastructure.meta.ContractResources.BURN_AFTER_NESTED_MINT_ABI;
+import static com.hedera.services.bdd.spec.infrastructure.meta.ContractResources.BURN_TOKEN_ABI;
 import static com.hedera.services.bdd.spec.infrastructure.meta.ContractResources.DELEGATE_TRANSFER_CALL_ABI;
 import static com.hedera.services.bdd.spec.infrastructure.meta.ContractResources.MINT_TOKEN_ORDINARY_CALL;
 import static com.hedera.services.bdd.spec.infrastructure.meta.ContractResources.TRANSFER_NFT_ORDINARY_CALL;
@@ -91,6 +91,7 @@ public class ContractKeysHTSSuite extends HapiApiSuite {
 
 	private static final String ACCOUNT = "sender";
 	private static final String RECEIVER = "receiver";
+	private static final String ALICE = "Alice";
 
 	private static final String UNIVERSAL_KEY = "multipurpose";
 
@@ -117,8 +118,8 @@ public class ContractKeysHTSSuite extends HapiApiSuite {
 		return allOf(
 //				HSCS_KEY_1(),
 //				HSCS_KEY_2(),
-				HSCS_KEY_6()
-//				HSCS_KEY_7()
+				HSCS_KEY_6(),
+				HSCS_KEY_7()
 		);
 	}
 
@@ -135,26 +136,100 @@ public class ContractKeysHTSSuite extends HapiApiSuite {
 
 	List<HapiApiSpec> HSCS_KEY_6() {
 		return List.of(
-				delegateCallForTransfer()
+				burnWithKeyAsPartOf1OfXThreshold()
 		);
 	}
 
 	List<HapiApiSpec> HSCS_KEY_7() {
 		return List.of(
-				burn_after_nested_mint()
+				transferWithKeyAsPartOf2OfXThreshold()
 		);
 	}
 
+	private HapiApiSpec burnWithKeyAsPartOf1OfXThreshold() {
+		final var theContract = "burn token";
+		final var multiKey = "purpose";
+		final String ALICE = "Alice";
+		final String TOKEN = "Token";
+		final var DELEGATE_CONTRACT_KEY_SHAPE = KeyShape.threshOf(1, SIMPLE, DELEGATE_CONTRACT);
+		final var CONTRACT_KEY_SHAPE = KeyShape.threshOf(1, SIMPLE, KeyShape.CONTRACT);
 
-	private HapiApiSpec delegateCallForTransfer() {
+		return defaultHapiSpec("burnWithKeyAsPartOf1OfXThreshold")
+				.given(
+						newKeyNamed(multiKey),
+						cryptoCreate(ALICE).balance(10 * ONE_HUNDRED_HBARS),
+						cryptoCreate(TOKEN_TREASURY),
+						tokenCreate(TOKEN)
+								.tokenType(TokenType.FUNGIBLE_COMMON)
+								.initialSupply(50L)
+								.supplyKey(multiKey)
+								.adminKey(multiKey)
+								.treasury(TOKEN_TREASURY),
+						fileCreate("bytecode").payingWith(ALICE),
+						updateLargeFile(ALICE, "bytecode", extractByteCode(ContractResources.BURN_TOKEN)),
+						withOpContext(
+								(spec, opLog) ->
+										allRunFor(
+												spec,
+												contractCreate(theContract, ContractResources.BURN_TOKEN_CONSTRUCTOR_ABI,
+														asAddress(spec.registry().getTokenID(TOKEN)))
+														.payingWith(ALICE)
+														.bytecode("bytecode")
+														.via("creationTx")
+														.gas(28_000))),
+						getTxnRecord("creationTx").logged()
+				)
+				.when(
+
+						newKeyNamed("delegateContractKey").shape(DELEGATE_CONTRACT_KEY_SHAPE.signedWith(sigs(ON, theContract))),
+						tokenUpdate(TOKEN)
+								.supplyKey("delegateContractKey"),
+
+						contractCall(theContract, BURN_TOKEN_ABI, 1, new ArrayList<Long>())
+								.via("burn with delegate contract key")
+								.gas(48_000),
+
+						childRecordsCheck("burn with delegate contract key", SUCCESS, recordWith()
+								.status(SUCCESS)
+								.tokenTransfers(
+										changingFungibleBalances()
+												.including(TOKEN, TOKEN_TREASURY, -1)
+								)
+								.newTotalSupply(49)
+						),
+						getAccountBalance(TOKEN_TREASURY).hasTokenBalance(TOKEN, 49)
+
+				)
+				.then(
+						newKeyNamed("contractKey").shape(CONTRACT_KEY_SHAPE.signedWith(sigs(ON, theContract))),
+						tokenUpdate(TOKEN)
+								.supplyKey("contractKey"),
+
+						contractCall(theContract, BURN_TOKEN_ABI, 1, new ArrayList<Long>())
+								.via("burn with contract key")
+								.gas(48_000),
+
+						childRecordsCheck("burn with contract key", SUCCESS, recordWith()
+								.status(SUCCESS)
+								.tokenTransfers(
+										changingFungibleBalances()
+												.including(TOKEN, TOKEN_TREASURY, -1)
+								)
+						)
+				);
+
+	}
+
+
+	private HapiApiSpec transferWithKeyAsPartOf2OfXThreshold() {
 		final AtomicReference<AccountID> accountID = new AtomicReference<>();
 		final AtomicReference<TokenID> vanillaTokenTokenID = new AtomicReference<>();
 		final AtomicReference<AccountID> receiverID = new AtomicReference<>();
 		final var supplyKey = "supplyKey";
-		final var DELEGATE_CONTRACT_KEY_SHAPE = KeyShape.threshOf(1, SIMPLE, DELEGATE_CONTRACT, DELEGATE_CONTRACT);
+		final var DELEGATE_CONTRACT_KEY_SHAPE = KeyShape.threshOf(2, SIMPLE, SIMPLE, DELEGATE_CONTRACT, KeyShape.CONTRACT);
 
 
-		return defaultHapiSpec("delegateCallForTransfer")
+		return defaultHapiSpec("transferWithKeyAsPartOf2OfXThreshold")
 				.given(
 						newKeyNamed(supplyKey),
 						fileCreate(INNER_CONTRACT).payingWith(GENESIS),
@@ -192,13 +267,14 @@ public class ContractKeysHTSSuite extends HapiApiSuite {
 														.gas(100_000),
 												tokenAssociate(OUTER_CONTRACT, VANILLA_TOKEN),
 
-												newKeyNamed(DELEGATE_KEY).shape(DELEGATE_CONTRACT_KEY_SHAPE.signedWith(sigs(ON, INNER_CONTRACT, OUTER_CONTRACT))),
+												newKeyNamed(DELEGATE_KEY).shape(DELEGATE_CONTRACT_KEY_SHAPE.signedWith(sigs(ON, ON, OUTER_CONTRACT, INNER_CONTRACT))),
 												cryptoUpdate(ACCOUNT).key(DELEGATE_KEY),
 
 												contractCall(OUTER_CONTRACT, DELEGATE_TRANSFER_CALL_ABI,
 														asAddress(vanillaTokenTokenID.get()), asAddress(accountID.get()),
 														asAddress(receiverID.get()), 1L)
 														.payingWith(GENESIS)
+														.alsoSigningWithFullPrefix(ACCOUNT)
 														.via("delegateTransferCallWithDelegateContractKeyTxn")
 														.gas(5_000_000)
 										)
@@ -210,77 +286,6 @@ public class ContractKeysHTSSuite extends HapiApiSuite {
 						getAccountBalance(ACCOUNT).hasTokenBalance(VANILLA_TOKEN, 0),
 						getAccountBalance(RECEIVER).hasTokenBalance(VANILLA_TOKEN, 1)
 
-				);
-	}
-
-	private HapiApiSpec burn_after_nested_mint() {
-		final var innerContract = "BurnTokenContract";
-		final var outerContract = "NestedBurnContract";
-		final var multiKey = "purpose";
-		final var revisedKey = KeyShape.threshOf(1, SIMPLE, DELEGATE_CONTRACT, DELEGATE_CONTRACT);
-		final String ALICE = "Alice";
-
-		return defaultHapiSpec("burn_after_nested_mint")
-				.given(
-						newKeyNamed(multiKey),
-						cryptoCreate(ALICE).balance(10 * ONE_HUNDRED_HBARS),
-						cryptoCreate(TOKEN_TREASURY),
-						tokenCreate(TOKEN)
-								.tokenType(TokenType.FUNGIBLE_COMMON)
-								.initialSupply(50L)
-								.supplyKey(multiKey)
-								.adminKey(multiKey)
-								.treasury(TOKEN_TREASURY),
-						fileCreate(innerContract).path(ContractResources.MINT_TOKEN_CONTRACT),
-						fileCreate(outerContract).path(ContractResources.NESTED_BURN),
-						contractCreate(innerContract)
-								.bytecode(innerContract)
-								.gas(100_000),
-						withOpContext(
-								(spec, opLog) ->
-										allRunFor(
-												spec,
-												contractCreate(outerContract, ContractResources.NESTED_BURN_CONSTRUCTOR_ABI,
-														getNestedContractAddress(innerContract, spec))
-														.payingWith(ALICE)
-														.bytecode(outerContract)
-														.via("creationTx")
-														.gas(28_000))),
-						getTxnRecord("creationTx").logged()
-
-				)
-				.when(
-						withOpContext(
-								(spec, opLog) ->
-										allRunFor(
-												spec,
-												newKeyNamed("contractKey").shape(revisedKey.signedWith(sigs(ON, outerContract, innerContract))),
-												tokenUpdate(TOKEN)
-														.supplyKey("contractKey"),
-												contractCall(outerContract, BURN_AFTER_NESTED_MINT_ABI,
-														1, asAddress(spec.registry().getTokenID(TOKEN)), new ArrayList<>())
-														.payingWith(ALICE)
-														.via("burnAfterNestedMint"))),
-
-						childRecordsCheck("burnAfterNestedMint", SUCCESS, recordWith()
-										.status(SUCCESS)
-										.tokenTransfers(
-												changingFungibleBalances()
-														.including(TOKEN, TOKEN_TREASURY, 1)
-										)
-										.newTotalSupply(51),
-								recordWith()
-										.status(SUCCESS)
-										.tokenTransfers(
-												changingFungibleBalances()
-														.including(TOKEN, TOKEN_TREASURY, -1)
-										)
-										.newTotalSupply(50)
-						)
-
-				)
-				.then(
-						getAccountBalance(TOKEN_TREASURY).hasTokenBalance(TOKEN, 50)
 				);
 	}
 
