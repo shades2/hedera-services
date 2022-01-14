@@ -1388,14 +1388,7 @@ workflows:
             - attach_workspace:
                 at: /
 
-  GCP-Daily-Services-Comp-3NReconnect-15N-4C:
-    triggers:
-      - schedule:
-          cron: "25 8 * * *"
-          filters:
-            branches:
-              only:
-                - master
+  GCP-Daily-Services-Comp-3NReconnect-15N-4C-lock-up:
     jobs:
       - build-platform-and-services
       - jrs-regression:
@@ -1597,6 +1590,7 @@ jobs:
             cd /swirlds-platform;
             sed -i -e 's/github.com/services-jrs-regression/g' .gitmodules;
             git submodule update --init --recursive --checkout;
+            cd regression; git checkout -b network-lock-up-test origin/network-lock-up-test ; cd -
             mvn --no-transfer-progress clean install -DskipTests;
 
       - run:
