@@ -26,7 +26,6 @@ import com.hedera.services.bdd.spec.HapiPropertySource;
 import com.hedera.services.bdd.spec.fees.FeeCalculator;
 import com.hedera.services.bdd.spec.queries.contract.HapiGetContractInfo;
 import com.hedera.services.bdd.spec.queries.crypto.HapiGetAccountInfo;
-import com.hedera.services.bdd.spec.queries.crypto.ReferenceType;
 import com.hedera.services.bdd.spec.transactions.HapiTxnOp;
 import com.hedera.services.bdd.spec.transactions.TxnUtils;
 import com.hedera.services.usage.token.TokenAssociateUsage;
@@ -58,7 +57,6 @@ public class HapiTokenAssociate extends HapiTxnOp<HapiTokenAssociate> {
 
 	private String account;
 	private List<String> tokens = new ArrayList<>();
-	private ReferenceType referenceType = ReferenceType.REGISTRY_NAME;
 
 	@Override
 	public HederaFunctionality type() {
@@ -73,12 +71,6 @@ public class HapiTokenAssociate extends HapiTxnOp<HapiTokenAssociate> {
 	public HapiTokenAssociate(String account, List<String> tokens) {
 		this.account = account;
 		this.tokens.addAll(tokens);
-	}
-
-	public HapiTokenAssociate(String reference, ReferenceType type, List<String> tokens) {
-		this.tokens.addAll(tokens);
-		this.referenceType = type;
-		this.account = reference;
 	}
 
 	@Override

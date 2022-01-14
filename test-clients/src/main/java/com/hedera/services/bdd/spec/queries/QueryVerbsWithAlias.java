@@ -21,15 +21,10 @@ package com.hedera.services.bdd.spec.queries;
  */
 
 import com.hedera.services.bdd.spec.queries.crypto.HapiGetAccountBalance;
-import com.hedera.services.bdd.spec.queries.crypto.HapiGetAccountInfo;
 import com.hedera.services.bdd.spec.queries.crypto.HapiGetAccountRecords;
 import com.hedera.services.bdd.spec.queries.crypto.ReferenceType;
 
 public class QueryVerbsWithAlias {
-	public static HapiGetAccountInfo getAliasedAccountInfo(final String sourceKey) {
-		return new HapiGetAccountInfo(sourceKey, ReferenceType.ALIAS_KEY_NAME);
-	}
-
 	public static HapiGetAccountRecords getAliasedAccountRecords(final String sourceKey) {
 		return new HapiGetAccountRecords(sourceKey, ReferenceType.ALIAS_KEY_NAME);
 	}

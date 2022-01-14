@@ -33,13 +33,13 @@ import static com.hedera.services.bdd.spec.HapiApiSpec.defaultHapiSpec;
 import static com.hedera.services.bdd.spec.assertions.AccountInfoAsserts.accountWith;
 import static com.hedera.services.bdd.spec.keys.SigControl.OFF;
 import static com.hedera.services.bdd.spec.keys.SigControl.ON;
+import static com.hedera.services.bdd.spec.queries.QueryVerbs.getAccountInfo;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getTxnRecord;
 import static com.hedera.services.bdd.spec.queries.QueryVerbsWithAlias.getAliasedAccountBalance;
-import static com.hedera.services.bdd.spec.queries.QueryVerbsWithAlias.getAliasedAccountInfo;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoCreate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoTransfer;
+import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoUpdate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.fileUpdate;
-import static com.hedera.services.bdd.spec.transactions.TxnVerbsWithAlias.cryptoUpdateAliased;
 import static com.hedera.services.bdd.spec.transactions.crypto.HapiCryptoTransfer.tinyBarsFromToWithAlias;
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.newKeyNamed;
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.sleepFor;
@@ -65,9 +65,9 @@ public class AutoAccountUpdateSuite extends HapiApiSuite {
 	protected List<HapiApiSpec> getSpecsInSuite() {
 		return List.of(new HapiApiSpec[] {
 						updateKeyOnAutoCreatedAccount(),
-//						accountCreatedAfterAliasAccountExpires(),
-//						modifySigRequiredAfterAutoAccountCreation(),
-//						accountCreatedAfterAliasAccountExpiresAndDelete()
+						accountCreatedAfterAliasAccountExpires(),
+						modifySigRequiredAfterAutoAccountCreation(),
+						accountCreatedAfterAliasAccountExpiresAndDelete()
 				}
 		);
 	}
@@ -84,15 +84,15 @@ public class AutoAccountUpdateSuite extends HapiApiSuite {
 						getTxnRecord("transferTxn").andAllChildRecords()
 								.hasChildRecordCount(1)
 								.hasAliasInChildRecord("testAlias", 0).logged(),
-						getAliasedAccountInfo("testAlias").has(accountWith()
+						getAccountInfo("testAlias").has(accountWith()
 								.autoRenew(THREE_MONTHS_IN_SECONDS)
 								.receiverSigReq(false)
 								.expectedBalanceWithChargedUsd((ONE_HUNDRED_HBARS), 0.05, 0.5))
 				).then(
 						/* change receiverSigRequired to false and validate */
-						cryptoUpdateAliased("testAlias").receiverSigRequired(true).signedBy(
+						cryptoUpdate("testAlias").receiverSigRequired(true).signedBy(
 								"testAlias", "payer", DEFAULT_PAYER),
-						getAliasedAccountInfo("testAlias").has(accountWith()
+						getAccountInfo("testAlias").has(accountWith()
 								.autoRenew(THREE_MONTHS_IN_SECONDS)
 								.receiverSigReq(true)
 								.expectedBalanceWithChargedUsd((ONE_HUNDRED_HBARS), 0.05, 0.5)),
@@ -108,7 +108,7 @@ public class AutoAccountUpdateSuite extends HapiApiSuite {
 								.via("transferTxn3")
 								.signedBy("testAlias", "payer", DEFAULT_PAYER),
 						getTxnRecord("transferTxn3").andAllChildRecords().hasChildRecordCount(0),
-						getAliasedAccountInfo("testAlias").has(
+						getAccountInfo("testAlias").has(
 								accountWith()
 										.expectedBalanceWithChargedUsd((2 * ONE_HUNDRED_HBARS), 0.05, 0.5))
 				);
@@ -127,12 +127,12 @@ public class AutoAccountUpdateSuite extends HapiApiSuite {
 						cryptoTransfer(tinyBarsFromToWithAlias("randomPayer", "alias", ONE_HUNDRED_HBARS)).via(
 								"transferTxn"),
 						getTxnRecord("transferTxn").andAllChildRecords().logged(),
-						getAliasedAccountInfo("alias").has(accountWith()
+						getAccountInfo("alias").has(accountWith()
 								.autoRenew(THREE_MONTHS_IN_SECONDS)
 								.expectedBalanceWithChargedUsd((ONE_HUNDRED_HBARS), 1, 10))
 				).then(
 						/* update auto renew period */
-						cryptoUpdateAliased("alias").autoRenewPeriod(briefAutoRenew).signedBy(
+						cryptoUpdate("alias").autoRenewPeriod(briefAutoRenew).signedBy(
 								"alias", "randomPayer", DEFAULT_PAYER),
 						sleepFor(2 * briefAutoRenew * 1_000L + 500L),
 						getAliasedAccountBalance("alias"),
@@ -141,7 +141,7 @@ public class AutoAccountUpdateSuite extends HapiApiSuite {
 						cryptoTransfer(tinyBarsFromToWithAlias("randomPayer", "alias", ONE_HUNDRED_HBARS)).via(
 								"transferTxn2"),
 						getTxnRecord("transferTxn2").andAllChildRecords().hasChildRecordCount(0),
-						getAliasedAccountInfo("alias").has(
+						getAccountInfo("alias").has(
 								accountWith()
 										.expectedBalanceWithChargedUsd((2 * ONE_HUNDRED_HBARS), 1, 10)),
 
@@ -168,16 +168,16 @@ public class AutoAccountUpdateSuite extends HapiApiSuite {
 								"transferTxn"),
 
 						getTxnRecord("transferTxn").andAllChildRecords().logged(),
-						getAliasedAccountInfo("alias").has(accountWith()
+						getAccountInfo("alias").has(accountWith()
 								.expectedBalanceWithChargedUsd(ONE_HUNDRED_HBARS, 0.05, 0.1)
 								.alias("alias"))
 				).then(
 						/* validate the key on account can be updated to complex key, and has no relation to alias*/
-						cryptoUpdateAliased("alias")
+						cryptoUpdate("alias")
 								.key("complexKey")
 								.payingWith("payer")
 								.signedBy("alias", "complexKey", "payer", DEFAULT_PAYER),
-						getAliasedAccountInfo("alias").has(
+						getAccountInfo("alias").has(
 								accountWith()
 										.expectedBalanceWithChargedUsd((ONE_HUNDRED_HBARS), 0.05, 0.1)
 										.key("complexKey")));
@@ -186,7 +186,7 @@ public class AutoAccountUpdateSuite extends HapiApiSuite {
 	// Can't be done without property change, since auto-renew period can't be reduced from 3 months after create.
 	private HapiApiSpec accountCreatedAfterAliasAccountExpiresAndDelete() {
 		final var briefAutoRenew = 3L;
-		return defaultHapiSpec("AccountCreatedAfterAliasAccountExpires")
+		return defaultHapiSpec("AccountCreatedAfterAliasAccountExpiresAndDeleted")
 				.given(
 						newKeyNamed("alias"),
 						fileUpdate(APP_PROPERTIES).payingWith(GENESIS)
@@ -196,10 +196,10 @@ public class AutoAccountUpdateSuite extends HapiApiSuite {
 						cryptoTransfer(tinyBarsFromToWithAlias("randomPayer", "alias", ONE_HUNDRED_HBARS)).via(
 								"transferTxn"),
 						getTxnRecord("transferTxn").andAllChildRecords().logged(),
-						getAliasedAccountInfo("alias").has(accountWith().autoRenew(THREE_MONTHS_IN_SECONDS))
+						getAccountInfo("alias").has(accountWith().autoRenew(THREE_MONTHS_IN_SECONDS))
 				).then(
 						/* update auto renew period */
-						cryptoUpdateAliased("alias").autoRenewPeriod(briefAutoRenew).signedBy(
+						cryptoUpdate("alias").autoRenewPeriod(briefAutoRenew).signedBy(
 								"alias", "randomPayer"),
 						sleepFor(2 * briefAutoRenew * 1_000L + 500L),
 						getAliasedAccountBalance("alias").hasAnswerOnlyPrecheck(INVALID_ACCOUNT_ID),

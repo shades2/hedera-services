@@ -38,7 +38,6 @@ import static com.hedera.services.bdd.spec.queries.QueryVerbs.getAccountBalance;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getAccountInfo;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getTokenInfo;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getTxnRecord;
-import static com.hedera.services.bdd.spec.queries.QueryVerbsWithAlias.getAliasedAccountInfo;
 import static com.hedera.services.bdd.spec.queries.crypto.ExpectedTokenRel.relationshipWith;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.burnToken;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoCreate;
@@ -51,12 +50,6 @@ import static com.hedera.services.bdd.spec.transactions.TxnVerbs.tokenCreate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.tokenFreeze;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.tokenUnfreeze;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.wipeTokenAccount;
-import static com.hedera.services.bdd.spec.transactions.TxnVerbsWithAlias.grantTokenKycAliased;
-import static com.hedera.services.bdd.spec.transactions.TxnVerbsWithAlias.revokeTokenKycAliased;
-import static com.hedera.services.bdd.spec.transactions.TxnVerbsWithAlias.tokenAssociateAliased;
-import static com.hedera.services.bdd.spec.transactions.TxnVerbsWithAlias.tokenFreezeAliased;
-import static com.hedera.services.bdd.spec.transactions.TxnVerbsWithAlias.tokenUnfreezeAliased;
-import static com.hedera.services.bdd.spec.transactions.TxnVerbsWithAlias.wipeTokenAccountAliased;
 import static com.hedera.services.bdd.spec.transactions.crypto.HapiCryptoTransfer.tinyBarsFromToWithAlias;
 import static com.hedera.services.bdd.spec.transactions.token.TokenMovement.moving;
 import static com.hedera.services.bdd.spec.utilops.CustomSpecAssert.allRunFor;
@@ -139,30 +132,32 @@ public class TokenManagementSpecs extends HapiApiSuite {
 								.kycKey("kycKey")
 								.wipeKey("wipeKey")
 								.treasury(DEFAULT_PAYER),
-						tokenAssociateAliased(validAlias, "tokenA")
+						tokenAssociate(validAlias, "tokenA")
 				)
 				.then(
-						grantTokenKycAliased(token, validAlias),
-						grantTokenKycAliased(token, invalidAlias).hasKnownStatus(INVALID_ALIAS_KEY),
+						grantTokenKyc(token, validAlias),
+						grantTokenKyc(token, invalidAlias).hasKnownStatus(INVALID_ALIAS_KEY),
 
-						tokenUnfreezeAliased(token, validAlias),
-						tokenUnfreezeAliased(token, invalidAlias).hasKnownStatus(INVALID_ALIAS_KEY),
+						tokenUnfreeze(token, validAlias),
+						tokenUnfreeze(token, invalidAlias).hasKnownStatus(INVALID_ALIAS_KEY),
 						cryptoTransfer(
 								moving(500, token).between(DEFAULT_PAYER, validAlias)),
-						getAliasedAccountInfo(validAlias)
+						getAccountInfo(validAlias)
 								.hasToken(relationshipWith(token).balance(500))
 								.logged(),
-						revokeTokenKycAliased(token, validAlias),
-						revokeTokenKycAliased(token, invalidAlias).hasKnownStatus(INVALID_ALIAS_KEY),
+						revokeTokenKyc(token, validAlias),
+						revokeTokenKyc(token, invalidAlias).hasKnownStatus(INVALID_ALIAS_KEY),
 
-						tokenFreezeAliased(token, validAlias),
-						tokenFreezeAliased(token, invalidAlias).hasKnownStatus(INVALID_ALIAS_KEY),
+						tokenFreeze(token, validAlias),
+						tokenFreeze(token, invalidAlias).hasKnownStatus(INVALID_ALIAS_KEY),
+						tokenUnfreeze(token, validAlias),
+						grantTokenKyc(token, validAlias),
 
-						wipeTokenAccountAliased(token, validAlias, 250).hasKnownStatus(ACCOUNT_FROZEN_FOR_TOKEN),
-						wipeTokenAccountAliased(token, invalidAlias, 250).hasKnownStatus(INVALID_ALIAS_KEY),
+						wipeTokenAccount(token, validAlias, 250),
+						wipeTokenAccount(token, invalidAlias, 250).hasKnownStatus(INVALID_ALIAS_KEY),
 
-						getAliasedAccountInfo(validAlias)
-								.hasToken(relationshipWith(token).balance(500))
+						getAccountInfo(validAlias)
+								.hasToken(relationshipWith(token).balance(250))
 								.logged()
 				);
 	}

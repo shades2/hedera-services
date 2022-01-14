@@ -22,7 +22,6 @@ package com.hedera.services.bdd.spec.transactions.token;
 
 import com.google.common.base.MoreObjects;
 import com.hedera.services.bdd.spec.HapiApiSpec;
-import com.hedera.services.bdd.spec.queries.crypto.ReferenceType;
 import com.hedera.services.bdd.spec.transactions.HapiTxnOp;
 import com.hedera.services.bdd.spec.transactions.TxnUtils;
 import com.hedera.services.usage.token.TokenGrantKycUsage;
@@ -50,7 +49,6 @@ public class HapiTokenKycGrant extends HapiTxnOp<HapiTokenKycGrant> {
 
 	private String token;
 	private String account;
-	private ReferenceType referenceType = ReferenceType.REGISTRY_NAME;
 
 	@Override
 	public HederaFunctionality type() {
@@ -60,12 +58,6 @@ public class HapiTokenKycGrant extends HapiTxnOp<HapiTokenKycGrant> {
 	public HapiTokenKycGrant(String token, String account) {
 		this.token = token;
 		this.account = account;
-	}
-
-	public HapiTokenKycGrant(String token, String account, ReferenceType type) {
-		this.token = token;
-		this.account = account;
-		this.referenceType = type;
 	}
 
 	@Override

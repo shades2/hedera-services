@@ -30,7 +30,6 @@ import com.hedera.services.bdd.spec.HapiPropertySource;
 import com.hedera.services.bdd.spec.fees.AdapterUtils;
 import com.hedera.services.bdd.spec.fees.FeeCalculator;
 import com.hedera.services.bdd.spec.queries.crypto.HapiGetAccountInfo;
-import com.hedera.services.bdd.spec.queries.crypto.ReferenceType;
 import com.hedera.services.bdd.spec.transactions.HapiTxnOp;
 import com.hedera.services.bdd.spec.transactions.TxnUtils;
 import com.hedera.services.bdd.suites.HapiApiSuite;
@@ -58,7 +57,6 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getAccountInfo;
-import static com.hedera.services.bdd.spec.queries.QueryVerbsWithAlias.getAliasedAccountInfo;
 import static com.hedera.services.bdd.spec.transactions.TxnUtils.asIdForKeyLookUp;
 import static com.hedera.services.bdd.spec.transactions.TxnUtils.defaultUpdateSigners;
 import static com.hedera.services.bdd.spec.transactions.TxnUtils.suFrom;
@@ -70,7 +68,6 @@ public class HapiCryptoUpdate extends HapiTxnOp<HapiCryptoUpdate> {
 	private boolean useContractKey = false;
 	private boolean skipNewKeyRegistryUpdate = false;
 	private String account;
-	private String aliasKeySource = null;
 	private OptionalLong sendThreshold = OptionalLong.empty();
 	private Optional<Key> updKey = Optional.empty();
 	private OptionalLong newExpiry = OptionalLong.empty();
@@ -81,19 +78,9 @@ public class HapiCryptoUpdate extends HapiTxnOp<HapiCryptoUpdate> {
 	private Optional<String> updKeyName = Optional.empty();
 	private Optional<Boolean> updSigRequired = Optional.empty();
 	private Optional<Integer> newMaxAutomaticAssociations = Optional.empty();
-	private ReferenceType referenceType = ReferenceType.REGISTRY_NAME;
 
 	public HapiCryptoUpdate(String account) {
 		this.account = account;
-	}
-
-	public HapiCryptoUpdate(String reference, ReferenceType type) {
-		this.referenceType = type;
-		if (type == ReferenceType.ALIAS_KEY_NAME) {
-			aliasKeySource = reference;
-		} else {
-			account = reference;
-		}
 	}
 
 	public HapiCryptoUpdate notUpdatingRegistryWithNewKey() {
@@ -170,13 +157,7 @@ public class HapiCryptoUpdate extends HapiTxnOp<HapiCryptoUpdate> {
 			updKey = updKeyName.map(spec.registry()::getKey);
 		} catch (Exception ignore) {
 		}
-		AccountID id;
-
-		if (referenceType == ReferenceType.REGISTRY_NAME) {
-			id = TxnUtils.asId(account, spec);
-		} else {
-			id = asIdForKeyLookUp(aliasKeySource, spec);
-		}
+		AccountID id = asIdForKeyLookUp(account, spec);
 
 		CryptoUpdateTransactionBody opBody = spec
 				.txns()
@@ -246,12 +227,7 @@ public class HapiCryptoUpdate extends HapiTxnOp<HapiCryptoUpdate> {
 	}
 
 	private CryptoGetInfoResponse.AccountInfo lookupInfo(HapiApiSpec spec) throws Throwable {
-		HapiGetAccountInfo subOp;
-		if (referenceType == ReferenceType.ALIAS_KEY_NAME) {
-			subOp = getAliasedAccountInfo(aliasKeySource).noLogging();
-		} else {
-			subOp = getAccountInfo(account).noLogging();
-		}
+		HapiGetAccountInfo subOp = getAccountInfo(account).noLogging();;
 		Optional<Throwable> error = subOp.execFor(spec);
 		if (error.isPresent()) {
 			if (!loggingOff) {

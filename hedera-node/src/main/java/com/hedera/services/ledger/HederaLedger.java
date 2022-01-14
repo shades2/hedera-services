@@ -488,6 +488,7 @@ public class HederaLedger {
 	}
 
 	public AliasLookup lookUpAccountId(final AccountID grpcId) {
+		// TODO discuss the error response code.
 		return tokenStore.lookUpAccountId(grpcId, INVALID_ACCOUNT_ID);
 	}
 

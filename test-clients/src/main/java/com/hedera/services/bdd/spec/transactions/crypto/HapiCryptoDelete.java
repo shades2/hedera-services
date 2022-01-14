@@ -22,7 +22,6 @@ package com.hedera.services.bdd.spec.transactions.crypto;
 
 import com.google.common.base.MoreObjects;
 import com.hedera.services.bdd.spec.HapiApiSpec;
-import com.hedera.services.bdd.spec.queries.crypto.ReferenceType;
 import com.hedera.services.bdd.spec.transactions.HapiTxnOp;
 import com.hedera.services.bdd.spec.transactions.TxnUtils;
 import com.hederahashgraph.api.proto.java.AccountID;
@@ -47,25 +46,11 @@ public class HapiCryptoDelete extends HapiTxnOp<HapiCryptoDelete> {
 	static final Logger log = LogManager.getLogger(HapiCryptoDelete.class);
 
 	private String account;
-	private String aliasKeySource = null;
 	private boolean shouldPurge = false;
 	private Optional<String> transferAccount = Optional.empty();
 
-	private ReferenceType referenceType = ReferenceType.REGISTRY_NAME;
-	private ReferenceType transferAccountRefType = ReferenceType.REGISTRY_NAME;
-
 	public HapiCryptoDelete(String account) {
 		this.account = account;
-	}
-
-	public HapiCryptoDelete(String reference, ReferenceType type) {
-		this.referenceType = type;
-		if (type == ReferenceType.ALIAS_KEY_NAME) {
-			aliasKeySource = reference;
-//			account = reference;
-		} else {
-			account = reference;
-		}
 	}
 
 	@Override
@@ -79,12 +64,6 @@ public class HapiCryptoDelete extends HapiTxnOp<HapiCryptoDelete> {
 	}
 
 	public HapiCryptoDelete transfer(String to) {
-		transferAccount = Optional.of(to);
-		return this;
-	}
-
-	public HapiCryptoDelete transferAliased(String to) {
-		transferAccountRefType = ReferenceType.ALIAS_KEY_NAME;
 		transferAccount = Optional.of(to);
 		return this;
 	}
@@ -104,13 +83,7 @@ public class HapiCryptoDelete extends HapiTxnOp<HapiCryptoDelete> {
 
 	@Override
 	protected Consumer<TransactionBody.Builder> opBodyDef(HapiApiSpec spec) throws Throwable {
-		AccountID target;
-
-		if (referenceType == ReferenceType.REGISTRY_NAME) {
-			target = TxnUtils.asId(account, spec);
-		} else {
-			target = TxnUtils.asIdForKeyLookUp(aliasKeySource, spec);
-		}
+		AccountID target = TxnUtils.asIdForKeyLookUp(account, spec);
 
 		CryptoDeleteTransactionBody opBody = spec
 				.txns()
@@ -129,15 +102,11 @@ public class HapiCryptoDelete extends HapiTxnOp<HapiCryptoDelete> {
 		}
 		if (shouldPurge) {
 			spec.registry().removeAccount(account);
-			if (spec.registry().hasKey(account)) {
-				spec.registry().removeKey(account);
-			}
+//			if (spec.registry().hasKey(account)) {
+//				spec.registry().removeKey(account);
+//			}
 			if (spec.registry().hasSigRequirement(account)) {
 				spec.registry().removeSigRequirement(account);
-			}
-			if (spec.registry().hasKey(aliasKeySource)) {
-				final var lookedUpKey = spec.registry().getKey(aliasKeySource).toByteString().toStringUtf8();
-				spec.registry().removeAccount(lookedUpKey);
 			}
 		}
 	}
@@ -146,7 +115,7 @@ public class HapiCryptoDelete extends HapiTxnOp<HapiCryptoDelete> {
 	protected List<Function<HapiApiSpec, Key>> defaultSigners() {
 		List<Function<HapiApiSpec, Key>> deleteSigners = new ArrayList<>();
 		deleteSigners.addAll(super.defaultSigners());
-		deleteSigners.add(spec -> spec.registry().getKey(referenceType == ReferenceType.REGISTRY_NAME ? account : aliasKeySource));
+		deleteSigners.add(spec -> spec.registry().getKey(account));
 		deleteSigners.add(spec -> spec.registry().getKey(transferAccount.orElse(spec.setup().defaultTransferName())));
 		return deleteSigners;
 	}
@@ -159,8 +128,7 @@ public class HapiCryptoDelete extends HapiTxnOp<HapiCryptoDelete> {
 	@Override
 	protected MoreObjects.ToStringHelper toStringHelper() {
 		return super.toStringHelper()
-				.add("account", account)
-				.add("alias", aliasKeySource);
+				.add("account", account);
 	}
 
 

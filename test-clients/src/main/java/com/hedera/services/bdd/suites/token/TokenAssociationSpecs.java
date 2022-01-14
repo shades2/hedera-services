@@ -47,7 +47,6 @@ import static com.hedera.services.bdd.spec.queries.QueryVerbs.getAccountBalance;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getAccountInfo;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getContractInfo;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getTxnRecord;
-import static com.hedera.services.bdd.spec.queries.QueryVerbsWithAlias.getAliasedAccountInfo;
 import static com.hedera.services.bdd.spec.queries.crypto.ExpectedTokenRel.relationshipWith;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.contractCreate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoCreate;
@@ -60,8 +59,6 @@ import static com.hedera.services.bdd.spec.transactions.TxnVerbs.tokenDelete;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.tokenDissociate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.tokenFreeze;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.tokenUnfreeze;
-import static com.hedera.services.bdd.spec.transactions.TxnVerbsWithAlias.tokenAssociateAliased;
-import static com.hedera.services.bdd.spec.transactions.TxnVerbsWithAlias.tokenDissociateAliased;
 import static com.hedera.services.bdd.spec.transactions.crypto.HapiCryptoTransfer.tinyBarsFromToWithAlias;
 import static com.hedera.services.bdd.spec.transactions.token.TokenMovement.moving;
 import static com.hedera.services.bdd.spec.utilops.CustomSpecAssert.allRunFor;
@@ -142,16 +139,16 @@ public class TokenAssociationSpecs extends HapiApiSuite {
 								.treasury(DEFAULT_PAYER)
 				)
 				.then(
-						tokenAssociateAliased("validAlias", "tokenA"),
-						tokenAssociateAliased("invalidAlias", "tokenA")
+						tokenAssociate("validAlias", "tokenA"),
+						tokenAssociate("invalidAlias", "tokenA")
 								.hasKnownStatus(INVALID_ALIAS_KEY),
-						getAliasedAccountInfo("validAlias")
+						getAccountInfo("validAlias")
 								.hasToken(relationshipWith("tokenA"))
 								.logged(),
-						tokenDissociateAliased("validAlias", "tokenA"),
-						tokenDissociateAliased("invalidAlias", "tokenA")
+						tokenDissociate("validAlias", "tokenA"),
+						tokenDissociate("invalidAlias", "tokenA")
 								.hasKnownStatus(INVALID_ALIAS_KEY),
-						getAliasedAccountInfo("validAlias")
+						getAccountInfo("validAlias")
 								.hasNoTokenRelationship("tokenA")
 								.logged()
 				);
@@ -525,7 +522,7 @@ public class TokenAssociationSpecs extends HapiApiSuite {
 		final var secondMeta = ByteString.copyFrom("SECOND".getBytes(StandardCharsets.UTF_8));
 		final var thirdMeta = ByteString.copyFrom("THIRD".getBytes(StandardCharsets.UTF_8));
 
-		return defaultHapiSpec("DissociateHasExpectedSemanticsForDeletedTokens")
+		return defaultHapiSpec("DissociateHasExpectedSemanticsForDissociatedContracts")
 				.given(
 						newKeyNamed(multiKey),
 						cryptoCreate(TOKEN_TREASURY).balance(0L).maxAutomaticTokenAssociations(542),
