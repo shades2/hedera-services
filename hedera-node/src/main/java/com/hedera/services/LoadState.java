@@ -10,6 +10,8 @@ import com.swirlds.common.constructable.ConstructableRegistry;
 import com.swirlds.common.constructable.ConstructableRegistryException;
 import com.swirlds.common.crypto.CryptoFactory;
 import com.swirlds.common.crypto.Hash;
+import com.swirlds.common.io.SerializableDataOutputStream;
+import com.swirlds.common.merkle.MerkleLeaf;
 import com.swirlds.common.merkle.MerkleNode;
 import com.swirlds.common.merkle.iterators.MerkleDepthFirstIterator;
 import com.swirlds.common.merkle.iterators.MerkleRandomHashIterator;
@@ -27,6 +29,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 
 public class LoadState {
@@ -131,6 +134,47 @@ public class LoadState {
 
 	}
 
+	// Extract all FCQueue instances that are start with the route 0->4
+	private static void extractFCQueues(final State stateA, final State stateB) throws IOException {
+
+		final List<MerkleLeaf> nodeAList = new LinkedList<>();
+		final List<MerkleLeaf> nodeBList = new LinkedList<>();
+
+		final MerkleRoute baseRoute = MerkleRouteFactory.buildRoute(0, 4);
+		final Iterator<MerkleNode> iterator = new ComparisonIterator(stateA, stateB);
+
+		iterator.forEachRemaining((final MerkleNode nodeA) -> {
+			MerkleNode nodeB = null;
+			try {
+				nodeB = stateB.getNodeAtRoute(nodeA.getRoute());
+			} catch (final Exception ignored) {
+
+			}
+
+			if (nodeA == null || nodeB == null) {
+				return;
+			}
+
+			if (!nodeA.getRoute().isDescendantOf(baseRoute)) {
+				return;
+			}
+
+			if (!nodeA.getHash().equals(nodeB.getHash()) && nodeA.getClassId() == 139236190103L) {
+				nodeAList.add(nodeA.cast());
+				nodeBList.add(nodeB.cast());
+			}
+		});
+
+		final SerializableDataOutputStream out =
+				new SerializableDataOutputStream(new FileOutputStream("fcqueue-dump.dat"));
+
+		out.writeSerializableList(nodeAList, true, false);
+		out.writeSerializableList(nodeBList, true, false);
+
+		out.close();
+
+	}
+
 	private static final List<Integer> steps =
 			List.of(0, 4, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1);
 	private static final MerkleRoute route = MerkleRouteFactory.buildRoute(steps);
@@ -193,9 +237,10 @@ public class LoadState {
 			System.out.println("Hash A: " + stateA.getHash());
 			System.out.println("Hash B: " + stateB.getHash());
 
-			compareStates(stateA, stateB);
+//			compareStates(stateA, stateB);
 //			lookAtBadLeaves(stateA, stateB);
 //			extractContract(stateA);
+			extractFCQueues(stateA, stateB);
 
 		} catch (final Exception ex) {
 			ex.printStackTrace();
