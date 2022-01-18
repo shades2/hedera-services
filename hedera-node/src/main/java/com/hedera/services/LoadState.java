@@ -1,6 +1,7 @@
 package com.hedera.services;
 
 import com.hedera.services.state.merkle.MerkleAccount;
+import com.hedera.services.state.merkle.MerkleAccountState;
 import com.hedera.services.state.submerkle.ExpirableTxnRecord;
 import com.hedera.services.state.virtual.VirtualBlobKey;
 import com.hedera.services.state.virtual.VirtualBlobValue;
@@ -14,10 +15,10 @@ import com.swirlds.common.io.SerializableDataOutputStream;
 import com.swirlds.common.merkle.MerkleLeaf;
 import com.swirlds.common.merkle.MerkleNode;
 import com.swirlds.common.merkle.iterators.MerkleDepthFirstIterator;
-import com.swirlds.common.merkle.iterators.MerkleRandomHashIterator;
 import com.swirlds.common.merkle.route.MerkleRoute;
 import com.swirlds.common.merkle.route.MerkleRouteFactory;
 import com.swirlds.fcqueue.FCQueue;
+import com.swirlds.merkle.map.MerkleMap;
 import com.swirlds.platform.SignedStateFileManager;
 import com.swirlds.platform.state.SignedState;
 import com.swirlds.platform.state.State;
@@ -25,12 +26,13 @@ import org.apache.commons.lang3.tuple.Pair;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 
 public class LoadState {
 
@@ -137,10 +139,8 @@ public class LoadState {
 	// Extract all FCQueue instances that are start with the route 0->4
 	private static void extractFCQueues(final State stateA, final State stateB) throws IOException {
 
-		final List<MerkleLeaf> nodeAList = new LinkedList<>();
-		final List<MerkleLeaf> nodeBList = new LinkedList<>();
+		final Set<EntityNum> fishyKeys = new HashSet<>();
 
-		final MerkleRoute baseRoute = MerkleRouteFactory.buildRoute(0, 4);
 		final Iterator<MerkleNode> iterator = new ComparisonIterator(stateA, stateB);
 
 		iterator.forEachRemaining((final MerkleNode nodeA) -> {
@@ -151,25 +151,57 @@ public class LoadState {
 
 			}
 
-			if (nodeA == null || nodeB == null) {
+			if (nodeA == null) {
+
+				if (nodeB instanceof MerkleAccountState) {
+					fishyKeys.add(new EntityNum(((MerkleAccountState) nodeB).number()));
+				}
+
 				return;
 			}
 
-			if (!nodeA.getRoute().isDescendantOf(baseRoute)) {
+			if (nodeB == null) {
+
+				if (nodeA instanceof MerkleAccountState) {
+					fishyKeys.add(new EntityNum(((MerkleAccountState) nodeA).number()));
+				}
+
 				return;
 			}
 
-			if (!nodeA.getHash().equals(nodeB.getHash()) && nodeA.getClassId() == 139236190103L) {
-				nodeAList.add(nodeA.cast());
-				nodeBList.add(nodeB.cast());
+			if (!nodeA.getHash().equals(nodeB.getHash())) {
+
+				if (nodeA instanceof MerkleAccountState) {
+					fishyKeys.add(new EntityNum(((MerkleAccountState) nodeA).number()));
+				}
+
+				if (nodeB instanceof MerkleAccountState) {
+					fishyKeys.add(new EntityNum(((MerkleAccountState) nodeB).number()));
+				}
 			}
 		});
+
+		final MerkleMap<EntityNum, MerkleAccount> mapA = ((ServicesState) stateA.getSwirldState()).accounts();
+		final MerkleMap<EntityNum, MerkleAccount> mapB = ((ServicesState) stateB.getSwirldState()).accounts();
+
+		final List<FCQueue<ExpirableTxnRecord>> nodeAList = new LinkedList<>();
+		final List<FCQueue<ExpirableTxnRecord>> nodeBList = new LinkedList<>();
+
+		for (final EntityNum key : fishyKeys) {
+			final MerkleAccount accountA = mapA.get(key);
+			nodeAList.add(accountA == null ? null : accountA.records());
+
+			final MerkleAccount accountB = mapB.get(key);
+			nodeBList.add(accountB == null ? null : accountB.records());
+		}
 
 		final SerializableDataOutputStream out =
 				new SerializableDataOutputStream(new FileOutputStream("fcqueue-dump.dat"));
 
 		out.writeSerializableList(nodeAList, true, false);
 		out.writeSerializableList(nodeBList, true, false);
+
+		System.out.println("Wrote " + nodeAList + " fishy values");
 
 		out.close();
 
