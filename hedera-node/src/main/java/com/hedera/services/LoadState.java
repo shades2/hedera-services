@@ -1,18 +1,26 @@
 package com.hedera.services;
 
+import com.hedera.services.legacy.core.jproto.TxnReceipt;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.state.merkle.MerkleAccountState;
+import com.hedera.services.state.submerkle.CurrencyAdjustments;
+import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.state.submerkle.ExpirableTxnRecord;
+import com.hedera.services.state.submerkle.FcTokenAssociation;
+import com.hedera.services.state.submerkle.NftAdjustments;
+import com.hedera.services.state.submerkle.SolidityFnResult;
+import com.hedera.services.state.submerkle.TxnId;
 import com.hedera.services.state.virtual.VirtualBlobKey;
 import com.hedera.services.state.virtual.VirtualBlobValue;
 import com.hedera.services.utils.EntityNum;
 import com.swirlds.blob.internal.db.DbManager;
+import com.swirlds.common.constructable.ClassConstructorPair;
 import com.swirlds.common.constructable.ConstructableRegistry;
 import com.swirlds.common.constructable.ConstructableRegistryException;
 import com.swirlds.common.crypto.CryptoFactory;
 import com.swirlds.common.crypto.Hash;
+import com.swirlds.common.io.SerializableDataInputStream;
 import com.swirlds.common.io.SerializableDataOutputStream;
-import com.swirlds.common.merkle.MerkleLeaf;
 import com.swirlds.common.merkle.MerkleNode;
 import com.swirlds.common.merkle.iterators.MerkleDepthFirstIterator;
 import com.swirlds.common.merkle.route.MerkleRoute;
@@ -26,8 +34,10 @@ import org.apache.commons.lang3.tuple.Pair;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -247,11 +257,70 @@ public class LoadState {
 
 	}
 
-	public static void main(final String[] args) {
+	public static void main(final String[] args) throws ConstructableRegistryException {
+
+		ConstructableRegistry.registerConstructable(
+				new ClassConstructorPair(ExpirableTxnRecord.class, ExpirableTxnRecord::new));
+		ConstructableRegistry.registerConstructable(new ClassConstructorPair(TxnReceipt.class, TxnReceipt::new));
+		ConstructableRegistry.registerConstructable(new ClassConstructorPair(MerkleAccount.class, MerkleAccount::new));
+		ConstructableRegistry.registerConstructable(new ClassConstructorPair(TxnId.class, TxnId::new));
+		ConstructableRegistry.registerConstructable(
+				new ClassConstructorPair(CurrencyAdjustments.class, CurrencyAdjustments::new));
+		ConstructableRegistry.registerConstructable(new ClassConstructorPair(EntityId.class, EntityId::new));
+		ConstructableRegistry.registerConstructable(new ClassConstructorPair(NftAdjustments.class,
+				NftAdjustments::new));
+		ConstructableRegistry.registerConstructable(
+				new ClassConstructorPair(FcTokenAssociation.class, FcTokenAssociation::new));
+		ConstructableRegistry.registerConstructable(
+				new ClassConstructorPair(SolidityFnResult.class, SolidityFnResult::new));
 
 		try {
 
 			registerConstructables();
+
+			final File file = new File("/Users/codylittley/fcqueue-dump.dat");
+			final SerializableDataInputStream in = new SerializableDataInputStream(new FileInputStream(file));
+
+			final List<FCQueue<ExpirableTxnRecord>> nodeAList = in.readSerializableList(Integer.MAX_VALUE);
+			final List<FCQueue<ExpirableTxnRecord>> nodeBList = in.readSerializableList(Integer.MAX_VALUE);
+
+			final List<FCQueue<ExpirableTxnRecord>> filteredA = new ArrayList<>();
+			final List<FCQueue<ExpirableTxnRecord>> filteredB = new ArrayList<>();
+
+			System.out.println("unfiltered size = " + nodeAList.size());
+
+			for (int i = 0; i < nodeAList.size(); i++) {
+				final FCQueue<ExpirableTxnRecord> a = nodeAList.get(i);
+				final FCQueue<ExpirableTxnRecord> b = nodeBList.get(i);
+
+				if (a == null || b == null) {
+					continue;
+				}
+
+				if (!a.getHash().equals(b.getHash())) {
+					filteredA.add(a);
+					filteredB.add(b);
+				}
+			}
+
+			System.out.println("filtered size = " + filteredA.size());
+
+			for (int i = 0; i < filteredA.size(); i++) {
+
+				final EntityId a = filteredA.get(i).peek() == null ? null : filteredA.get(
+						i).peek().getTxnId().getPayerAccount();
+				final EntityId b = filteredB.get(i).peek() == null ? null : filteredB.get(
+						i).peek().getTxnId().getPayerAccount();
+
+				System.out.println(i + ": " + a + " v " + b);
+
+				System.out.println(i + " sizes: " + filteredA.get(i).size() + ", " + filteredB.get(i).size());
+
+			}
+
+
+			/*
+
 
 			if (args.length != 2) {
 				System.err.println("Invalid number of arguments, 2 arguments expected (states to compare)");
@@ -273,6 +342,8 @@ public class LoadState {
 //			lookAtBadLeaves(stateA, stateB);
 //			extractContract(stateA);
 			extractFCQueues(stateA, stateB);
+			 */
+
 
 		} catch (final Exception ex) {
 			ex.printStackTrace();
