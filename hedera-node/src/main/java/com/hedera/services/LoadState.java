@@ -338,10 +338,13 @@ public class LoadState {
 			System.out.println("State A: " + stateA);
 			System.out.println("State B: " + stateB);
 
-//			System.out.println("Hash A: " + stateA.getHash());
-//			System.out.println("Hash B: " + stateB.getHash());
+			System.out.println("Hash A: " + stateA.getHash());
+			System.out.println("Hash B: " + stateB.getHash());
 
-//			compareStates(stateA, stateB);
+			System.out.println("Round A: " + stateA.getPlatformState().getRound());
+			System.out.println("Round B: " + stateB.getPlatformState().getRound());
+
+			compareStates(stateA, stateB);
 //			lookAtBadLeaves(stateA, stateB);
 //			extractContract(stateA);
 //			extractFCQueues(stateA, stateB);
