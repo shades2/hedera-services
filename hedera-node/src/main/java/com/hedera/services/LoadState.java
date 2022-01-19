@@ -344,10 +344,10 @@ public class LoadState {
 			System.out.println("Round A: " + stateA.getPlatformState().getRound());
 			System.out.println("Round B: " + stateB.getPlatformState().getRound());
 
-			compareStates(stateA, stateB);
+//			compareStates(stateA, stateB);
 //			lookAtBadLeaves(stateA, stateB);
 //			extractContract(stateA);
-//			extractFCQueues(stateA, stateB);
+			extractFCQueues(stateA, stateB);
 //			 */
 
 
