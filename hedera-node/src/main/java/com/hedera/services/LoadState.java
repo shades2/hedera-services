@@ -65,8 +65,8 @@ public class LoadState {
 			System.out.println("loading state @ " + stateFile);
 			final Pair<Hash, SignedState> pair = SignedStateFileManager.readSignedStateFromFile(stateFile);
 			final State state = pair.getRight().getState();
-			System.out.println("hashing state @ " + stateFile);
-			CryptoFactory.getInstance().digestTreeAsync(state).get();
+//			System.out.println("hashing state @ " + stateFile);
+//			CryptoFactory.getInstance().digestTreeAsync(state).get();
 			return state;
 
 		} catch (final Exception ex) {
@@ -259,6 +259,16 @@ public class LoadState {
 
 	}
 
+	private static void extractAccount(final State state) {
+
+		final ServicesState sstate = state.getSwirldState().cast();
+
+		final MerkleAccount account = sstate.accounts().get(new EntityNum(1870043));
+		System.out.println("-------------------------");
+		System.out.println(account);
+
+	}
+
 	public static void main(final String[] args) throws ConstructableRegistryException {
 
 //		ConstructableRegistry.registerConstructable(
@@ -349,9 +359,11 @@ public class LoadState {
 //			compareStates(stateA, stateB);
 //			lookAtBadLeaves(stateA, stateB);
 //			extractContract(stateA);
-			extractFCQueues(stateA, stateB);
+//			extractFCQueues(stateA, stateB);
 //			 */
 
+			extractAccount(stateA);
+			extractAccount(stateB);
 
 		} catch (final Exception ex) {
 			ex.printStackTrace();
