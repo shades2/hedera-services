@@ -259,67 +259,67 @@ public class LoadState {
 
 	public static void main(final String[] args) throws ConstructableRegistryException {
 
-		ConstructableRegistry.registerConstructable(
-				new ClassConstructorPair(ExpirableTxnRecord.class, ExpirableTxnRecord::new));
-		ConstructableRegistry.registerConstructable(new ClassConstructorPair(TxnReceipt.class, TxnReceipt::new));
-		ConstructableRegistry.registerConstructable(new ClassConstructorPair(MerkleAccount.class, MerkleAccount::new));
-		ConstructableRegistry.registerConstructable(new ClassConstructorPair(TxnId.class, TxnId::new));
-		ConstructableRegistry.registerConstructable(
-				new ClassConstructorPair(CurrencyAdjustments.class, CurrencyAdjustments::new));
-		ConstructableRegistry.registerConstructable(new ClassConstructorPair(EntityId.class, EntityId::new));
-		ConstructableRegistry.registerConstructable(new ClassConstructorPair(NftAdjustments.class,
-				NftAdjustments::new));
-		ConstructableRegistry.registerConstructable(
-				new ClassConstructorPair(FcTokenAssociation.class, FcTokenAssociation::new));
-		ConstructableRegistry.registerConstructable(
-				new ClassConstructorPair(SolidityFnResult.class, SolidityFnResult::new));
+//		ConstructableRegistry.registerConstructable(
+//				new ClassConstructorPair(ExpirableTxnRecord.class, ExpirableTxnRecord::new));
+//		ConstructableRegistry.registerConstructable(new ClassConstructorPair(TxnReceipt.class, TxnReceipt::new));
+//		ConstructableRegistry.registerConstructable(new ClassConstructorPair(MerkleAccount.class, MerkleAccount::new));
+//		ConstructableRegistry.registerConstructable(new ClassConstructorPair(TxnId.class, TxnId::new));
+//		ConstructableRegistry.registerConstructable(
+//				new ClassConstructorPair(CurrencyAdjustments.class, CurrencyAdjustments::new));
+//		ConstructableRegistry.registerConstructable(new ClassConstructorPair(EntityId.class, EntityId::new));
+//		ConstructableRegistry.registerConstructable(new ClassConstructorPair(NftAdjustments.class,
+//				NftAdjustments::new));
+//		ConstructableRegistry.registerConstructable(
+//				new ClassConstructorPair(FcTokenAssociation.class, FcTokenAssociation::new));
+//		ConstructableRegistry.registerConstructable(
+//				new ClassConstructorPair(SolidityFnResult.class, SolidityFnResult::new));
 
 		try {
 
-			registerConstructables();
+//			registerConstructables();
+//
+//			final File file = new File("/Users/codylittley/fcqueue-dump.dat");
+//			final SerializableDataInputStream in = new SerializableDataInputStream(new FileInputStream(file));
+//
+//			final List<FCQueue<ExpirableTxnRecord>> nodeAList = in.readSerializableList(Integer.MAX_VALUE);
+//			final List<FCQueue<ExpirableTxnRecord>> nodeBList = in.readSerializableList(Integer.MAX_VALUE);
+//
+//			final List<FCQueue<ExpirableTxnRecord>> filteredA = new ArrayList<>();
+//			final List<FCQueue<ExpirableTxnRecord>> filteredB = new ArrayList<>();
+//
+//			System.out.println("unfiltered size = " + nodeAList.size());
+//
+//			for (int i = 0; i < nodeAList.size(); i++) {
+//				final FCQueue<ExpirableTxnRecord> a = nodeAList.get(i);
+//				final FCQueue<ExpirableTxnRecord> b = nodeBList.get(i);
+//
+//				if (a == null || b == null) {
+//					continue;
+//				}
+//
+//				if (!a.getHash().equals(b.getHash())) {
+//					filteredA.add(a);
+//					filteredB.add(b);
+//				}
+//			}
+//
+//			System.out.println("filtered size = " + filteredA.size());
+//
+//			for (int i = 0; i < filteredA.size(); i++) {
+//
+//				final EntityId a = filteredA.get(i).peek() == null ? null : filteredA.get(
+//						i).peek().getTxnId().getPayerAccount();
+//				final EntityId b = filteredB.get(i).peek() == null ? null : filteredB.get(
+//						i).peek().getTxnId().getPayerAccount();
+//
+//				System.out.println(i + ": " + a + " v " + b);
+//
+//				System.out.println(i + " sizes: " + filteredA.get(i).size() + ", " + filteredB.get(i).size());
+//
+//			}
 
-			final File file = new File("/Users/codylittley/fcqueue-dump.dat");
-			final SerializableDataInputStream in = new SerializableDataInputStream(new FileInputStream(file));
 
-			final List<FCQueue<ExpirableTxnRecord>> nodeAList = in.readSerializableList(Integer.MAX_VALUE);
-			final List<FCQueue<ExpirableTxnRecord>> nodeBList = in.readSerializableList(Integer.MAX_VALUE);
-
-			final List<FCQueue<ExpirableTxnRecord>> filteredA = new ArrayList<>();
-			final List<FCQueue<ExpirableTxnRecord>> filteredB = new ArrayList<>();
-
-			System.out.println("unfiltered size = " + nodeAList.size());
-
-			for (int i = 0; i < nodeAList.size(); i++) {
-				final FCQueue<ExpirableTxnRecord> a = nodeAList.get(i);
-				final FCQueue<ExpirableTxnRecord> b = nodeBList.get(i);
-
-				if (a == null || b == null) {
-					continue;
-				}
-
-				if (!a.getHash().equals(b.getHash())) {
-					filteredA.add(a);
-					filteredB.add(b);
-				}
-			}
-
-			System.out.println("filtered size = " + filteredA.size());
-
-			for (int i = 0; i < filteredA.size(); i++) {
-
-				final EntityId a = filteredA.get(i).peek() == null ? null : filteredA.get(
-						i).peek().getTxnId().getPayerAccount();
-				final EntityId b = filteredB.get(i).peek() == null ? null : filteredB.get(
-						i).peek().getTxnId().getPayerAccount();
-
-				System.out.println(i + ": " + a + " v " + b);
-
-				System.out.println(i + " sizes: " + filteredA.get(i).size() + ", " + filteredB.get(i).size());
-
-			}
-
-
-			/*
+//			/*
 
 
 			if (args.length != 2) {
@@ -335,14 +335,17 @@ public class LoadState {
 			final State stateA = loadState(fileA);
 			final State stateB = loadState(fileB);
 
-			System.out.println("Hash A: " + stateA.getHash());
-			System.out.println("Hash B: " + stateB.getHash());
+			System.out.println("State A: " + stateA);
+			System.out.println("State B: " + stateB);
+
+//			System.out.println("Hash A: " + stateA.getHash());
+//			System.out.println("Hash B: " + stateB.getHash());
 
 //			compareStates(stateA, stateB);
 //			lookAtBadLeaves(stateA, stateB);
 //			extractContract(stateA);
-			extractFCQueues(stateA, stateB);
-			 */
+//			extractFCQueues(stateA, stateB);
+//			 */
 
 
 		} catch (final Exception ex) {
