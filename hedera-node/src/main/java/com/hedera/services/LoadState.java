@@ -276,7 +276,7 @@ public class LoadState {
 
 		try {
 
-//			registerConstructables();
+			registerConstructables();
 //
 //			final File file = new File("/Users/codylittley/fcqueue-dump.dat");
 //			final SerializableDataInputStream in = new SerializableDataInputStream(new FileInputStream(file));
