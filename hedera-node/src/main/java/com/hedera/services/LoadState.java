@@ -199,10 +199,12 @@ public class LoadState {
 
 		for (final EntityNum key : fishyKeys) {
 			final MerkleAccount accountA = mapA.get(key);
-			nodeAList.add(accountA == null ? null : accountA.records());
-
 			final MerkleAccount accountB = mapB.get(key);
-			nodeBList.add(accountB == null ? null : accountB.records());
+
+			if (accountA == null || accountB == null || !accountA.getHash().equals(accountB.getHash())) {
+				nodeAList.add(accountA == null ? null : accountA.records());
+				nodeBList.add(accountB == null ? null : accountB.records());
+			}
 		}
 
 		final SerializableDataOutputStream out =
