@@ -266,13 +266,10 @@ public class HTSPrecompiledContract extends AbstractPrecompiledContract {
 				blockTimestamp).build();
 		long gasPriceInTinybars = feeCalculator.get().estimatedGasPriceInTinybars(ContractCall, timestamp);
 
-		long calculatedFeeInTinybars = gasFeeInTinybars(
-				transactionBody.setTransactionID(TransactionID.newBuilder().setTransactionValidStart(
-						timestamp).build()), Instant.ofEpochSecond(blockTimestamp));
-
-		long minimumFeeInTinybars = precompile.getMinimumFeeInTinybars(timestamp);
-		long actualFeeInTinybars = Math.max(minimumFeeInTinybars, calculatedFeeInTinybars);
-
+		long actualFeeInTinybars = Math.max(
+				precompile.getMinimumFeeInTinybars(timestamp),
+				gasFeeInTinybars(transactionBody.setTransactionID(TransactionID.newBuilder().setTransactionValidStart(
+						timestamp).build()), Instant.ofEpochSecond(blockTimestamp)));
 
 		// convert to gas cost
 		Gas baseGasCost = Gas.of((actualFeeInTinybars + gasPriceInTinybars - 1) / gasPriceInTinybars);
