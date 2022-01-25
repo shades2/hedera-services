@@ -49,6 +49,7 @@ import com.hedera.services.state.merkle.MerkleTokenRelStatus;
 import com.hedera.services.state.merkle.MerkleUniqueToken;
 import com.hedera.services.state.submerkle.ExpirableTxnRecord;
 import com.hedera.services.state.submerkle.FcAssessedCustomFee;
+import com.hedera.services.state.submerkle.SolidityFnResult;
 import com.hedera.services.store.AccountStore;
 import com.hedera.services.store.TypedTokenStore;
 import com.hedera.services.store.contracts.AbstractLedgerWorldUpdater;
@@ -66,8 +67,10 @@ import com.hedera.services.txns.token.process.DissociationFactory;
 import com.hedera.services.txns.validation.OptionValidator;
 import com.hedera.services.utils.SignedTxnAccessor;
 import com.hedera.services.utils.TxnAccessor;
+import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.AccountAmount;
 import com.hederahashgraph.api.proto.java.AccountID;
+import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.SignatureMap;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
@@ -120,6 +123,8 @@ import static com.hederahashgraph.api.proto.java.TokenType.NON_FUNGIBLE_UNIQUE;
 @Singleton
 public class HTSPrecompiledContract extends AbstractPrecompiledContract {
 	private static final Logger log = LogManager.getLogger(HTSPrecompiledContract.class);
+
+	public static final String HTS_PRECOMPILED_CONTRACT_ADDRESS = "0x167";
 
 	private static final Bytes SUCCESS_RESULT = resultFrom(SUCCESS);
 	private static final Bytes STATIC_CALL_REVERT_REASON = Bytes.of("HTS precompiles are not static".getBytes());
@@ -349,6 +354,8 @@ public class HTSPrecompiledContract extends AbstractPrecompiledContract {
 		try {
 			childRecord = precompile.run(frame, ledgers);
 			result = precompile.getSuccessResultFor(childRecord);
+			addContractCallResultToRecord(childRecord, result);
+
 			ledgers.commit();
 		} catch (InvalidTransactionException e) {
 			final var status = e.getResponseCode();
@@ -369,6 +376,20 @@ public class HTSPrecompiledContract extends AbstractPrecompiledContract {
 			throw new InvalidTransactionException("HTS precompile frame had no parent updater", FAIL_INVALID);
 		}
 		return result;
+	}
+
+	private void addContractCallResultToRecord(final ExpirableTxnRecord.Builder childRecord, final Bytes result) {
+		// TODO: Populate log info when we have erc20 equivalence.
+		childRecord.setContractCallResult(
+			SolidityFnResult.fromGrpc(
+				ContractFunctionResult.newBuilder()
+						.setContractID(EntityIdUtils.contractParsedFromSolidityAddress(
+								Address.fromHexString(HTS_PRECOMPILED_CONTRACT_ADDRESS)))
+						.setGasUsed(this.gasRequirement.toLong())
+						.setContractCallResult(ByteString.copyFrom(result.toArray()))
+						.build()
+			)
+		);
 	}
 
 	/* --- Constructor functional interfaces for mocking --- */

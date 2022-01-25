@@ -52,9 +52,13 @@ import com.hedera.services.txns.token.process.DissociationFactory;
 import com.hedera.services.txns.validation.OptionValidator;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
+import com.hederahashgraph.api.proto.java.HederaFunctionality;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
+import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TransactionBody;
+import com.hederahashgraph.api.proto.java.TransactionID;
+import com.hederahashgraph.fee.FeeObject;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.units.bigints.UInt256;
@@ -184,6 +188,8 @@ class TransferPrecompilesTest {
 	@Mock
 	private FeeCalculator feeCalculator;
 	@Mock
+	private FeeObject mockFeeObject;
+	@Mock
 	private StateView stateView;
 	@Mock
 	private PrecompilePricingUtils precompilePricingUtils;
@@ -229,6 +235,9 @@ class TransferPrecompilesTest {
 
 	@Test
 	void transferTokenHappyPathWorks() {
+		final Timestamp timestamp = Timestamp.newBuilder().setSeconds(
+				1L).build();
+
 		givenMinimalFrameContext();
 		givenLedgers();
 
@@ -253,6 +262,16 @@ class TransferPrecompilesTest {
 				null,
 				recordsHistorian
 		)).willReturn(transferLogic);
+		given(feeCalculator.estimatedGasPriceInTinybars(HederaFunctionality.ContractCall, timestamp))
+				.willReturn(1L);
+		given(mockSynthBodyBuilder.build())
+				.willReturn(TransactionBody.newBuilder().setCryptoTransfer(cryptoTransferTransactionBody).build());
+		given(mockSynthBodyBuilder.setTransactionID(any(TransactionID.class)))
+				.willReturn(mockSynthBodyBuilder);
+		given(feeCalculator.computeFee(any(), any(), any(), any()))
+				.willReturn(mockFeeObject);
+		given(mockFeeObject.getServiceFee())
+				.willReturn(1L);
 		given(creator.createSuccessfulSyntheticRecord(Collections.emptyList(), sideEffects, EMPTY_MEMO))
 				.willReturn(mockRecordBuilder);
 		given(impliedTransfersMarshal.assessCustomFeesAndValidate(anyInt(), anyInt(), any(), any(), any()))
@@ -264,6 +283,7 @@ class TransferPrecompilesTest {
 
 		// when:
 		subject.prepareComputation(pretendArguments);
+		subject.computeGasRequirement(1L);
 		final var result = subject.computeInternal(frame);
 
 		// then:
@@ -303,6 +323,10 @@ class TransferPrecompilesTest {
 
 	@Test
 	void transferTokenWithSenderOnlyHappyPathWorks() {
+		final Timestamp timestamp = Timestamp.newBuilder().setSeconds(
+				1L).build();
+
+
 		givenMinimalFrameContext();
 		givenLedgers();
 
@@ -327,6 +351,16 @@ class TransferPrecompilesTest {
 				null,
 				recordsHistorian
 		)).willReturn(transferLogic);
+		given(feeCalculator.estimatedGasPriceInTinybars(HederaFunctionality.ContractCall, timestamp))
+				.willReturn(1L);
+		given(mockSynthBodyBuilder.build())
+				.willReturn(TransactionBody.newBuilder().setCryptoTransfer(cryptoTransferTransactionBody).build());
+		given(mockSynthBodyBuilder.setTransactionID(any(TransactionID.class)))
+				.willReturn(mockSynthBodyBuilder);
+		given(feeCalculator.computeFee(any(), any(), any(), any()))
+				.willReturn(mockFeeObject);
+		given(mockFeeObject.getServiceFee())
+				.willReturn(1L);
 		given(creator.createSuccessfulSyntheticRecord(Collections.emptyList(), sideEffects, EMPTY_MEMO))
 				.willReturn(mockRecordBuilder);
 		given(impliedTransfersMarshal.assessCustomFeesAndValidate(anyInt(), anyInt(), any(), any(), any()))
@@ -338,6 +372,7 @@ class TransferPrecompilesTest {
 
 		// when:
 		subject.prepareComputation(pretendArguments);
+		subject.computeGasRequirement(1L);
 		final var result = subject.computeInternal(frame);
 
 		// then:
@@ -350,6 +385,9 @@ class TransferPrecompilesTest {
 
 	@Test
 	void transferTokenWithReceiverOnlyHappyPathWorks() {
+		final Timestamp timestamp = Timestamp.newBuilder().setSeconds(
+				1L).build();
+
 		givenMinimalFrameContext();
 		givenLedgers();
 
@@ -372,6 +410,16 @@ class TransferPrecompilesTest {
 				null,
 				recordsHistorian
 		)).willReturn(transferLogic);
+		given(feeCalculator.estimatedGasPriceInTinybars(HederaFunctionality.ContractCall, timestamp))
+				.willReturn(1L);
+		given(mockSynthBodyBuilder.build())
+				.willReturn(TransactionBody.newBuilder().setCryptoTransfer(cryptoTransferTransactionBody).build());
+		given(mockSynthBodyBuilder.setTransactionID(any(TransactionID.class)))
+				.willReturn(mockSynthBodyBuilder);
+		given(feeCalculator.computeFee(any(), any(), any(), any()))
+				.willReturn(mockFeeObject);
+		given(mockFeeObject.getServiceFee())
+				.willReturn(1L);
 		given(creator.createSuccessfulSyntheticRecord(Collections.emptyList(), sideEffects, EMPTY_MEMO))
 				.willReturn(mockRecordBuilder);
 		given(impliedTransfersMarshal.assessCustomFeesAndValidate(anyInt(), anyInt(), any(), any(), any()))
@@ -383,6 +431,7 @@ class TransferPrecompilesTest {
 
 		// when:
 		subject.prepareComputation(pretendArguments);
+		subject.computeGasRequirement(1L);
 		final var result = subject.computeInternal(frame);
 
 		// then:
@@ -395,6 +444,9 @@ class TransferPrecompilesTest {
 
 	@Test
 	void transferNftsHappyPathWorks() {
+		final Timestamp timestamp = Timestamp.newBuilder().setSeconds(
+				1L).build();
+
 		givenMinimalFrameContext();
 		givenLedgers();
 
@@ -418,6 +470,16 @@ class TransferPrecompilesTest {
 				null,
 				recordsHistorian
 		)).willReturn(transferLogic);
+		given(feeCalculator.estimatedGasPriceInTinybars(HederaFunctionality.ContractCall, timestamp))
+				.willReturn(1L);
+		given(mockSynthBodyBuilder.build())
+				.willReturn(TransactionBody.newBuilder().setCryptoTransfer(cryptoTransferTransactionBody).build());
+		given(mockSynthBodyBuilder.setTransactionID(any(TransactionID.class)))
+				.willReturn(mockSynthBodyBuilder);
+		given(feeCalculator.computeFee(any(), any(), any(), any()))
+				.willReturn(mockFeeObject);
+		given(mockFeeObject.getServiceFee())
+				.willReturn(1L);
 		given(creator.createSuccessfulSyntheticRecord(Collections.emptyList(), sideEffects, EMPTY_MEMO))
 				.willReturn(mockRecordBuilder);
 		given(impliedTransfersMarshal.assessCustomFeesAndValidate(anyInt(), anyInt(), any(), any(), any()))
@@ -429,6 +491,7 @@ class TransferPrecompilesTest {
 
 		// when:
 		subject.prepareComputation(pretendArguments);
+		subject.computeGasRequirement(1L);
 		final var result = subject.computeInternal(frame);
 
 		// then:
@@ -444,6 +507,9 @@ class TransferPrecompilesTest {
 		final var recipientAddr = Address.ALTBN128_ADD;
 		final var senderId = Id.fromGrpcAccount(sender);
 		final var receiverId = Id.fromGrpcAccount(receiver);
+		final Timestamp timestamp = Timestamp.newBuilder().setSeconds(
+				1L).build();
+
 		givenMinimalFrameContext();
 		given(frame.getRecipientAddress()).willReturn(recipientAddr);
 		givenLedgers();
@@ -469,6 +535,16 @@ class TransferPrecompilesTest {
 				null,
 				recordsHistorian
 		)).willReturn(transferLogic);
+		given(feeCalculator.estimatedGasPriceInTinybars(HederaFunctionality.ContractCall, timestamp))
+				.willReturn(1L);
+		given(mockSynthBodyBuilder.build())
+				.willReturn(TransactionBody.newBuilder().setCryptoTransfer(cryptoTransferTransactionBody).build());
+		given(mockSynthBodyBuilder.setTransactionID(any(TransactionID.class)))
+				.willReturn(mockSynthBodyBuilder);
+		given(feeCalculator.computeFee(any(), any(), any(), any()))
+				.willReturn(mockFeeObject);
+		given(mockFeeObject.getServiceFee())
+				.willReturn(1L);
 		given(creator.createSuccessfulSyntheticRecord(Collections.emptyList(), sideEffects, EMPTY_MEMO))
 				.willReturn(mockRecordBuilder);
 		given(impliedTransfersMarshal.assessCustomFeesAndValidate(anyInt(), anyInt(), any(), any(), any()))
@@ -480,6 +556,7 @@ class TransferPrecompilesTest {
 
 		// when:
 		subject.prepareComputation(pretendArguments);
+		subject.computeGasRequirement(1L);
 		final var result = subject.computeInternal(frame);
 
 		// then:
@@ -500,6 +577,9 @@ class TransferPrecompilesTest {
 
 	@Test
 	void cryptoTransferHappyPathWorks() {
+		final Timestamp timestamp = Timestamp.newBuilder().setSeconds(
+				1L).build();
+
 		givenMinimalFrameContext();
 		givenLedgers();
 
@@ -523,6 +603,16 @@ class TransferPrecompilesTest {
 				null,
 				recordsHistorian
 		)).willReturn(transferLogic);
+		given(feeCalculator.estimatedGasPriceInTinybars(HederaFunctionality.ContractCall, timestamp))
+				.willReturn(1L);
+		given(mockSynthBodyBuilder.build())
+				.willReturn(TransactionBody.newBuilder().setCryptoTransfer(cryptoTransferTransactionBody).build());
+		given(mockSynthBodyBuilder.setTransactionID(any(TransactionID.class)))
+				.willReturn(mockSynthBodyBuilder);
+		given(feeCalculator.computeFee(any(), any(), any(), any()))
+				.willReturn(mockFeeObject);
+		given(mockFeeObject.getServiceFee())
+				.willReturn(1L);
 		given(creator.createSuccessfulSyntheticRecord(Collections.emptyList(), sideEffects, EMPTY_MEMO))
 				.willReturn(mockRecordBuilder);
 		given(impliedTransfersMarshal.assessCustomFeesAndValidate(anyInt(), anyInt(), any(), any(), any()))
@@ -534,6 +624,7 @@ class TransferPrecompilesTest {
 
 		// when:
 		subject.prepareComputation(pretendArguments);
+		subject.computeGasRequirement(1L);
 		final var result = subject.computeInternal(frame);
 
 		// then:
