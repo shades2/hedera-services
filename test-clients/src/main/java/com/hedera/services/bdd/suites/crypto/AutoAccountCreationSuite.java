@@ -118,9 +118,9 @@ public class AutoAccountCreationSuite extends HapiApiSuite {
 								tinyBarsFromAccountToAlias(GENESIS, secp256k1SourceKey, ONE_HUNDRED_HBARS)
 						)
 								/* Sort the transfer list so the accounts are created in a predictable order (the
-								* serialized bytes of an Ed25519 are always lexicographically prior to the serialized
-								* bytes of a secp256k1 key, so now the first child record will _always_ be for the
-								* ed25519 auto-creation). */
+								 * serialized bytes of an Ed25519 are always lexicographically prior to the serialized
+								 * bytes of a secp256k1 key, so now the first child record will _always_ be for the
+								 * ed25519 auto-creation). */
 								.payingWith(GENESIS)
 								.via(autoCreation)
 				).then(
@@ -172,13 +172,13 @@ public class AutoAccountCreationSuite extends HapiApiSuite {
 										.noAlias()
 						),
 						getAliasedAccountInfo("validAlias").has(
-										accountWith()
-												.key("validAlias")
-												.expectedBalanceWithChargedUsd(ONE_HUNDRED_HBARS, 0.05, 0.5)
-												.alias("validAlias")
-												.autoRenew(THREE_MONTHS_IN_SECONDS)
-												.receiverSigReq(false)
-												.memo(AUTO_MEMO))
+								accountWith()
+										.key("validAlias")
+										.expectedBalanceWithChargedUsd(ONE_HUNDRED_HBARS, 0.05, 0.5)
+										.alias("validAlias")
+										.autoRenew(THREE_MONTHS_IN_SECONDS)
+										.receiverSigReq(false)
+										.memo(AUTO_MEMO))
 				);
 	}
 
@@ -406,6 +406,7 @@ public class AutoAccountCreationSuite extends HapiApiSuite {
 	}
 
 	private HapiApiSpec autoAccountCreationsHappyPath() {
+		final var creationFee = 39418863;
 		return defaultHapiSpec("AutoAccountCreationsHappyPath")
 				.given(
 						newKeyNamed("validAlias"),
@@ -422,8 +423,12 @@ public class AutoAccountCreationSuite extends HapiApiSuite {
 								.andAnyChildReceipts()
 								.hasChildAutoAccountCreations(1)
 								.logged(),
-						getTxnRecord("transferTxn").andAllChildRecords().hasChildRecordCount(
-								1).hasAliasInChildRecord("validAlias", 0).logged(),
+						getTxnRecord("transferTxn")
+								.andAllChildRecords()
+								.hasChildRecordCount(1)
+								.hasAliasInChildRecord("validAlias", 0)
+								.hasExpectedFeeInChildRecord(39418863L, 0)
+								.logged(),
 						getAccountInfo("payer").has(
 								accountWith()
 										.balance((initialBalance * ONE_HBAR) - ONE_HUNDRED_HBARS)

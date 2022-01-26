@@ -118,10 +118,10 @@ public class HapiGetTxnRecord extends HapiQueryOp<HapiGetTxnRecord> {
 	private Optional<Integer> childRecordsCount = Optional.empty();
 	private Optional<Consumer<TransactionRecord>> observer = Optional.empty();
 
-	private static record ExpectedChildInfo(String aliasingKey) {
+	private static record ExpectedChildInfo(String aliasingKey, long fee) {
 	}
 
-	private Map<Integer, ExpectedChildInfo>	childExpectations = new HashMap<>();
+	private Map<Integer, ExpectedChildInfo> childExpectations = new HashMap<>();
 
 	public HapiGetTxnRecord(String txn) {
 		this.txn = txn;
@@ -191,7 +191,23 @@ public class HapiGetTxnRecord extends HapiQueryOp<HapiGetTxnRecord> {
 
 	public HapiGetTxnRecord hasAliasInChildRecord(final String aliasingKey, final int childIndex) {
 		requestChildRecords = true;
-		childExpectations.put(childIndex, new ExpectedChildInfo(aliasingKey));
+		if (childExpectations.containsKey(childIndex)) {
+			var info = childExpectations.get(childIndex);
+			childExpectations.put(childIndex, new ExpectedChildInfo(aliasingKey, info.fee()));
+		} else {
+			childExpectations.put(childIndex, new ExpectedChildInfo(aliasingKey, 0L));
+		}
+		return this;
+	}
+
+	public HapiGetTxnRecord hasExpectedFeeInChildRecord(final long fee, final int childIndex) {
+		requestChildRecords = true;
+		if (childExpectations.containsKey(childIndex)) {
+			var info = childExpectations.get(childIndex);
+			childExpectations.put(childIndex, new ExpectedChildInfo(info.aliasingKey(), fee));
+		} else {
+			childExpectations.put(childIndex, new ExpectedChildInfo(null, fee));
+		}
 		return this;
 	}
 
@@ -240,7 +256,7 @@ public class HapiGetTxnRecord extends HapiQueryOp<HapiGetTxnRecord> {
 		return this;
 	}
 
-	public HapiGetTxnRecord hasChildRecords(TransactionRecordAsserts ...providers) {
+	public HapiGetTxnRecord hasChildRecords(TransactionRecordAsserts... providers) {
 		childRecordsExpectations = Optional.of(Arrays.asList(providers));
 		return this;
 	}
@@ -318,7 +334,9 @@ public class HapiGetTxnRecord extends HapiQueryOp<HapiGetTxnRecord> {
 		if (childRecordsExpectations.isPresent()) {
 			final var expectedChildRecords = childRecordsExpectations.get();
 
-			assertEquals(expectedChildRecords.size(), actualRecords.size(), String.format("Expected %d child records, got %d", expectedChildRecords.size(), actualRecords.size()));
+			assertEquals(expectedChildRecords.size(), actualRecords.size(),
+					String.format("Expected %d child records, got %d", expectedChildRecords.size(),
+							actualRecords.size()));
 			for (int i = 0; i < actualRecords.size(); i++) {
 				final var expectedChildRecord = expectedChildRecords.get(i);
 				final var actualChildRecord = actualRecords.get(i);
@@ -462,6 +480,10 @@ public class HapiGetTxnRecord extends HapiQueryOp<HapiGetTxnRecord> {
 					final var childRecord = childRecords.get(index);
 					final var literalKey = spec.registry().getKey(expectations.aliasingKey());
 					assertEquals(literalKey.toByteString().toStringUtf8(), childRecord.getAlias().toStringUtf8());
+				}
+				if (expectations.fee() != 0) {
+					final var childRecord = childRecords.get(index);
+					assertEquals(expectations.fee(), childRecord.getTransactionFee());
 				}
 			}
 		}
@@ -671,7 +693,7 @@ public class HapiGetTxnRecord extends HapiQueryOp<HapiGetTxnRecord> {
 	}
 
 	@Override
-	protected long costOnlyNodePayment(HapiApiSpec spec) throws Throwable {
+	protected long costOnlyNodePayment(HapiApiSpec spec) {
 		return spec.fees().forOp(
 				HederaFunctionality.TransactionGetRecord,
 				cryptoFees.getCostTransactionRecordQueryFeeMatrices());
