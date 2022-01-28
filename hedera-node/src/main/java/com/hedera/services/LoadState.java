@@ -146,6 +146,7 @@ public class LoadState {
 			}
 		});
 
+		return nodes;
 	}
 
 	private static final List<Integer> steps =
