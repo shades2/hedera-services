@@ -1,18 +1,19 @@
 package com.hedera.services;
 
-import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.state.submerkle.ExpirableTxnRecord;
 import com.hedera.services.state.virtual.VirtualBlobKey;
 import com.hedera.services.state.virtual.VirtualBlobValue;
-import com.hedera.services.utils.EntityNum;
 import com.swirlds.blob.internal.db.DbManager;
 import com.swirlds.common.constructable.ConstructableRegistry;
 import com.swirlds.common.constructable.ConstructableRegistryException;
 import com.swirlds.common.crypto.CryptoFactory;
 import com.swirlds.common.crypto.Hash;
+import com.swirlds.common.io.SerializableDataInputStream;
+import com.swirlds.common.io.SerializableDataOutputStream;
+import com.swirlds.common.merkle.MerkleInternal;
+import com.swirlds.common.merkle.MerkleLeaf;
 import com.swirlds.common.merkle.MerkleNode;
 import com.swirlds.common.merkle.iterators.MerkleDepthFirstIterator;
-import com.swirlds.common.merkle.iterators.MerkleRandomHashIterator;
 import com.swirlds.common.merkle.route.MerkleRoute;
 import com.swirlds.common.merkle.route.MerkleRouteFactory;
 import com.swirlds.fcqueue.FCQueue;
@@ -23,10 +24,11 @@ import org.apache.commons.lang3.tuple.Pair;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
-import java.io.FileNotFoundException;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 
 public class LoadState {
@@ -70,7 +72,6 @@ public class LoadState {
 
 		@Override
 		protected boolean shouldNodeBeVisited(MerkleNode nodeA) {
-
 			if (nodeA == null) {
 				return false;
 			}
@@ -93,8 +94,10 @@ public class LoadState {
 		}
 	}
 
-	private static void compareStates(final State stateA, final State stateB) {
+	private static List<MerkleLeaf> compareStates(final State stateA, final State stateB) {
 		final Iterator<MerkleNode> iterator = new ComparisonIterator(stateA, stateB);
+		final List<MerkleLeaf> nodes = new LinkedList<>();
+
 
 		iterator.forEachRemaining((final MerkleNode nodeA) -> {
 			MerkleNode nodeB = null;
@@ -106,6 +109,20 @@ public class LoadState {
 
 			if (nodeA == null) {
 				return;
+			}
+
+			if (nodeA instanceof MerkleLeaf || nodeB instanceof MerkleLeaf) {
+				if (nodeA instanceof MerkleInternal) {
+					nodes.add(null);
+				} else {
+					nodes.add((MerkleLeaf) nodeA);
+				}
+
+				if (nodeB instanceof MerkleInternal) {
+					nodes.add(null);
+				} else {
+					nodes.add((MerkleLeaf) nodeB);
+				}
 			}
 
 			if (nodeB == null) {
@@ -171,6 +188,21 @@ public class LoadState {
 
 	}
 
+	public static void readMismatchedNodes(final String path) throws IOException {
+		final SerializableDataInputStream in = new SerializableDataInputStream(new FileInputStream(path));
+		final List<MerkleLeaf> nodes = in.readSerializableList(Integer.MAX_VALUE);
+
+		for (int index = 0; index + 1 < nodes.size(); index += 2) {
+			final MerkleLeaf nodeA = nodes.get(index);
+			final MerkleLeaf nodeB = nodes.get(index + 1);
+
+			System.out.println("-------------");
+			System.out.println(nodeA);
+			System.out.println("---");
+			System.out.println(nodeB);
+		}
+	}
+
 	public static void main(final String[] args) {
 
 		try {
@@ -193,7 +225,12 @@ public class LoadState {
 			System.out.println("Hash A: " + stateA.getHash());
 			System.out.println("Hash B: " + stateB.getHash());
 
-			compareStates(stateA, stateB);
+			final List<MerkleLeaf> nodes = compareStates(stateA, stateB);
+
+			final SerializableDataOutputStream out = new SerializableDataOutputStream(new FileOutputStream("mismatchedNodes.dat"));
+			out.writeSerializableList(nodes, true, false);
+			out.close();
+
 //			lookAtBadLeaves(stateA, stateB);
 //			extractContract(stateA);
 
