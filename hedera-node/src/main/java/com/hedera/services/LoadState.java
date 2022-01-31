@@ -1,9 +1,23 @@
 package com.hedera.services;
 
+import com.hedera.services.legacy.core.jproto.TxnReceipt;
+import com.hedera.services.state.merkle.MerkleAccountState;
+import com.hedera.services.state.merkle.MerkleAccountTokens;
+import com.hedera.services.state.merkle.MerkleNetworkContext;
+import com.hedera.services.state.merkle.MerkleSpecialFiles;
+import com.hedera.services.state.merkle.internals.FilePart;
+import com.hedera.services.state.submerkle.CurrencyAdjustments;
+import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.state.submerkle.ExpirableTxnRecord;
+import com.hedera.services.state.submerkle.SolidityFnResult;
+import com.hedera.services.state.submerkle.TxnId;
+import com.hedera.services.state.virtual.ContractKey;
+import com.hedera.services.state.virtual.ContractValue;
 import com.hedera.services.state.virtual.VirtualBlobKey;
 import com.hedera.services.state.virtual.VirtualBlobValue;
+import com.hedera.services.stream.RecordsRunningHashLeaf;
 import com.swirlds.blob.internal.db.DbManager;
+import com.swirlds.common.constructable.ClassConstructorPair;
 import com.swirlds.common.constructable.ConstructableRegistry;
 import com.swirlds.common.constructable.ConstructableRegistryException;
 import com.swirlds.common.crypto.CryptoFactory;
@@ -40,6 +54,34 @@ public class LoadState {
 
 			ConstructableRegistry.registerConstructables("com.swirlds");
 			ConstructableRegistry.registerConstructables("com.hedera");
+			ConstructableRegistry.registerConstructable(
+					new ClassConstructorPair(MerkleAccountState.class, MerkleAccountState::new));
+			ConstructableRegistry.registerConstructable(
+					new ClassConstructorPair(ExpirableTxnRecord.class, ExpirableTxnRecord::new));
+			ConstructableRegistry.registerConstructable(
+					new ClassConstructorPair(TxnReceipt.class, TxnReceipt::new));
+			ConstructableRegistry.registerConstructable(
+					new ClassConstructorPair(TxnId.class, TxnId::new));
+			ConstructableRegistry.registerConstructable(
+					new ClassConstructorPair(CurrencyAdjustments.class, CurrencyAdjustments::new));
+			ConstructableRegistry.registerConstructable(
+					new ClassConstructorPair(SolidityFnResult.class, SolidityFnResult::new));
+			ConstructableRegistry.registerConstructable(
+					new ClassConstructorPair(EntityId.class, EntityId::new));
+			ConstructableRegistry.registerConstructable(
+					new ClassConstructorPair(MerkleAccountTokens.class, MerkleAccountTokens::new));
+			ConstructableRegistry.registerConstructable(
+					new ClassConstructorPair(MerkleNetworkContext.class, MerkleNetworkContext::new));
+			ConstructableRegistry.registerConstructable(
+					new ClassConstructorPair(MerkleSpecialFiles.class, MerkleSpecialFiles::new));
+			ConstructableRegistry.registerConstructable(
+					new ClassConstructorPair(FilePart.class, FilePart::new));
+			ConstructableRegistry.registerConstructable(
+					new ClassConstructorPair(RecordsRunningHashLeaf.class, RecordsRunningHashLeaf::new));
+			ConstructableRegistry.registerConstructable(
+					new ClassConstructorPair(ContractKey.class, ContractKey::new));
+			ConstructableRegistry.registerConstructable(
+					new ClassConstructorPair(ContractValue.class, ContractValue::new));
 
 		} catch (final ConstructableRegistryException ex) {
 			throw new RuntimeException(ex);
@@ -95,7 +137,9 @@ public class LoadState {
 	}
 
 	private static List<MerkleLeaf> compareStates(final State stateA, final State stateB) {
-		final Iterator<MerkleNode> iterator = new ComparisonIterator(stateA, stateB);
+//		final Iterator<MerkleNode> iterator = new ComparisonIterator(stateA, stateB);
+		final Iterator<MerkleNode> iterator = new MerkleDepthFirstIterator<>(stateA);
+
 		final List<MerkleLeaf> nodes = new LinkedList<>();
 
 
@@ -108,6 +152,12 @@ public class LoadState {
 			}
 
 			if (nodeA == null) {
+				return;
+			}
+
+			if (nodeB != null && !nodeA.getHash().equals(nodeB.getHash())) {
+				// These nodes are equal, don't report them.
+				// This check is not necessary if ComparisonIterator is used
 				return;
 			}
 
@@ -204,7 +254,8 @@ public class LoadState {
 		}
 	}
 
-	public static void main(final String[] args) {
+	public static void main(final String[] args) throws IOException {
+
 
 		try {
 
@@ -228,7 +279,8 @@ public class LoadState {
 
 			final List<MerkleLeaf> nodes = compareStates(stateA, stateB);
 
-			final SerializableDataOutputStream out = new SerializableDataOutputStream(new FileOutputStream("mismatchedNodes.dat"));
+			final SerializableDataOutputStream out = new SerializableDataOutputStream(new FileOutputStream
+			("mismatchedNodes.dat"));
 			out.writeSerializableList(nodes, true, false);
 			out.close();
 
