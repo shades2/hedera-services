@@ -24,6 +24,7 @@ package com.hedera.services.contracts.execution;
 
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.units.bigints.UInt256;
+import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.evm.frame.BlockValues;
 
 import java.util.Optional;
@@ -52,8 +53,8 @@ public class HederaBlockValues implements BlockValues {
 	}
 
 	@Override
-	public Optional<Long> getBaseFee() {
-		return Optional.of(0L);
+	public Optional<Wei> getBaseFee() {
+		return Optional.of(Wei.ZERO);
 	}
 
 	@Override

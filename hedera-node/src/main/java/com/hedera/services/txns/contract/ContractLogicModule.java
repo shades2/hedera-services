@@ -44,6 +44,7 @@ import static com.hederahashgraph.api.proto.java.HederaFunctionality.ContractCal
 import static com.hederahashgraph.api.proto.java.HederaFunctionality.ContractCreate;
 import static com.hederahashgraph.api.proto.java.HederaFunctionality.ContractDelete;
 import static com.hederahashgraph.api.proto.java.HederaFunctionality.ContractUpdate;
+import static com.hederahashgraph.api.proto.java.HederaFunctionality.ContractWrappedCall;
 
 @Module(includes = {StoresModule.class})
 public final class ContractLogicModule {
@@ -81,6 +82,15 @@ public final class ContractLogicModule {
 			final ContractCallTransitionLogic contractCallTransitionLogic
 	) {
 		return List.of(contractCallTransitionLogic);
+	}
+
+	@Provides
+	@IntoMap
+	@FunctionKey(ContractWrappedCall)
+	public static List<TransitionLogic> provideContractWrappedCallLogic(
+			final ContractWrappedCallTransitionLogic contractWrappedCallTransitionLogic
+	) {
+		return List.of(contractWrappedCallTransitionLogic);
 	}
 
 	@Provides

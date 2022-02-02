@@ -40,6 +40,8 @@ import static com.hederahashgraph.api.proto.java.HederaFunctionality.ContractGet
 import static com.hederahashgraph.api.proto.java.HederaFunctionality.ContractGetInfo;
 import static com.hederahashgraph.api.proto.java.HederaFunctionality.ContractGetRecords;
 import static com.hederahashgraph.api.proto.java.HederaFunctionality.ContractUpdate;
+import static com.hederahashgraph.api.proto.java.HederaFunctionality.ContractWrappedCall;
+import static com.hederahashgraph.api.proto.java.HederaFunctionality.ContractWrappedCreate;
 import static com.hederahashgraph.api.proto.java.HederaFunctionality.GetBySolidityID;
 import static com.hederahashgraph.api.proto.java.HederaFunctionality.SystemDelete;
 import static com.hederahashgraph.api.proto.java.HederaFunctionality.SystemUndelete;
@@ -78,6 +80,11 @@ public class ContractController extends SmartContractServiceGrpc.SmartContractSe
 	}
 
 	@Override
+	public void createContractWrapped(Transaction signedTxn, StreamObserver<TransactionResponse> observer) {
+		txnHelper.submit(signedTxn, observer, ContractWrappedCreate);
+	}
+
+	@Override
 	public void updateContract(Transaction signedTxn, StreamObserver<TransactionResponse> observer) {
 		txnHelper.submit(signedTxn, observer, ContractUpdate);
 	}
@@ -85,6 +92,11 @@ public class ContractController extends SmartContractServiceGrpc.SmartContractSe
 	@Override
 	public void contractCallMethod(Transaction signedTxn, StreamObserver<TransactionResponse> observer) {
 		txnHelper.submit(signedTxn, observer, ContractCall);
+	}
+
+	@Override
+	public void contractWrappedCallMethod(Transaction signedTxn, StreamObserver<TransactionResponse> observer) {
+		txnHelper.submit(signedTxn, observer, ContractWrappedCall);
 	}
 
 	@Override

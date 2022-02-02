@@ -28,7 +28,7 @@
 		<ant-contrib.version>1.0b3</ant-contrib.version>
 		<ant-nodeps.version>1.8.1</ant-nodeps.version>
 		<jackson.version>2.11.2</jackson.version>
-		<besu.version>21.10.9</besu.version>
+		<besu.version>22.1.0-RC4-SNAPSHOT</besu.version>
 		<tuweni.version>2.1.0</tuweni.version>
 		<besu-native.version>0.4.2</besu-native.version>
 	</properties>
@@ -334,6 +334,11 @@
 			<artifactId>besu-datatypes</artifactId>
 			<version>${besu.version}</version>
 		</dependency>
+		<dependency>
+			<groupId>org.hyperledger.besu.internal</groupId>
+			<artifactId>rlp</artifactId>
+			<version>${besu.version}</version>
+		</dependency>
 	</dependencies>
 
 	<repositories>
@@ -346,7 +351,7 @@
 		</repository>
 		<repository>
 			<snapshots>
-				<enabled>false</enabled>
+				<enabled>true</enabled>
 			</snapshots>
 			<id>besu</id>
 			<name>Hyperledger Besu</name>
