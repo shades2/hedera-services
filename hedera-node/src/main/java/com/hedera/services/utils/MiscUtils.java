@@ -117,6 +117,7 @@ import static com.hederahashgraph.api.proto.java.HederaFunctionality.ContractGet
 import static com.hederahashgraph.api.proto.java.HederaFunctionality.ContractGetInfo;
 import static com.hederahashgraph.api.proto.java.HederaFunctionality.ContractGetRecords;
 import static com.hederahashgraph.api.proto.java.HederaFunctionality.ContractUpdate;
+import static com.hederahashgraph.api.proto.java.HederaFunctionality.ContractWrappedCall;
 import static com.hederahashgraph.api.proto.java.HederaFunctionality.CryptoAddLiveHash;
 import static com.hederahashgraph.api.proto.java.HederaFunctionality.CryptoCreate;
 import static com.hederahashgraph.api.proto.java.HederaFunctionality.CryptoDelete;
@@ -564,6 +565,9 @@ public final class MiscUtils {
 		}
 		if (txn.hasContractCall()) {
 			return ContractCall;
+		}
+		if (txn.hasContractWrappedCall()) {
+			return ContractWrappedCall;
 		}
 		if (txn.hasContractCreateInstance()) {
 			return ContractCreate;

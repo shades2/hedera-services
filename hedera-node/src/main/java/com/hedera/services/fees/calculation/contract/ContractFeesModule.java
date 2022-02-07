@@ -31,6 +31,7 @@ import com.hedera.services.fees.calculation.contract.txns.ContractCallResourceUs
 import com.hedera.services.fees.calculation.contract.txns.ContractCreateResourceUsage;
 import com.hedera.services.fees.calculation.contract.txns.ContractDeleteResourceUsage;
 import com.hedera.services.fees.calculation.contract.txns.ContractUpdateResourceUsage;
+import com.hedera.services.fees.calculation.contract.txns.ContractWrappedCallResourceUsage;
 import dagger.Module;
 import dagger.Provides;
 import dagger.multibindings.ElementsIntoSet;
@@ -43,6 +44,7 @@ import static com.hederahashgraph.api.proto.java.HederaFunctionality.ContractCal
 import static com.hederahashgraph.api.proto.java.HederaFunctionality.ContractCreate;
 import static com.hederahashgraph.api.proto.java.HederaFunctionality.ContractDelete;
 import static com.hederahashgraph.api.proto.java.HederaFunctionality.ContractUpdate;
+import static com.hederahashgraph.api.proto.java.HederaFunctionality.ContractWrappedCall;
 
 @Module
 public final class ContractFeesModule {
@@ -100,4 +102,14 @@ public final class ContractFeesModule {
 	private ContractFeesModule() {
 		throw new UnsupportedOperationException("Dagger2 module");
 	}
+
+	@Provides
+	@IntoMap
+	@FunctionKey(ContractWrappedCall)
+	public static List<TxnResourceUsageEstimator> provideContractWrappedCallEstimator(
+			final ContractWrappedCallResourceUsage contractWrappedCallResourceUsage
+	) {
+		return List.of(contractWrappedCallResourceUsage);
+	}
+
 }

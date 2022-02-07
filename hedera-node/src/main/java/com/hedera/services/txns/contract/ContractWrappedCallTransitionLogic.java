@@ -299,6 +299,9 @@ public class ContractWrappedCallTransitionLogic implements PreFetchableTransitio
 			// because of the type byte the offeset is off by one
 			var dataOffset = input.nextOffset() + 1;
 			var dataSize = input.nextSize();
+			if (dataSize == 0) {
+				dataOffset = 0;
+			}
 			if (op.getFunctionParameterStart() != dataOffset || op.getFunctionParameterLength() != dataSize) {
 				return FOREIGN_TRANSACTION_INCORRECT_DATA;
 			}

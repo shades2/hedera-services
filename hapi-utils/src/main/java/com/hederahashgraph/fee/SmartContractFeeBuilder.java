@@ -24,6 +24,7 @@ import com.hederahashgraph.api.proto.java.ContractCallTransactionBody;
 import com.hederahashgraph.api.proto.java.ContractCreateTransactionBody;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.ContractUpdateTransactionBody;
+import com.hederahashgraph.api.proto.java.ContractWrappedCallTransactionBody;
 import com.hederahashgraph.api.proto.java.FeeComponents;
 import com.hederahashgraph.api.proto.java.FeeData;
 import com.hederahashgraph.api.proto.java.ResponseType;
@@ -234,6 +235,52 @@ public final class SmartContractFeeBuilder extends FeeBuilder {
 	}
 
 	/**
+	 * This method returns fee matrices for contract call transaction
+	 *
+	 * @param txBody
+	 * 		transaction body
+	 * @param sigValObj
+	 * 		signature value object
+	 * @return fee data
+	 * @throws InvalidTxBodyException
+	 * 		when transaction body is invalid
+	 */
+	public FeeData getContractWappedCallTxFeeMatrices(TransactionBody txBody, SigValueObj sigValObj)
+			throws InvalidTxBodyException {
+		if (txBody == null || !txBody.hasContractWrappedCall()) {
+			throw new InvalidTxBodyException(
+					"ContractWrappedCallInstance Tx Body not available for Fee Calculation");
+		}
+
+		long bpt = 0;
+		long vpt = 0;
+		long rbs = 0;
+		long sbs = 0;
+		long gas = 0;
+		long tv = 0;
+		long bpr = 0;
+		long sbpr = 0;
+		long txBodySize = 0;
+		txBodySize = getCommonTransactionBodyBytes(txBody);
+
+		// bpt - Bytes per Transaction
+		bpt = txBodySize + getContractWrappedCallBodyTxSize(txBody) + sigValObj.getSignatureSize();
+
+		// vpt - verifications per transactions
+		vpt = sigValObj.getTotalSigCount() + 2; // plus two for foreign tx validation and address recovery
+
+		bpr = INT_SIZE;
+
+		rbs = getBaseTransactionRecordSize(txBody) * (RECEIPT_STORAGE_TIME_SEC + THRESHOLD_STORAGE_TIME_SEC);
+		long rbsNetwork = getDefaultRBHNetworkSize();
+
+		FeeComponents feeMatricesForTx = FeeComponents.newBuilder().setBpt(bpt).setVpt(vpt).setRbh(rbs)
+				.setSbh(sbs).setGas(gas).setTv(tv).setBpr(bpr).setSbpr(sbpr).build();
+
+		return getFeeDataMatrices(feeMatricesForTx, sigValObj.getPayerAcctSigCount(), rbsNetwork);
+	}
+
+	/**
 	 * This method returns fee matrices for contract call local
 	 *
 	 * @param funcParamSize
@@ -396,6 +443,28 @@ public final class SmartContractFeeBuilder extends FeeBuilder {
 		}
 
 		return contractCallBodySize;
+	}
+
+	/**
+	 * This method returns total bytes in Contract Call body Transaction
+	 */
+	private int getContractWrappedCallBodyTxSize(TransactionBody txBody) {
+		/*
+		 * ContractID contractID - BASIC_ENTITY_ID_SIZE int64 gas - LONG_SIZE int64 amount - LONG_SIZE bytes
+		 * functionParameters - calculated value
+		 *
+		 */
+		int contractWrappedCallBodySize = BASIC_ACCOUNT_SIZE + LONG_SIZE;
+
+		ContractWrappedCallTransactionBody contractWrappedCallTxBody = txBody.getContractWrappedCall();
+
+		contractWrappedCallBodySize += contractWrappedCallTxBody.getForeignTransactionBytes().size();
+
+		if (contractWrappedCallTxBody.getAmount() != 0) {
+			contractWrappedCallBodySize += LONG_SIZE;
+		}
+
+		return contractWrappedCallBodySize;
 	}
 
 	/**
