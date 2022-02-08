@@ -192,6 +192,7 @@ public class TransactionProcessingResult {
 		final var contractResultBuilder = ContractFunctionResult.newBuilder()
 				.setGasUsed(gasUsed);
 		contractResultBuilder.setContractCallResult(ByteString.copyFrom(output.toArray()));
+		//TODO add senderId iff different from transactionID
 		recipient.ifPresent(address -> contractResultBuilder.setContractID(
 				EntityIdUtils.contractIdFromEvmAddress(address.toArray())));
 		// Set Revert reason as error message if present, otherwise set halt reason (if present)

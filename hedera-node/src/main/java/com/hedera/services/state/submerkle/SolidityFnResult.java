@@ -59,6 +59,7 @@ public class SolidityFnResult implements SelfSerializable {
 	private byte[] result = MISSING_BYTES;
 	private byte[] evmAddress = MISSING_BYTES;
 	private String error;
+	//TODO add senderId iff different from transactionID
 	private EntityId contractId;
 	private List<EntityId> createdContractIds = new ArrayList<>();
 	private List<SolidityLog> logs = new ArrayList<>();
@@ -77,6 +78,7 @@ public class SolidityFnResult implements SelfSerializable {
 			List<EntityId> createdContractIds,
 			byte[] evmAddress
 	) {
+		//TODO add senderId iff different from transactionID
 		this.contractId = contractId;
 		this.result = result;
 		this.error = error;
@@ -104,6 +106,7 @@ public class SolidityFnResult implements SelfSerializable {
 		bloom = in.readByteArray(SolidityLog.MAX_BLOOM_BYTES);
 		result = in.readByteArray(MAX_RESULT_BYTES);
 		error = serdes.readNullableString(in, MAX_ERROR_BYTES);
+		//TODO add senderId iff different from transactionID
 		contractId = serdes.readNullableSerializable(in);
 		logs = in.readSerializableList(MAX_LOGS, true, SolidityLog::new);
 		createdContractIds = in.readSerializableList(MAX_CREATED_IDS, true, EntityId::new);
@@ -118,6 +121,7 @@ public class SolidityFnResult implements SelfSerializable {
 		out.writeByteArray(bloom);
 		out.writeByteArray(result);
 		serdes.writeNullableString(error, out);
+		//TODO add senderId iff different from transactionID
 		serdes.writeNullableSerializable(contractId, out);
 		out.writeSerializableList(logs, true, true);
 		out.writeSerializableList(createdContractIds, true, true);
@@ -224,6 +228,7 @@ public class SolidityFnResult implements SelfSerializable {
 		if (error != null) {
 			grpc.setErrorMessage(error);
 		}
+		//TODO add senderId iff different from transactionID
 		if (contractId != null) {
 			grpc.setContractID(contractId.toGrpcContractId());
 		}

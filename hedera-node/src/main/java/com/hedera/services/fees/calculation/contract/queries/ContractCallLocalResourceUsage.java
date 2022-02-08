@@ -139,6 +139,7 @@ public final class ContractCallLocalResourceUsage implements QueryResourceUsageE
 		return ContractCallLocalResponse.newBuilder()
 				.setFunctionResult(ContractFunctionResult.newBuilder()
 						.setContractCallResult(ByteString.copyFrom(new byte[properties.localCallEstRetBytes()]))
+						//TODO add senderId iff different from transactionID
 						.setContractID(target))
 				.setHeader(ResponseHeader.newBuilder().setNodeTransactionPrecheckCode(OK))
 				.build();

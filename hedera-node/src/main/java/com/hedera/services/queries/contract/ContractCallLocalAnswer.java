@@ -181,6 +181,7 @@ public class ContractCallLocalAnswer extends AbstractAnswer {
 	private ContractCallLocalResponse withCid(ContractCallLocalResponse response, ContractID target) {
 		return response.toBuilder()
 				.setFunctionResult(response.getFunctionResult().toBuilder()
+						//TODO add senderId iff different from transactionID
 						.setContractID(target))
 				.build();
 	}
