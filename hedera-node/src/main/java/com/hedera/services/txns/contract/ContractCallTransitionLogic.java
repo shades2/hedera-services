@@ -172,105 +172,55 @@ public class ContractCallTransitionLogic implements PreFetchableTransition {
 		if (transactionBody.hasForeignTransactionData()) {
 			return switch (transactionBody.getForeignTransactionData().getForeignTransactionType()) {
 				case ETHEREUM -> validateFrontierTxSemantics(transactionBody);
-				case ETHEREUM_EIP_2930 -> validateEIP2930TxSemantics(transactionBody);
+				// Why not 2930 transactions? Because I don't think any wallet "in the wild" makes EIP-2930 transactions
+				// case ETHEREUM_EIP_2930 -> validateEIP2930TxSemantics(transactionBody);
 				case ETHEREUM_EIP_1559 -> validateEIP1559TxSemantics(transactionBody);
-				default -> FOREIGN_TRANSACTION_INCORRECT_DATA;
+				default -> FOREIGN_TRANSACTION_FORMAT_ERROR;
 			};
 		} else {
 			return OK;
 		}
 	}
 
-//	private ResponseCodeEnum validateFrontierTxSemantics(final TransactionBody transactionBody) {
-//		var op = transactionBody.getContractCall();
-//		var foreignTransactionBytes = transactionBody.getForeignTransactionData().getForeignTransactionBytes()
-//		.toByteArray();
-//		try {
-//			var rlpList = RLPDecoder.RLP_STRICT.wrapList(foreignTransactionBytes).elements();
-//			
-//			if (rlpList.s) {
-//				return FOREIGN_TRANSACTION_FORMAT_ERROR;
-//			}
-//			if (input.readIntScalar() != op.getNonce()) {
-//				return FOREIGN_TRANSACTION_INCORRECT_NONCE;
-//			}
-//			var gasPrice = input.readLongScalar();
-//			var gasLimit = input.readLongScalar();
-//			if (gasLimit != op.getGas()) {
-//				return FOREIGN_TRANSACTION_INCORRECT_GAS_LIMIT;
-//			}
-//			//TODO check transaction fee limit based on gasPrice*gasLimit
-//			//return ResponseCodeEnum.FOREIGN_TRANSACTION_INSUFFICIENT_FEE_LIMIT;
-//			var address = input.readBytes();
-//			if (!op.hasContractID()) { // FIXME compare with address
-//				return FOREIGN_TRANSACTION_INCORRECT_RECEIVER_ADDRESS;
-//			}
-//			if (op.getAmount() != input.readLongScalar()) {
-//				return FOREIGN_TRANSACTION_INCORRECT_AMOUNT;
-//			}
-//			var dataOffset = input.nextOffset();
-//			var dataSize = input.nextSize();
-//			if (op.getFunctionParameterStart() != dataOffset || op.getFunctionParameterLength() != dataSize) {
-//				return FOREIGN_TRANSACTION_INCORRECT_DATA;
-//			}
-//			input.skipNext();
-//			var v = input.readLongScalar();
-//			var chainId = (v - 35) / 2;
-//			// v = 27/28 or chainID of -3 signals "any chain"
-//			if (properties.getChainId() != chainId && -3 != chainId) {
-//				return FOREIGN_TRANSACTION_INCORRECT_CHAIN_ID;
-//			}
-//			var r = input.readBigIntegerScalar();
-//			var s = input.readBigIntegerScalar();
-//			//TODO check sender
-//			// return ResponseCodeEnum.FOREIGN_TRANSACTION_INCORRECT_SENDER_ADDRESS;
-//			//TODO check signature
-//			// return ResponseCodeEnum.FOREIGN_TRANSACTION_INVALID_SIGNATURE;
-//			return OK;
-//		} catch (RLPException rlpe) {
-//			return FOREIGN_TRANSACTION_FORMAT_ERROR;
-//		}
-//	}
-
 	private ResponseCodeEnum validateFrontierTxSemantics(final TransactionBody transactionBody) {
 		var op = transactionBody.getContractCall();
 		var foreignTxData = transactionBody.getForeignTransactionData();
 		var foreignTxBytes = foreignTxData.getForeignTransactionBytes().toByteArray();
 		try {
-			var txSequence = RLPDecoder.RLP_STRICT.sequenceIterator(foreignTxBytes);
-			var header = txSequence.next();
-			if (header.asByte() != 0x02) {
+			var rlpList = RLPDecoder.RLP_STRICT.wrapItem(foreignTxBytes).asRLPList().elements();
+			if (rlpList.size() != 9) {
 				return FOREIGN_TRANSACTION_FORMAT_ERROR;
 			}
-			var rlpList = txSequence.next().asRLPList().elements();
-			if (rlpList.size() != 12) {
-				return FOREIGN_TRANSACTION_FORMAT_ERROR;
-			}
-			if (rlpList.get(0).asInt() != properties.getChainId()) {
-				return FOREIGN_TRANSACTION_INCORRECT_CHAIN_ID;
-			}
-
-			if (rlpList.get(1).asInt() != foreignTxData.getNonce()) {
+			if (rlpList.get(0).asInt() != foreignTxData.getNonce()) {
 				return FOREIGN_TRANSACTION_INCORRECT_NONCE;
 			}
-			if (rlpList.get(4).asInt() != op.getGas()) {
+			if (rlpList.get(2).asInt() != op.getGas()) {
 				return FOREIGN_TRANSACTION_INCORRECT_GAS_LIMIT;
 			}
 
-			if (Arrays.compare(rlpList.get(5).data(), EntityIdUtils.asEvmAddress(op.getContractID())) != 0) {
+			if (Arrays.compare(rlpList.get(3).data(), EntityIdUtils.asEvmAddress(op.getContractID())) != 0) {
 				return FOREIGN_TRANSACTION_INCORRECT_RECEIVER_ADDRESS;
 			}
-			if (rlpList.get(6).asLong() != op.getAmount()) {
+			var foreignTxAmount = rlpList.get(4).asBigInt();
+			long hbarAmount = foreignTxAmount.divide(BigInteger.valueOf(10_000_000_000L)).longValueExact();
+			if (hbarAmount != op.getAmount()) {
 				return FOREIGN_TRANSACTION_INCORRECT_AMOUNT;
 			}
 			// because of the type byte the offeset is off by one
+			var callData = rlpList.get(5).data();
 			byte[] functionParams = new byte[foreignTxData.getPayloadLength()];
 			System.arraycopy(foreignTxBytes, foreignTxData.getPayloadStart(), functionParams, 0,
 					foreignTxData.getPayloadLength());
-			int index = com.google.common.primitives.Bytes.indexOf(foreignTxBytes, functionParams);
-			if (index != foreignTxData.getPayloadStart() || functionParams.length != foreignTxData.getPayloadLength()) {
+			if (!Arrays.equals(callData, functionParams)) {
 				return FOREIGN_TRANSACTION_INCORRECT_DATA;
 			}
+
+			int v = rlpList.get(6).asInt();
+			int chainId = ((v-1)>>1)-17;
+			if (chainId != properties.getChainId() && chainId != -4) {
+				return FOREIGN_TRANSACTION_INCORRECT_CHAIN_ID;
+			}
+
 			//TODO check transaction fee limit based on gasPrice*gasLimit
 			// return ResponseCodeEnum.FOREIGN_TRANSACTION_INSUFFICIENT_FEE_LIMIT;
 			//TODO check sender
@@ -285,114 +235,6 @@ public class ContractCallTransitionLogic implements PreFetchableTransition {
 			return FOREIGN_TRANSACTION_FORMAT_ERROR;
 		}
 	}
-
-
-	//	private ResponseCodeEnum validateEIP2930TxSemantics(final TransactionBody transactionBody) {
-//		var op = transactionBody.getContractWrappedCall();
-//		if (op.getForeignTransactionBytes().byteAt(0) != 0x01) {
-//			return FOREIGN_TRANSACTION_FORMAT_ERROR;
-//		}
-//		try {
-//			var input = RLP.input(Bytes.wrap(op.getForeignTransactionBytes().toByteArray()).slice(1));
-//			if (input.enterList() != 11) {
-//				return FOREIGN_TRANSACTION_FORMAT_ERROR;
-//			}
-//			if (input.readIntScalar() != properties.getChainId()) {
-//				return FOREIGN_TRANSACTION_INCORRECT_CHAIN_ID;
-//			}
-//
-//			if (input.readIntScalar() != op.getNonce()) {
-//				return FOREIGN_TRANSACTION_INCORRECT_NONCE;
-//			}
-//			var gasPrice = input.readLongScalar();
-//			var gasLimit = input.readLongScalar();
-//			if (gasLimit != op.getGas()) {
-//				return FOREIGN_TRANSACTION_INCORRECT_GAS_LIMIT;
-//			}
-//			//TODO check transaction fee limit based on gasPrice*gasLimit
-//			//return ResponseCodeEnum.FOREIGN_TRANSACTION_INSUFFICIENT_FEE_LIMIT;
-//			var address = input.readBytes();
-//			if (!op.hasContractID()) { // FIXME compare with address
-//				return FOREIGN_TRANSACTION_INCORRECT_RECEIVER_ADDRESS;
-//			}
-//			if (op.getAmount() != input.readLongScalar()) {
-//				return FOREIGN_TRANSACTION_INCORRECT_AMOUNT;
-//			}
-//			// because of the type byte the offeset is off by one
-//			var dataOffset = input.nextOffset() + 1;
-//			var dataSize = input.nextSize();
-//			if (op.getFunctionParameterStart() != dataOffset || op.getFunctionParameterLength() != dataSize) {
-//				return FOREIGN_TRANSACTION_INCORRECT_DATA;
-//			}
-//			input.skipNext();
-//			input.skipNext(); // TODO when access lists are enabled check here
-//			var recid = input.readLongScalar();
-//			var r = input.readBigIntegerScalar();
-//			var s = input.readBigIntegerScalar();
-//			//TODO check sender
-//			// return ResponseCodeEnum.FOREIGN_TRANSACTION_INCORRECT_SENDER_ADDRESS;
-//			//TODO check signature
-//			// return ResponseCodeEnum.FOREIGN_TRANSACTION_INVALID_SIGNATURE;
-//			return OK;
-//		} catch (RLPException rlpe) {
-//			return FOREIGN_TRANSACTION_FORMAT_ERROR;
-//		}
-//	}
-
-	private ResponseCodeEnum validateEIP2930TxSemantics(final TransactionBody transactionBody) {
-		var op = transactionBody.getContractCall();
-		var foreignTxData = transactionBody.getForeignTransactionData();
-		var foreignTxBytes = foreignTxData.getForeignTransactionBytes().toByteArray();
-		try {
-			var txSequence = RLPDecoder.RLP_STRICT.sequenceIterator(foreignTxBytes);
-			var header = txSequence.next();
-			if (header.asByte() != 0x02) {
-				return FOREIGN_TRANSACTION_FORMAT_ERROR;
-			}
-			var rlpList = txSequence.next().asRLPList().elements();
-			if (rlpList.size() != 12) {
-				return FOREIGN_TRANSACTION_FORMAT_ERROR;
-			}
-			if (rlpList.get(0).asInt() != properties.getChainId()) {
-				return FOREIGN_TRANSACTION_INCORRECT_CHAIN_ID;
-			}
-
-			if (rlpList.get(1).asInt() != foreignTxData.getNonce()) {
-				return FOREIGN_TRANSACTION_INCORRECT_NONCE;
-			}
-			if (rlpList.get(4).asInt() != op.getGas()) {
-				return FOREIGN_TRANSACTION_INCORRECT_GAS_LIMIT;
-			}
-
-			if (Arrays.compare(rlpList.get(5).data(), EntityIdUtils.asEvmAddress(op.getContractID())) != 0) {
-				return FOREIGN_TRANSACTION_INCORRECT_RECEIVER_ADDRESS;
-			}
-			if (rlpList.get(6).asLong() != op.getAmount()) {
-				return FOREIGN_TRANSACTION_INCORRECT_AMOUNT;
-			}
-			// because of the type byte the offeset is off by one
-			byte[] functionParams = new byte[foreignTxData.getPayloadLength()];
-			System.arraycopy(foreignTxBytes, foreignTxData.getPayloadStart(), functionParams, 0,
-					foreignTxData.getPayloadLength());
-			int index = com.google.common.primitives.Bytes.indexOf(foreignTxBytes, functionParams);
-			if (index != foreignTxData.getPayloadStart() || functionParams.length != foreignTxData.getPayloadLength()) {
-				return FOREIGN_TRANSACTION_INCORRECT_DATA;
-			}
-			//TODO check transaction fee limit based on gasPrice*gasLimit
-			// return ResponseCodeEnum.FOREIGN_TRANSACTION_INSUFFICIENT_FEE_LIMIT;
-			//TODO check sender
-			// return ResponseCodeEnum.FOREIGN_TRANSACTION_INCORRECT_SENDER_ADDRESS;
-			//TODO check signature
-			// long recId = rlpList.get(9).asLong();
-			// var r = rlpList.get(10).asBigInt();
-			// var s = rlpList.get(11).asBigInt();
-			// return ResponseCodeEnum.FOREIGN_TRANSACTION_INVALID_SIGNATURE;
-			return OK;
-		} catch (RuntimeException e) {
-			return FOREIGN_TRANSACTION_FORMAT_ERROR;
-		}
-	}
-
 
 	private ResponseCodeEnum validateEIP1559TxSemantics(final TransactionBody transactionBody) {
 		var op = transactionBody.getContractCall();

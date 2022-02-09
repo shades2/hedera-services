@@ -60,6 +60,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.Instant;
 import java.util.List;
 
+import static com.hederahashgraph.api.proto.java.ForeignTransactionType.ETHEREUM_EIP_2930;
+import static com.hederahashgraph.api.proto.java.ForeignTransactionType.UNRECOGNIZED;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_NEGATIVE_GAS;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_NEGATIVE_VALUE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.FOREIGN_TRANSACTION_FORMAT_ERROR;
@@ -82,16 +84,20 @@ import static org.mockito.Mockito.verify;
 @ExtendWith(MockitoExtension.class)
 class ContractCallTransitionLogicTest {
 
+	private static final int SUFFICIENT_GAS = 10_000_000;
+	private static final int INSUFFICIENT_GAS = 10;
+
+	private static final Runnable NO_MUTATION = () -> {};
+
 	private String foreignTxHex;
 	private long nonce;
 	private int foreignTxPayloadLength;
 	private int foreignTxPayloadStart;
-	private ForeignTransactionType foreignTxType = ForeignTransactionType.UNRECOGNIZED;
+	private ForeignTransactionType foreignTxType = UNRECOGNIZED;
 	private ContractID target = ContractID.newBuilder().setContractNum(9_999L).build();
 	private int gas = 1_234;
 	private long sent = 1_234L;
 	private AccountID senderId;
-	private ByteString functionParameters;
 
 	@Mock
 	private TransactionContext txnCtx;
@@ -199,15 +205,48 @@ class ContractCallTransitionLogicTest {
 	}
 
 	@Test
-	void verifyProcessorCallingWithCorrectForeignCallData() throws DecoderException {
+	void verifyProcessorCallingWithCorrectForeignCallFrontierData() throws DecoderException {
 		// setup:
-		prepForeign1559Tx();
-		contractCallTxn = givenForeignTx().build();
+		contractCallTxn = givenForeignFrontierTx(() -> {
+		});
 		// and:
 		given(accessor.getTxn()).willReturn(contractCallTxn);
 		given(txnCtx.accessor()).willReturn(accessor);
 		// and:
-		given(accountStore.loadAccount(new Id(senderId.getShardNum(), senderId.getRealmNum(), senderId.getAccountNum()))).willReturn(senderAccount);
+		given(accountStore.loadAccount(
+				new Id(senderId.getShardNum(), senderId.getRealmNum(), senderId.getAccountNum()))).willReturn(
+				senderAccount);
+		given(accountStore.loadContract(new Id(target.getShardNum(), target.getRealmNum(), target.getContractNum())))
+				.willReturn(contractAccount);
+		Bytes callDataAsBytes = Bytes.fromHexString("0x071ddf7e");
+		// and:
+		var results = TransactionProcessingResult.successful(
+				null, 1234L, 0L, 124L, Bytes.EMPTY, contractAccount.getId().asEvmAddress());
+		given(evmTxProcessor.execute(senderAccount, contractAccount.getId().asEvmAddress(), gas, sent,
+				callDataAsBytes, txnCtx.consensusTime()))
+				.willReturn(results);
+		given(worldState.persistProvisionalContractCreations()).willReturn(List.of(target));
+		// when:
+		subject.doStateTransition();
+		
+		// then:
+		verify(evmTxProcessor).execute(senderAccount, contractAccount.getId().asEvmAddress(), gas, sent,
+				callDataAsBytes, txnCtx.consensusTime());
+		verify(sigImpactHistorian).markEntityChanged(target.getContractNum());
+	}
+	
+	@Test
+	void verifyProcessorCallingWithCorrectForeignCall1559Data() throws DecoderException {
+		// setup:
+		contractCallTxn = givenForeign1559Tx(() -> {
+		});
+		// and:
+		given(accessor.getTxn()).willReturn(contractCallTxn);
+		given(txnCtx.accessor()).willReturn(accessor);
+		// and:
+		given(accountStore.loadAccount(
+				new Id(senderId.getShardNum(), senderId.getRealmNum(), senderId.getAccountNum()))).willReturn(
+				senderAccount);
 		given(accountStore.loadContract(new Id(target.getShardNum(), target.getRealmNum(), target.getContractNum())))
 				.willReturn(contractAccount);
 		Bytes callDataAsBytes = Bytes.fromHexString("0x071ddf7e");
@@ -264,7 +303,7 @@ class ContractCallTransitionLogicTest {
 	@Test
 	void acceptsOkSyntax() {
 		givenValidTxnCtx();
-		given(properties.maxGas()).willReturn(gas + 1);
+		given(properties.maxGas()).willReturn(SUFFICIENT_GAS);
 		// expect:
 		assertEquals(OK, subject.semanticCheck().apply(contractCallTxn));
 	}
@@ -272,7 +311,7 @@ class ContractCallTransitionLogicTest {
 	@Test
 	void providingGasOverLimitReturnsCorrectPrecheck() {
 		givenValidTxnCtx();
-		given(properties.maxGas()).willReturn(gas - 1);
+		given(properties.maxGas()).willReturn(INSUFFICIENT_GAS);
 		// expect:
 		assertEquals(MAX_GAS_LIMIT_EXCEEDED,
 				subject.semanticCheck().apply(contractCallTxn));
@@ -301,117 +340,142 @@ class ContractCallTransitionLogicTest {
 
 	@Test
 	public void foreignTxHappyPath() throws DecoderException {
-		prepForeign1559Tx();
-		given(properties.maxGas()).willReturn(gas + 1);
+		given(properties.maxGas()).willReturn(SUFFICIENT_GAS);
 		given(properties.getChainId()).willReturn(0x12a);
 
-		contractCallTxn = givenForeignTx().build();
 
-		// expect:
+		contractCallTxn = givenForeignFrontierTx(NO_MUTATION);
+		assertEquals(OK, subject.semanticCheck().apply(contractCallTxn));
+
+		contractCallTxn = givenForeign1559Tx(NO_MUTATION);
 		assertEquals(OK, subject.semanticCheck().apply(contractCallTxn));
 	}
 
 	@Test
-	public void foreignTxFormatError() throws DecoderException {
-		prepForeign1559Tx();
-		given(properties.maxGas()).willReturn(gas + 1);
+	public void foreignTxFrontierFormatError() throws DecoderException {
+		given(properties.maxGas()).willReturn(SUFFICIENT_GAS);
 
-		foreignTxHex =
-				"02c87082012a022f2f83018000947e3a9eaf9bcc39e2ffa38eb30bf7a93feacbc181880de0b6b3a764000083123456c001a0df48f2efd10421811de2bfb125ab75b2d3c44139c4642837fb1fccce911fd479a01aaf7ae92bee896651dfc9d99ae422a296bf5d9f1ca49b2d96d82b79eb112d66";
-		contractCallTxn = givenForeignTx().build();
+		// 2930 is currently unsupported
+		contractCallTxn = givenForeignFrontierTx(() -> foreignTxType = ETHEREUM_EIP_2930);
+		givenForeignTx().build();
 		assertEquals(FOREIGN_TRANSACTION_FORMAT_ERROR, subject.semanticCheck().apply(contractCallTxn));
 
-		foreignTxHex =
-				"03c00000";
-		contractCallTxn = givenForeignTx().build();
+		// first byte of RLP should be 0xf8 not 0x87
+		contractCallTxn = givenForeignFrontierTx(() -> foreignTxHex =
+				"8766042f831e84809400000000000000000000000000000000000003ef8084071ddf7e820278a0157e91b7187e4f5114a1258fc951d383fe1dd20ce3ed8f041681fc54d72a4ce1a03a4769e5ece397cf3aa8bac32444f4c2afc318935284aa5992cbd9f360d51704");
+		givenForeignTx().build();
 		assertEquals(FOREIGN_TRANSACTION_FORMAT_ERROR, subject.semanticCheck().apply(contractCallTxn));
 
-		foreignTxHex =
-				"02c00000";
-		contractCallTxn = givenForeignTx().build();
+		// TX "body" is zero bytes, with zero members.
+		contractCallTxn = givenForeignFrontierTx(() -> foreignTxHex = "c0");
+		assertEquals(FOREIGN_TRANSACTION_FORMAT_ERROR, subject.semanticCheck().apply(contractCallTxn));
+	}
+
+	@Test
+	public void foreignTx1559FormatError() throws DecoderException {
+		given(properties.maxGas()).willReturn(SUFFICIENT_GAS);
+
+		// second bytes of RLP should be 0xf8 not 0x87
+		contractCallTxn = givenForeign1559Tx(() -> foreignTxHex =
+				"02c87082012a022f2f83018000947e3a9eaf9bcc39e2ffa38eb30bf7a93feacbc181880de0b6b3a764000083123456c001a0df48f2efd10421811de2bfb125ab75b2d3c44139c4642837fb1fccce911fd479a01aaf7ae92bee896651dfc9d99ae422a296bf5d9f1ca49b2d96d82b79eb112d66");
+		givenForeignTx().build();
 		assertEquals(FOREIGN_TRANSACTION_FORMAT_ERROR, subject.semanticCheck().apply(contractCallTxn));
 
+		// doesn't match tx type		
+		contractCallTxn = givenForeign1559Tx(() -> foreignTxHex = "03c00000");
+		assertEquals(FOREIGN_TRANSACTION_FORMAT_ERROR, subject.semanticCheck().apply(contractCallTxn));
+
+		// TX "body" is zero bytes, with zero members.
+		contractCallTxn = givenForeign1559Tx(() -> foreignTxHex = "02c0");
+		assertEquals(FOREIGN_TRANSACTION_FORMAT_ERROR, subject.semanticCheck().apply(contractCallTxn));
 	}
 
 	@Test
 	public void foreignWrongChainId() throws DecoderException {
-		prepForeign1559Tx();
-		given(properties.maxGas()).willReturn(gas + 1);
+
+		given(properties.maxGas()).willReturn(SUFFICIENT_GAS);
 		given(properties.getChainId()).willReturn(0x126);
 
-		contractCallTxn = givenForeignTx().build();
-
-		// expect:
+		contractCallTxn = givenForeignFrontierTx(NO_MUTATION);
 		assertEquals(FOREIGN_TRANSACTION_INCORRECT_CHAIN_ID, subject.semanticCheck().apply(contractCallTxn));
+
+		contractCallTxn = givenForeign1559Tx(NO_MUTATION);
+		assertEquals(FOREIGN_TRANSACTION_INCORRECT_CHAIN_ID, subject.semanticCheck().apply(contractCallTxn));
+
 	}
 
 	@Test
 	public void foreignWrongNonce() throws DecoderException {
-		prepForeign1559Tx();
-		given(properties.maxGas()).willReturn(gas + 1);
+		given(properties.maxGas()).willReturn(SUFFICIENT_GAS);
 		given(properties.getChainId()).willReturn(0x12a);
-		nonce = 55;
+		Runnable mutation = () -> nonce = 55;
 
-		contractCallTxn = givenForeignTx().build();
+		contractCallTxn = givenForeignFrontierTx(mutation);
+		assertEquals(FOREIGN_TRANSACTION_INCORRECT_NONCE, subject.semanticCheck().apply(contractCallTxn));
 
-		// expect:
+		contractCallTxn = givenForeign1559Tx(mutation);
 		assertEquals(FOREIGN_TRANSACTION_INCORRECT_NONCE, subject.semanticCheck().apply(contractCallTxn));
 	}
 
 	@Test
 	public void foreignWrongGasLimit() throws DecoderException {
-		prepForeign1559Tx();
-		gas = 0x10000;
+
 		given(properties.getChainId()).willReturn(0x12a);
-		given(properties.maxGas()).willReturn(gas + 1);
+		given(properties.maxGas()).willReturn(SUFFICIENT_GAS);
+		Runnable mutation = () -> gas = 0x10000;
 
-		contractCallTxn = givenForeignTx().build();
+		contractCallTxn = givenForeignFrontierTx(mutation);
+		assertEquals(FOREIGN_TRANSACTION_INCORRECT_GAS_LIMIT, subject.semanticCheck().apply(contractCallTxn));
 
-		// expect:
+		contractCallTxn = givenForeign1559Tx(mutation);
 		assertEquals(FOREIGN_TRANSACTION_INCORRECT_GAS_LIMIT, subject.semanticCheck().apply(contractCallTxn));
 	}
 
 	@Test
 	public void foreignWrongReceiver() throws DecoderException {
-		prepForeign1559Tx();
-		given(properties.maxGas()).willReturn(gas + 1);
+		given(properties.maxGas()).willReturn(SUFFICIENT_GAS);
 		given(properties.getChainId()).willReturn(0x12a);
-		target = ContractID.newBuilder().setContractNum(1234).build();
+		Runnable mutation = () -> target = ContractID.newBuilder().setContractNum(1234).build();
 
-		contractCallTxn = givenForeignTx().build();
+		contractCallTxn = givenForeignFrontierTx(mutation);
+		assertEquals(FOREIGN_TRANSACTION_INCORRECT_RECEIVER_ADDRESS, subject.semanticCheck().apply(contractCallTxn));
 
-		// expect:
+		contractCallTxn = givenForeign1559Tx(mutation);
 		assertEquals(FOREIGN_TRANSACTION_INCORRECT_RECEIVER_ADDRESS, subject.semanticCheck().apply(contractCallTxn));
 	}
 
 	@Test
 	public void foreignWrongAmount() throws DecoderException {
-		prepForeign1559Tx();
-		given(properties.maxGas()).willReturn(gas + 1);
+		given(properties.maxGas()).willReturn(SUFFICIENT_GAS);
 		given(properties.getChainId()).willReturn(0x12a);
-		sent = 1337;
+		Runnable mutation = () -> sent = 1337;
 
-		contractCallTxn = givenForeignTx().build();
+		contractCallTxn = givenForeignFrontierTx(mutation);
+		assertEquals(FOREIGN_TRANSACTION_INCORRECT_AMOUNT, subject.semanticCheck().apply(contractCallTxn));
 
-		// expect:
+		contractCallTxn = givenForeign1559Tx(mutation);
 		assertEquals(FOREIGN_TRANSACTION_INCORRECT_AMOUNT, subject.semanticCheck().apply(contractCallTxn));
 	}
 
 	@Test
 	public void foreignWrongPayload() throws DecoderException {
-		prepForeign1559Tx();
-		given(properties.maxGas()).willReturn(gas + 1);
+		given(properties.maxGas()).willReturn(SUFFICIENT_GAS);
 		given(properties.getChainId()).willReturn(0x12a);
+		Runnable mutation = () -> foreignTxPayloadStart = 33;
 
-		foreignTxPayloadStart = 33;
-		contractCallTxn = givenForeignTx().build();
+		contractCallTxn = givenForeignFrontierTx(mutation);
 		assertEquals(FOREIGN_TRANSACTION_INCORRECT_DATA, subject.semanticCheck().apply(contractCallTxn));
 
-		foreignTxPayloadStart = 44;
-		foreignTxPayloadLength = 2;
-		contractCallTxn = givenForeignTx().build();
+		contractCallTxn = givenForeign1559Tx(mutation);
 		assertEquals(FOREIGN_TRANSACTION_INCORRECT_DATA, subject.semanticCheck().apply(contractCallTxn));
-		// expect:
+
+		mutation = () -> foreignTxPayloadLength = 2;
+
+		contractCallTxn = givenForeignFrontierTx(mutation);
+		assertEquals(FOREIGN_TRANSACTION_INCORRECT_DATA, subject.semanticCheck().apply(contractCallTxn));
+
+		contractCallTxn = givenForeign1559Tx(mutation);
+		assertEquals(FOREIGN_TRANSACTION_INCORRECT_DATA, subject.semanticCheck().apply(contractCallTxn));
 	}
 
 	// unchecked errors (because they are not thrown yet)
@@ -419,7 +483,27 @@ class ContractCallTransitionLogicTest {
 	// FOREIGN_TRANSACTION_INCORRECT_SENDER_ADDRESS;
 	// FOREIGN_TRANSACTION_INVALID_SIGNATURE;
 
-	private void prepForeign1559Tx() throws DecoderException {
+	private TransactionBody givenForeignFrontierTx(Runnable mutator) throws DecoderException {
+		foreignTxHex =
+				"f866042f831e84809400000000000000000000000000000000000003ef8084071ddf7e820278a0157e91b7187e4f5114a1258fc951d383fe1dd20ce3ed8f041681fc54d72a4ce1a03a4769e5ece397cf3aa8bac32444f4c2afc318935284aa5992cbd9f360d51704";
+		foreignTxType = ForeignTransactionType.ETHEREUM;
+		foreignTxPayloadStart = 31;
+		foreignTxPayloadLength = 4;
+		nonce = 4;
+
+		senderId = AccountID.newBuilder().setAlias(ByteString.copyFrom(Hex.decodeHex(
+				"302d300706052b8104000a032200033a514176466fa815ed481ffad09110a2d344f6c9b78c1d14afc351c3a51be33d"))).build();
+		target = EntityIdUtils.contractIdFromEvmAddress(Address.fromHexString(
+				"00000000000000000000000000000000000003ef"));
+		gas = 2_000_000;
+		sent = 0L;
+
+		mutator.run();
+
+		return givenForeignTx().build();
+	}
+
+	private TransactionBody givenForeign1559Tx(Runnable mutator) throws DecoderException {
 		foreignTxHex =
 				"02f86982012a0d2f2f831e84809400000000000000000000000000000000000003ef8084071ddf7ec001a05444c3a198cb2431b597a1e88fa32b583ed67de8ca13ab6e8bdb1282b0649e11a07e724c841a455e0f3c2089aa7c24da0a0af2664cf64b9a54dce33c2a5d8e5ba2";
 		foreignTxType = ForeignTransactionType.ETHEREUM_EIP_1559;
@@ -433,6 +517,10 @@ class ContractCallTransitionLogicTest {
 				"00000000000000000000000000000000000003ef"));
 		gas = 2_000_000;
 		sent = 0L;
+
+		mutator.run();
+
+		return givenForeignTx().build();
 	}
 
 	private TransactionBody.Builder givenForeignTx() throws DecoderException {
@@ -441,9 +529,6 @@ class ContractCallTransitionLogicTest {
 				.setContractID(target)
 				.setGas(gas)
 				.setAmount(sent);
-		if (functionParameters != null) {
-			op.setFunctionParameters(functionParameters);
-		}
 		return TransactionBody.newBuilder()
 				.setTransactionID(ourTxnId())
 				.setForeignTransactionData(
