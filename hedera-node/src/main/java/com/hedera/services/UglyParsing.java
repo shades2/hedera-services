@@ -34,29 +34,37 @@ public class UglyParsing {
 
 	private static final int MAX_BODY_SIZE = 1024;
 
-	private static final String BASE_DIR = "/Users/tinkerm/Dev/rosetta/mainnet_balance_file_issue";
-	private static final String RECORD_STREAM_DIR = BASE_DIR + "/recordstreams";
-	private static final String EVENT_STREAM_DIR = BASE_DIR + "/eventsStreams";
+	private static final String FIRST_INTERVAL_BASE_DIR = "/Users/tinkerm/Dev/rosetta/mainnet_balance_file_issue";
+	private static final String FIRST_RECORD_STREAM_DIR = FIRST_INTERVAL_BASE_DIR + "/recordstreams";
+	private static final String FIRST_EVENT_STREAM_DIR = FIRST_INTERVAL_BASE_DIR + "/eventsStreams";
+
+	private static final String SECOND_INTERVAL_BASE_DIR = "/Users/tinkerm/Dev/rosetta/batch2_3/batch2";
+	private static final String SECOND_RECORD_STREAM_DIR = SECOND_INTERVAL_BASE_DIR + "/recordstreams";
+	private static final String SECOND_EVENT_STREAM_DIR = SECOND_INTERVAL_BASE_DIR + "/eventsStreams";
+
+	private static final String THIRD_INTERVAL_BASE_DIR = "/Users/tinkerm/Dev/rosetta/batch2_3/batch3";
+	private static final String THIRD_RECORD_STREAM_DIR = THIRD_INTERVAL_BASE_DIR + "/recordstreams";
+	private static final String THIRD_EVENT_STREAM_DIR = THIRD_INTERVAL_BASE_DIR + "/eventsStreams";
 
 	public static void main(String... args) throws UnknownHederaFunctionality {
-		final var rcdLoc = RECORD_STREAM_DIR + "/2019-09-14T11_18_30.114968Z.rcd";
-		final var evtsLoc = EVENT_STREAM_DIR + "/2019-09-14T11_18_30.027183Z.evts";
-		compareFiles(rcdLoc, evtsLoc, false);
+//		final var rcdLoc = FIRST_RECORD_STREAM_DIR + "/2019-09-14T11_18_30.114968Z.rcd";
+//		final var evtsLoc = FIRST_EVENT_STREAM_DIR + "/2019-09-14T11_18_30.027183Z.evts";
+//		compareFiles(rcdLoc, evtsLoc, false);
 
-//		final var rcdLocs = orderedFilesFrom(RECORD_STREAM_DIR, ".rcd");
-//		final var evtLocs = orderedFilesFrom(EVENT_STREAM_DIR, ".evts");
-//
-//		System.out.println(rcdLocs.size() + " record files & " + evtLocs.size() + " event files");
-//		final var N = rcdLocs.size();
-//		var numFailures = 0;
-//		for (int i = 0; i < N; i++) {
-//			final var rcdLoc = rcdLocs.get(i);
-//			final var evtLoc = evtLocs.get(i);
-//			if (compareFiles(rcdLoc.getPath(), evtLoc.getPath(), false)) {
-//				numFailures++;
-//			}
-//		}
-//		System.out.println("Total differences: " + numFailures);
+		final var rcdLocs = orderedFilesFrom(THIRD_RECORD_STREAM_DIR, ".rcd");
+		final var evtLocs = orderedFilesFrom(THIRD_EVENT_STREAM_DIR, ".evts");
+
+		System.out.println(rcdLocs.size() + " record files & " + evtLocs.size() + " event files");
+		final var N = rcdLocs.size();
+		var numFailures = 0;
+		for (int i = 0; i < N; i++) {
+			final var rcdLoc = rcdLocs.get(i);
+			final var evtLoc = evtLocs.get(i);
+			if (compareFiles(rcdLoc.getPath(), evtLoc.getPath(), false)) {
+				numFailures++;
+			}
+		}
+		System.out.println("Total differences: " + numFailures);
 	}
 
 	private static boolean compareFiles(
