@@ -45,6 +45,7 @@ import org.apache.logging.log4j.Logger;
 import org.apache.tuweni.bytes.Bytes;
 
 import javax.inject.Inject;
+import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -168,13 +169,16 @@ public class ContractCallTransitionLogic implements PreFetchableTransition {
 		}
 
 
-		//noinspection SwitchStatementWithTooFewBranches
-		return switch (transactionBody.getForeignTransactionData().getForeignTransactionType()) {
-//			case ETHEREUM -> validateFrontierTxSemantics(transactionBody);
-//			case ETHEREUM_EIP_2930 -> validateEIP2930TxSemantics(transactionBody);
-			case ETHEREUM_EIP_1559 -> validateEIP1559TxSemantics(transactionBody);
-			default -> FOREIGN_TRANSACTION_INCORRECT_DATA;
-		};
+		if (transactionBody.hasForeignTransactionData()) {
+			return switch (transactionBody.getForeignTransactionData().getForeignTransactionType()) {
+				case ETHEREUM -> validateFrontierTxSemantics(transactionBody);
+				case ETHEREUM_EIP_2930 -> validateEIP2930TxSemantics(transactionBody);
+				case ETHEREUM_EIP_1559 -> validateEIP1559TxSemantics(transactionBody);
+				default -> FOREIGN_TRANSACTION_INCORRECT_DATA;
+			};
+		} else {
+			return OK;
+		}
 	}
 
 //	private ResponseCodeEnum validateFrontierTxSemantics(final TransactionBody transactionBody) {
@@ -228,7 +232,62 @@ public class ContractCallTransitionLogic implements PreFetchableTransition {
 //		}
 //	}
 
-//	private ResponseCodeEnum validateEIP2930TxSemantics(final TransactionBody transactionBody) {
+	private ResponseCodeEnum validateFrontierTxSemantics(final TransactionBody transactionBody) {
+		var op = transactionBody.getContractCall();
+		var foreignTxData = transactionBody.getForeignTransactionData();
+		var foreignTxBytes = foreignTxData.getForeignTransactionBytes().toByteArray();
+		try {
+			var txSequence = RLPDecoder.RLP_STRICT.sequenceIterator(foreignTxBytes);
+			var header = txSequence.next();
+			if (header.asByte() != 0x02) {
+				return FOREIGN_TRANSACTION_FORMAT_ERROR;
+			}
+			var rlpList = txSequence.next().asRLPList().elements();
+			if (rlpList.size() != 12) {
+				return FOREIGN_TRANSACTION_FORMAT_ERROR;
+			}
+			if (rlpList.get(0).asInt() != properties.getChainId()) {
+				return FOREIGN_TRANSACTION_INCORRECT_CHAIN_ID;
+			}
+
+			if (rlpList.get(1).asInt() != foreignTxData.getNonce()) {
+				return FOREIGN_TRANSACTION_INCORRECT_NONCE;
+			}
+			if (rlpList.get(4).asInt() != op.getGas()) {
+				return FOREIGN_TRANSACTION_INCORRECT_GAS_LIMIT;
+			}
+
+			if (Arrays.compare(rlpList.get(5).data(), EntityIdUtils.asEvmAddress(op.getContractID())) != 0) {
+				return FOREIGN_TRANSACTION_INCORRECT_RECEIVER_ADDRESS;
+			}
+			if (rlpList.get(6).asLong() != op.getAmount()) {
+				return FOREIGN_TRANSACTION_INCORRECT_AMOUNT;
+			}
+			// because of the type byte the offeset is off by one
+			byte[] functionParams = new byte[foreignTxData.getPayloadLength()];
+			System.arraycopy(foreignTxBytes, foreignTxData.getPayloadStart(), functionParams, 0,
+					foreignTxData.getPayloadLength());
+			int index = com.google.common.primitives.Bytes.indexOf(foreignTxBytes, functionParams);
+			if (index != foreignTxData.getPayloadStart() || functionParams.length != foreignTxData.getPayloadLength()) {
+				return FOREIGN_TRANSACTION_INCORRECT_DATA;
+			}
+			//TODO check transaction fee limit based on gasPrice*gasLimit
+			// return ResponseCodeEnum.FOREIGN_TRANSACTION_INSUFFICIENT_FEE_LIMIT;
+			//TODO check sender
+			// return ResponseCodeEnum.FOREIGN_TRANSACTION_INCORRECT_SENDER_ADDRESS;
+			//TODO check signature
+			// long recId = rlpList.get(9).asLong();
+			// var r = rlpList.get(10).asBigInt();
+			// var s = rlpList.get(11).asBigInt();
+			// return ResponseCodeEnum.FOREIGN_TRANSACTION_INVALID_SIGNATURE;
+			return OK;
+		} catch (RuntimeException e) {
+			return FOREIGN_TRANSACTION_FORMAT_ERROR;
+		}
+	}
+
+
+	//	private ResponseCodeEnum validateEIP2930TxSemantics(final TransactionBody transactionBody) {
 //		var op = transactionBody.getContractWrappedCall();
 //		if (op.getForeignTransactionBytes().byteAt(0) != 0x01) {
 //			return FOREIGN_TRANSACTION_FORMAT_ERROR;
@@ -280,7 +339,7 @@ public class ContractCallTransitionLogic implements PreFetchableTransition {
 //		}
 //	}
 
-	private ResponseCodeEnum validateEIP1559TxSemantics(final TransactionBody transactionBody) {
+	private ResponseCodeEnum validateEIP2930TxSemantics(final TransactionBody transactionBody) {
 		var op = transactionBody.getContractCall();
 		var foreignTxData = transactionBody.getForeignTransactionData();
 		var foreignTxBytes = foreignTxData.getForeignTransactionBytes().toByteArray();
@@ -317,6 +376,61 @@ public class ContractCallTransitionLogic implements PreFetchableTransition {
 					foreignTxData.getPayloadLength());
 			int index = com.google.common.primitives.Bytes.indexOf(foreignTxBytes, functionParams);
 			if (index != foreignTxData.getPayloadStart() || functionParams.length != foreignTxData.getPayloadLength()) {
+				return FOREIGN_TRANSACTION_INCORRECT_DATA;
+			}
+			//TODO check transaction fee limit based on gasPrice*gasLimit
+			// return ResponseCodeEnum.FOREIGN_TRANSACTION_INSUFFICIENT_FEE_LIMIT;
+			//TODO check sender
+			// return ResponseCodeEnum.FOREIGN_TRANSACTION_INCORRECT_SENDER_ADDRESS;
+			//TODO check signature
+			// long recId = rlpList.get(9).asLong();
+			// var r = rlpList.get(10).asBigInt();
+			// var s = rlpList.get(11).asBigInt();
+			// return ResponseCodeEnum.FOREIGN_TRANSACTION_INVALID_SIGNATURE;
+			return OK;
+		} catch (RuntimeException e) {
+			return FOREIGN_TRANSACTION_FORMAT_ERROR;
+		}
+	}
+
+
+	private ResponseCodeEnum validateEIP1559TxSemantics(final TransactionBody transactionBody) {
+		var op = transactionBody.getContractCall();
+		var foreignTxData = transactionBody.getForeignTransactionData();
+		var foreignTxBytes = foreignTxData.getForeignTransactionBytes().toByteArray();
+		try {
+			var txSequence = RLPDecoder.RLP_STRICT.sequenceIterator(foreignTxBytes);
+			var header = txSequence.next();
+			if (header.asByte() != 0x02) {
+				return FOREIGN_TRANSACTION_FORMAT_ERROR;
+			}
+			var rlpList = txSequence.next().asRLPList().elements();
+			if (rlpList.size() != 12) {
+				return FOREIGN_TRANSACTION_FORMAT_ERROR;
+			}
+			if (rlpList.get(0).asInt() != properties.getChainId()) {
+				return FOREIGN_TRANSACTION_INCORRECT_CHAIN_ID;
+			}
+
+			if (rlpList.get(1).asInt() != foreignTxData.getNonce()) {
+				return FOREIGN_TRANSACTION_INCORRECT_NONCE;
+			}
+			if (rlpList.get(4).asInt() != op.getGas()) {
+				return FOREIGN_TRANSACTION_INCORRECT_GAS_LIMIT;
+			}
+
+			if (Arrays.compare(rlpList.get(5).data(), EntityIdUtils.asEvmAddress(op.getContractID())) != 0) {
+				return FOREIGN_TRANSACTION_INCORRECT_RECEIVER_ADDRESS;
+			}
+			var amount  = rlpList.get(6).asBigInt().divide(BigInteger.valueOf(10_000_000_000L)).longValueExact();
+			if (amount != op.getAmount()) {
+				return FOREIGN_TRANSACTION_INCORRECT_AMOUNT;
+			}
+			
+			var rlpPayload = rlpList.get(7).data();
+			// because of the type byte the offeset is off by one
+			int index = com.google.common.primitives.Bytes.indexOf(foreignTxBytes, rlpPayload);
+			if (index != foreignTxData.getPayloadStart() || rlpPayload.length != foreignTxData.getPayloadLength()) {
 				return FOREIGN_TRANSACTION_INCORRECT_DATA;
 			}
 			//TODO check transaction fee limit based on gasPrice*gasLimit
