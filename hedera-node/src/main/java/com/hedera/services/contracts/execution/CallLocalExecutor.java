@@ -26,8 +26,10 @@ import com.hedera.services.ledger.accounts.AliasManager;
 import com.hedera.services.store.AccountStore;
 import com.hedera.services.store.models.Id;
 import com.hedera.services.utils.EntityIdUtils;
+import com.hedera.services.utils.EntityNum;
 import com.hedera.services.utils.ResponseCodeUtil;
 import com.hedera.services.utils.SignedTxnAccessor;
+import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractCallLocalQuery;
 import com.hederahashgraph.api.proto.java.ContractCallLocalResponse;
 import com.hederahashgraph.builder.RequestBuilder;
@@ -71,7 +73,17 @@ public class CallLocalExecutor {
 	) {
 		try {
 			final var paymentTxn = SignedTxnAccessor.uncheckedFrom(op.getHeader().getPayment()).getTxn();
-			final var senderId = Id.fromGrpcAccount(paymentTxn.getTransactionID().getAccountID());
+			var senderAccountId = op.hasSenderID()
+					? op.getSenderID()
+					: paymentTxn.getTransactionID().getAccountID();
+			final Id senderId;
+			if (senderAccountId.getAccountCase() == AccountID.AccountCase.ALIAS) {
+				ByteString alias = senderAccountId.getAlias();
+				EntityNum entityNum = aliasManager.lookupIdBy(alias);
+				senderId = Id.fromGrpcAccount(entityNum.toGrpcAccountId());
+			} else {
+				senderId = Id.fromGrpcAccount(senderAccountId);
+			}
 			final var idOrAlias = op.getContractID();
 			final var contractId = EntityIdUtils.unaliased(idOrAlias, aliasManager).toId();
 

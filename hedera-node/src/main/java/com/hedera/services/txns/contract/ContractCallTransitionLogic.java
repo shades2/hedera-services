@@ -21,6 +21,7 @@ package com.hedera.services.txns.contract;
  */
 
 import com.esaulpaugh.headlong.rlp.RLPDecoder;
+import com.google.protobuf.ByteString;
 import com.hedera.services.context.TransactionContext;
 import com.hedera.services.context.properties.GlobalDynamicProperties;
 import com.hedera.services.contracts.execution.CallEvmTxProcessor;
@@ -36,6 +37,7 @@ import com.hedera.services.txns.PreFetchableTransition;
 import com.hedera.services.utils.EntityIdUtils;
 import com.hedera.services.utils.EntityNum;
 import com.hedera.services.utils.TxnAccessor;
+import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractCallTransactionBody;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TransactionBody;
@@ -104,9 +106,17 @@ public class ContractCallTransitionLogic implements PreFetchableTransition {
 		var contractCallTxn = txnCtx.accessor().getTxn();
 		var op = contractCallTxn.getContractCall();
 		final var target = targetOf(op);
-		final var senderId = Id.fromGrpcAccount(op.hasSenderID()
+		var senderAccountId = op.hasSenderID()
 				? op.getSenderID()
-				: contractCallTxn.getTransactionID().getAccountID());
+				: contractCallTxn.getTransactionID().getAccountID();
+		final Id senderId;
+		if (senderAccountId.getAccountCase() == AccountID.AccountCase.ALIAS) {
+			ByteString alias = senderAccountId.getAlias();
+			EntityNum entityNum = aliasManager.lookupIdBy(alias);
+			senderId = Id.fromGrpcAccount(entityNum.toGrpcAccountId());
+		} else {
+			senderId = Id.fromGrpcAccount(senderAccountId);
+		}
 		final var contractId = target.toId();
 
 		/* --- Load the model objects --- */
