@@ -1,6 +1,7 @@
 package com.hedera.services;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.services.exceptions.UnknownHederaFunctionality;
 import com.hedera.services.legacy.proto.utils.CommonUtils;
 import com.hederahashgraph.api.proto.java.AccountID;
@@ -92,11 +93,22 @@ public class UglyParsing {
 		for (final var rcdFile : orderedFilesFrom(recordStreamsLoc, ".rcd")) {
 			final var histories = parseOldRecordFile(rcdFile.getPath());
 			for (final var history : histories) {
-				final var txn = history.getSignedTxn().getBody();
+				final var signedTxn = history.getSignedTxn();
+				var txn = signedTxn.getBody();
+				if (!txn.hasTransactionID()) {
+					try {
+						txn = TransactionBody.parseFrom(signedTxn.getBodyBytes());
+						System.out.println("Had to re-parse to find payer 0.0."
+								+ txn.getTransactionID().getAccountID().getAccountNum());
+					} catch (InvalidProtocolBufferException e) {
+						e.printStackTrace();
+					}
+				}
 				if (txn.getTransactionID().getAccountID().equals(payer)) {
 					final var record = history.getRecord();
-					final var meta = Pair.of(
-							txn, timestampToInstant(record.getConsensusTimestamp()));
+					final var at = timestampToInstant(record.getConsensusTimestamp());
+					System.out.println("Found " + safeFunctionOf(txn) + "@" + at);
+					final var meta = Pair.of(txn, at);
 					final var key = txn.toByteString();
 					if (fromRecords.containsKey(key)) {
 						System.out.println("OOPS! Duplicate of: " + txn);
@@ -112,6 +124,7 @@ public class UglyParsing {
 			for (final var item : items) {
 				final var txn = item.txn();
 				if (txn.getTransactionID().getAccountID().equals(payer)) {
+					System.out.println("Ugly-parsed " + safeFunctionOf(txn));
 					final var key = txn.toByteString();
 					if (fromEvents.containsKey(key)) {
 						System.out.println("OOPS! Duplicate of: " + txn);
@@ -123,11 +136,13 @@ public class UglyParsing {
 		}
 
 		try (final var out = Files.newBufferedWriter(Paths.get(analysisOutLoc))) {
+			out.write(fromEvents.size() + " from events, " + fromRecords.size() +  " from records\n");
 			out.write("--- IN events, NOT IN records ---\n");
-			Instant lastConsTime;
+			Instant lastConsTime = Instant.EPOCH;
 			for (final var key : fromEvents.keySet()) {
-				lastConsTime = fromRecords.get(key).getRight();
-				if (!fromRecords.containsKey(key)) {
+				if (fromRecords.containsKey(key)) {
+					lastConsTime = fromRecords.get(key).getRight();
+				} else {
 					final var missing = fromEvents.get(key);
 					out.write("After consensus time "
 							+ lastConsTime + ", missing record for event txn: " + missing + "\n");
@@ -199,8 +214,6 @@ public class UglyParsing {
 		try {
 			return "" + functionOf(txn);
 		} catch (UnknownHederaFunctionality unknownHederaFunctionality) {
-			unknownHederaFunctionality.printStackTrace();
-			System.out.println(txn);
 			return "N/A";
 		}
 	}
@@ -266,7 +279,9 @@ public class UglyParsing {
 	private static List<RecordParser.TxnHistory> parseOldRecordFile(final String loc) {
 		final var f = new File(loc);
 		final var rcdFile = RecordParser.parseFrom(f);
-		return rcdFile.getTxnHistories();
+		final var histories = rcdFile.getTxnHistories();
+		System.out.println("Found " + histories.size() + " records in " + loc);
+		return histories;
 	}
 
 	private static List<File> orderedFilesFrom(final String dir, final String suffix) {
