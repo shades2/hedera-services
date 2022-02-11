@@ -1,9 +1,12 @@
 package com.hedera.services;
 
+import com.google.protobuf.ByteString;
 import com.hedera.services.exceptions.UnknownHederaFunctionality;
 import com.hedera.services.legacy.proto.utils.CommonUtils;
+import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import org.apache.commons.lang3.time.StopWatch;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.spongycastle.util.Arrays;
@@ -19,7 +22,9 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
@@ -51,20 +56,91 @@ public class UglyParsing {
 //		final var evtsLoc = FIRST_EVENT_STREAM_DIR + "/2019-09-14T11_18_30.027183Z.evts";
 //		compareFiles(rcdLoc, evtsLoc, false);
 
-		final var rcdLocs = orderedFilesFrom(THIRD_RECORD_STREAM_DIR, ".rcd");
-		final var evtLocs = orderedFilesFrom(THIRD_EVENT_STREAM_DIR, ".evts");
+//		final var rcdLocs = orderedFilesFrom(THIRD_RECORD_STREAM_DIR, ".rcd");
+//		final var evtLocs = orderedFilesFrom(THIRD_EVENT_STREAM_DIR, ".evts");
+//
+//		System.out.println(rcdLocs.size() + " record files & " + evtLocs.size() + " event files");
+//		final var N = rcdLocs.size();
+//		var numFailures = 0;
+//		for (int i = 0; i < N; i++) {
+//			final var rcdLoc = rcdLocs.get(i);
+//			final var evtLoc = evtLocs.get(i);
+//			if (compareFiles(rcdLoc.getPath(), evtLoc.getPath(), false)) {
+//				numFailures++;
+//			}
+//		}
+//		System.out.println("Total differences: " + numFailures);
 
-		System.out.println(rcdLocs.size() + " record files & " + evtLocs.size() + " event files");
-		final var N = rcdLocs.size();
-		var numFailures = 0;
-		for (int i = 0; i < N; i++) {
-			final var rcdLoc = rcdLocs.get(i);
-			final var evtLoc = evtLocs.get(i);
-			if (compareFiles(rcdLoc.getPath(), evtLoc.getPath(), false)) {
-				numFailures++;
+		// 0.0.16378
+		final var firstProblemPayer = AccountID.newBuilder().setAccountNum(16378).build();
+		final var firstAnalysisLoc = "payer16378-2019-09-14.txt";
+		analyzeDiscrepantAccount(
+				firstProblemPayer, FIRST_RECORD_STREAM_DIR, FIRST_EVENT_STREAM_DIR, firstAnalysisLoc);
+	}
+
+	private static void analyzeDiscrepantAccount(
+			final AccountID payer,
+			final String recordStreamsLoc,
+			final String eventStreamsLoc,
+			final String analysisOutLoc
+	) {
+		final Map<ByteString, TransactionBody> fromEvents =
+				new TreeMap<>(ByteString.unsignedLexicographicalComparator());
+		final Map<ByteString, Pair<TransactionBody, Instant>> fromRecords =
+				new TreeMap<>(ByteString.unsignedLexicographicalComparator());
+
+		for (final var rcdFile : orderedFilesFrom(recordStreamsLoc, ".rcd")) {
+			final var histories = parseOldRecordFile(rcdFile.getPath());
+			for (final var history : histories) {
+				final var txn = history.getSignedTxn().getBody();
+				if (txn.getTransactionID().getAccountID().equals(payer)) {
+					final var record = history.getRecord();
+					final var meta = Pair.of(
+							txn, timestampToInstant(record.getConsensusTimestamp()));
+					final var key = txn.toByteString();
+					if (fromRecords.containsKey(key)) {
+						System.out.println("OOPS! Duplicate of: " + txn);
+					} else {
+						fromRecords.put(key, meta);
+					}
+				}
 			}
 		}
-		System.out.println("Total differences: " + numFailures);
+
+		for (final var evtsFile : orderedFilesFrom(eventStreamsLoc, ".evts")) {
+			final var items = uglyParsing(evtsFile.getPath(), false);
+			for (final var item : items) {
+				final var txn = item.txn();
+				if (txn.getTransactionID().getAccountID().equals(payer)) {
+					final var key = txn.toByteString();
+					if (fromEvents.containsKey(key)) {
+						System.out.println("OOPS! Duplicate of: " + txn);
+					} else {
+						fromEvents.put(key, txn);
+					}
+				}
+			}
+		}
+
+		try (final var out = Files.newBufferedWriter(Paths.get(analysisOutLoc))) {
+			out.write("--- IN events, NOT IN records ---\n");
+			Instant lastConsTime;
+			for (final var key : fromEvents.keySet()) {
+				lastConsTime = fromRecords.get(key).getRight();
+				if (!fromRecords.containsKey(key)) {
+					final var missing = fromEvents.get(key);
+					out.write("After consensus time "
+							+ lastConsTime + ", missing record for event txn: " + missing + "\n");
+				}
+			}
+
+			out.write("--- IN records, NOT IN events ---\n");
+			final var recordKeys = new HashSet<>(fromRecords.keySet());
+			recordKeys.removeAll(fromEvents.keySet());
+			out.write("  -> # = " + recordKeys.size() +  "\n");
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
 	}
 
 	private static boolean compareFiles(
@@ -131,7 +207,7 @@ public class UglyParsing {
 
 	private static List<Item> uglyParsing(final String loc, final boolean verbose) {
 		final byte[] marker = unhex("0a");
-		final var l  = marker.length;
+		final var l = marker.length;
 		try {
 			final var data = Files.readAllBytes(Paths.get(loc));
 			final List<Item> ans = new ArrayList<>();
