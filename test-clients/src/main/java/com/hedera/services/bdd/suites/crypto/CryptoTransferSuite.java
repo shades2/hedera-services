@@ -153,8 +153,8 @@ public class CryptoTransferSuite extends HapiApiSuite {
 //						transferToNonAccountEntitiesReturnsInvalidAccountId(),
 //						nftSelfTransfersRejectedBothInPrecheckAndHandle(),
 //						checksExpectedDecimalsForFungibleTokenTransferList(),
-//						allowanceTransfersWorkAsExpected(),
-						allowanceTransfersWithComplexTransfersWork()
+						allowanceTransfersWorkAsExpected(),
+//						allowanceTransfersWithComplexTransfersWork()
 				}
 		);
 	}
@@ -368,9 +368,7 @@ public class CryptoTransferSuite extends HapiApiSuite {
 								.hasKnownStatus(INSUFFICIENT_SENDER_ACCOUNT_BALANCE_FOR_CUSTOM_FEE),
 						cryptoTransfer(movingWithAllowance(100, fungibleToken).between(owner, owner))
 								.payingWith(spender)
-								.signedBy(spender)
-								.dontFullyAggregateTokenTransfers()
-								.hasPrecheck(ACCOUNT_REPEATED_IN_ACCOUNT_AMOUNTS),
+								.signedBy(spender),
 						cryptoTransfer(movingUniqueWithAllowance(nonFungibleToken, 3).between(owner, otherReceiver))
 								.payingWith(spender)
 								.signedBy(spender),
@@ -447,7 +445,8 @@ public class CryptoTransferSuite extends HapiApiSuite {
 								.signedBy(spender)
 								.hasKnownStatus(SPENDER_DOES_NOT_HAVE_ALLOWANCE),
 						getAccountInfo(owner)
-								.has(accountWith().tokenAllowancesContaining(fungibleToken, spender, 1450))
+								.logged()
+								.has(accountWith().tokenAllowancesContaining(fungibleToken, spender, 1350))
 								.hasToken(relationshipWith(fungibleToken).balance(950L)),
 						cryptoTransfer(moving(1000, fungibleToken).between(TOKEN_TREASURY, owner)),
 						cryptoTransfer(
@@ -479,7 +478,7 @@ public class CryptoTransferSuite extends HapiApiSuite {
 								.has(accountWith()
 										.cryptoAllowancesCount(0)
 										.nftAllowancesContaining(nonFungibleToken, spender, false, List.of(6L))
-										.tokenAllowancesContaining(fungibleToken, spender, 1400))
+										.tokenAllowancesContaining(fungibleToken, spender, 1300))
 				);
 	}
 

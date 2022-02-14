@@ -230,11 +230,11 @@ public class HapiCryptoTransfer extends HapiTxnOp<HapiCryptoTransfer> {
 			AccountID toAccount = asId(to, spec);
 			AccountID fromAccount = asId(from, spec);
 			return TransferList.newBuilder()
-					.addAllAccountAmounts(Arrays.asList(
-							AccountAmount.newBuilder().setAccountID(toAccount)
-									.setAmount(amount).setIsApproval(true).build(),
+					.addAllAccountAmounts(List.of(
 							AccountAmount.newBuilder().setAccountID(fromAccount)
-									.setAmount(-1L * amount).setIsApproval(true).build())
+									.setAmount(-1L * amount).setIsApproval(true).build(),
+							AccountAmount.newBuilder().setAccountID(toAccount)
+									.setAmount(amount).build())
 					).build();
 		};
 	}

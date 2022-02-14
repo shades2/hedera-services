@@ -217,7 +217,7 @@ public class TokenMovement {
 		return AccountAmount.newBuilder()
 				.setAccountID(asId(name, spec))
 				.setAmount(value)
-				.setIsApproval(isApproval)
+				.setIsApproval(effectiveApproval(isApproval, value))
 				.build();
 	}
 
@@ -228,6 +228,10 @@ public class TokenMovement {
 				.setSerialNumber(value)
 				.setIsApproval(isApproval)
 				.build();
+	}
+
+	private boolean effectiveApproval(final boolean isLogicalXferApproved, final long value) {
+		return isLogicalXferApproved && (value < 0);
 	}
 
 	public static class Builder {
