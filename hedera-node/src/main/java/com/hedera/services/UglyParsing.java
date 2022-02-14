@@ -5,6 +5,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.services.exceptions.UnknownHederaFunctionality;
 import com.hedera.services.legacy.proto.utils.CommonUtils;
 import com.hederahashgraph.api.proto.java.AccountID;
+import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import org.apache.commons.lang3.time.StopWatch;
 import org.apache.commons.lang3.tuple.Pair;
@@ -73,10 +74,17 @@ public class UglyParsing {
 //		System.out.println("Total differences: " + numFailures);
 
 		// 0.0.16378
-		final var firstProblemPayer = AccountID.newBuilder().setAccountNum(16378).build();
-		final var firstAnalysisLoc = "payer16378-2019-09-14.txt";
+//		final var firstProblemPayer = AccountID.newBuilder().setAccountNum(16378).build();
+//		final var firstAnalysisLoc = "payer16378-2019-09-14.txt";
+//		analyzeDiscrepantAccount(
+//				firstProblemPayer, FIRST_RECORD_STREAM_DIR, FIRST_EVENT_STREAM_DIR, firstAnalysisLoc);
+
+		// 0.0.909
+		final var secondProblemPayer = AccountID.newBuilder().setAccountNum(909).build();
+		final var secondAnalysisLoc = "payer909-2019-09-17.txt";
 		analyzeDiscrepantAccount(
-				firstProblemPayer, FIRST_RECORD_STREAM_DIR, FIRST_EVENT_STREAM_DIR, firstAnalysisLoc);
+				secondProblemPayer, SECOND_RECORD_STREAM_DIR, SECOND_EVENT_STREAM_DIR, secondAnalysisLoc);
+
 	}
 
 	private static void analyzeDiscrepantAccount(
@@ -94,16 +102,7 @@ public class UglyParsing {
 			final var histories = parseOldRecordFile(rcdFile.getPath());
 			for (final var history : histories) {
 				final var signedTxn = history.getSignedTxn();
-				var txn = signedTxn.getBody();
-				if (!txn.hasTransactionID()) {
-					try {
-						txn = TransactionBody.parseFrom(signedTxn.getBodyBytes());
-						System.out.println("Had to re-parse to find payer 0.0."
-								+ txn.getTransactionID().getAccountID().getAccountNum());
-					} catch (InvalidProtocolBufferException e) {
-						e.printStackTrace();
-					}
-				}
+				final var txn = txnFrom(signedTxn);
 				if (txn.getTransactionID().getAccountID().equals(payer)) {
 					final var record = history.getRecord();
 					final var at = timestampToInstant(record.getConsensusTimestamp());
@@ -153,61 +152,28 @@ public class UglyParsing {
 			final var recordKeys = new HashSet<>(fromRecords.keySet());
 			recordKeys.removeAll(fromEvents.keySet());
 			out.write("  -> # = " + recordKeys.size() +  "\n");
+			for (final var key : recordKeys) {
+				final var item = fromRecords.get(key);
+				out.write("@" + item.getValue() + " -> " + item.getKey() + "\n");
+			}
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
 		}
 	}
 
-	private static boolean compareFiles(
-			final String rcdLoc,
-			final String evtsLoc,
-			final boolean verbose
-	) {
-		final var histories = parseOldRecordFile(rcdLoc);
-		final var rN = histories.size();
-		System.out.println("Size from legacy parser: " + rN);
 
-		final var watch = StopWatch.createStarted();
-		final var items = uglyParsing(evtsLoc, verbose);
-		final var eN = items.size();
-		System.out.println("Size from ugly parsing : " + eN
-				+ " in " + watch.getTime(TimeUnit.SECONDS) + "s");
-
-		if (rN != eN) {
-			System.out.println("!!! COUNTS DIFFER " + rcdLoc + " vs " + evtsLoc + " !!!");
-			final Set<String> inRecordStream = new HashSet<>();
-			for (int i = 0; i < rN; i++) {
-				final var history = histories.get(i);
-				final var txn = history.getSignedTxn().getBody();
-				final var summary = summarize(txn);
-				System.out.println(summary + "::" + txn.getSerializedSize());
-				inRecordStream.add(summary);
+	private static TransactionBody txnFrom(final Transaction signedTxn) {
+		var txn = signedTxn.getBody();
+		if (!txn.hasTransactionID()) {
+			try {
+				txn = TransactionBody.parseFrom(signedTxn.getBodyBytes());
+				System.out.println("Had to re-parse to find payer 0.0."
+						+ txn.getTransactionID().getAccountID().getAccountNum());
+			} catch (InvalidProtocolBufferException e) {
+				e.printStackTrace();
 			}
-			System.out.println("!!!---------------!!!");
-			for (int j = 0; j < eN; j++) {
-				final var item = items.get(j);
-				final var txn = item.txn();
-				final var summary = summarize(txn);
-				System.out.println(summary);
-				if (!inRecordStream.contains(summary)) {
-					System.out.println(hex(item.hash));
-					System.out.println(txn);
-				}
-			}
-			System.out.println("!!!!!!!!!!!!!!!!!!!!!");
-			return true;
 		}
-		return false;
-	}
-
-	private static String summarize(final TransactionBody txn) {
-		var desc = "" + safeFunctionOf(txn);
-		final var txnId = txn.getTransactionID();
-		desc += "-";
-		desc += txnId.getAccountID().getAccountNum();
-		desc += "@";
-		final var when = timestampToInstant(txnId.getTransactionValidStart());
-		return desc + when;
+		return txn;
 	}
 
 	private static String safeFunctionOf(final TransactionBody txn) {
@@ -307,5 +273,57 @@ public class UglyParsing {
 		} catch (Exception e) {
 			throw new IllegalArgumentException(e);
 		}
+	}
+
+	private static boolean compareFiles(
+			final String rcdLoc,
+			final String evtsLoc,
+			final boolean verbose
+	) {
+		final var histories = parseOldRecordFile(rcdLoc);
+		final var rN = histories.size();
+		System.out.println("Size from legacy parser: " + rN);
+
+		final var watch = StopWatch.createStarted();
+		final var items = uglyParsing(evtsLoc, verbose);
+		final var eN = items.size();
+		System.out.println("Size from ugly parsing : " + eN
+				+ " in " + watch.getTime(TimeUnit.SECONDS) + "s");
+
+		if (rN != eN) {
+			System.out.println("!!! COUNTS DIFFER " + rcdLoc + " vs " + evtsLoc + " !!!");
+			final Set<String> inRecordStream = new HashSet<>();
+			for (int i = 0; i < rN; i++) {
+				final var history = histories.get(i);
+				final var txn = history.getSignedTxn().getBody();
+				final var summary = summarize(txn);
+				System.out.println(summary + "::" + txn.getSerializedSize());
+				inRecordStream.add(summary);
+			}
+			System.out.println("!!!---------------!!!");
+			for (int j = 0; j < eN; j++) {
+				final var item = items.get(j);
+				final var txn = item.txn();
+				final var summary = summarize(txn);
+				System.out.println(summary);
+				if (!inRecordStream.contains(summary)) {
+					System.out.println(hex(item.hash));
+					System.out.println(txn);
+				}
+			}
+			System.out.println("!!!!!!!!!!!!!!!!!!!!!");
+			return true;
+		}
+		return false;
+	}
+
+	private static String summarize(final TransactionBody txn) {
+		var desc = "" + safeFunctionOf(txn);
+		final var txnId = txn.getTransactionID();
+		desc += "-";
+		desc += txnId.getAccountID().getAccountNum();
+		desc += "@";
+		final var when = timestampToInstant(txnId.getTransactionValidStart());
+		return desc + when;
 	}
 }
