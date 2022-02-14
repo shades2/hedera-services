@@ -39,7 +39,7 @@ import static java.util.stream.Collectors.toList;
 public class UglyParsing {
 	private static final Logger log = LogManager.getLogger(UglyParsing.class);
 
-	private static final int MAX_BODY_SIZE = 1024;
+	private static final int MAX_BODY_SIZE = 2048;
 
 	private static final String FIRST_INTERVAL_BASE_DIR = "/Users/tinkerm/Dev/rosetta/mainnet_balance_file_issue";
 	private static final String FIRST_RECORD_STREAM_DIR = FIRST_INTERVAL_BASE_DIR + "/recordstreams";
@@ -81,16 +81,16 @@ public class UglyParsing {
 //				firstProblemPayer, FIRST_RECORD_STREAM_DIR, FIRST_EVENT_STREAM_DIR, firstAnalysisLoc);
 
 		// 0.0.909
-//		final var secondProblemPayer = AccountID.newBuilder().setAccountNum(909).build();
-//		final var secondAnalysisLoc = "payer909-2019-09-17.txt";
-//		analyzeDiscrepantAccount(
-//				secondProblemPayer, SECOND_RECORD_STREAM_DIR, SECOND_EVENT_STREAM_DIR, secondAnalysisLoc);
+		final var secondProblemPayer = AccountID.newBuilder().setAccountNum(909).build();
+		final var secondAnalysisLoc = "payer909-2019-09-17.txt";
+		analyzeDiscrepantAccount(
+				secondProblemPayer, SECOND_RECORD_STREAM_DIR, SECOND_EVENT_STREAM_DIR, secondAnalysisLoc);
 
 		// 0.0.57
-		final var thirdProblemPayer = AccountID.newBuilder().setAccountNum(57).build();
-		final var thirdAnalysisLoc = "payer57-2019-09-18.txt";
-		analyzeDiscrepantAccount(
-				thirdProblemPayer, THIRD_RECORD_STREAM_DIR, THIRD_EVENT_STREAM_DIR, thirdAnalysisLoc);
+//		final var thirdProblemPayer = AccountID.newBuilder().setAccountNum(57).build();
+//		final var thirdAnalysisLoc = "payer57-2019-09-18.txt";
+//		analyzeDiscrepantAccount(
+//				thirdProblemPayer, THIRD_RECORD_STREAM_DIR, THIRD_EVENT_STREAM_DIR, thirdAnalysisLoc);
 
 	}
 
