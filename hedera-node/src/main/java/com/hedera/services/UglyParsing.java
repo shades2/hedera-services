@@ -73,6 +73,7 @@ public class UglyParsing {
 //		}
 //		System.out.println("Total differences: " + numFailures);
 
+		/* ============================================================================== */
 		// 0.0.16378
 //		final var firstProblemPayer = AccountID.newBuilder().setAccountNum(16378).build();
 //		final var firstAnalysisLoc = "payer16378-2019-09-14.txt";
@@ -80,10 +81,16 @@ public class UglyParsing {
 //				firstProblemPayer, FIRST_RECORD_STREAM_DIR, FIRST_EVENT_STREAM_DIR, firstAnalysisLoc);
 
 		// 0.0.909
-		final var secondProblemPayer = AccountID.newBuilder().setAccountNum(909).build();
-		final var secondAnalysisLoc = "payer909-2019-09-17.txt";
+//		final var secondProblemPayer = AccountID.newBuilder().setAccountNum(909).build();
+//		final var secondAnalysisLoc = "payer909-2019-09-17.txt";
+//		analyzeDiscrepantAccount(
+//				secondProblemPayer, SECOND_RECORD_STREAM_DIR, SECOND_EVENT_STREAM_DIR, secondAnalysisLoc);
+
+		// 0.0.57
+		final var thirdProblemPayer = AccountID.newBuilder().setAccountNum(57).build();
+		final var thirdAnalysisLoc = "payer57-2019-09-18.txt";
 		analyzeDiscrepantAccount(
-				secondProblemPayer, SECOND_RECORD_STREAM_DIR, SECOND_EVENT_STREAM_DIR, secondAnalysisLoc);
+				thirdProblemPayer, THIRD_RECORD_STREAM_DIR, THIRD_EVENT_STREAM_DIR, thirdAnalysisLoc);
 
 	}
 
@@ -106,7 +113,8 @@ public class UglyParsing {
 				if (txn.getTransactionID().getAccountID().equals(payer)) {
 					final var record = history.getRecord();
 					final var at = timestampToInstant(record.getConsensusTimestamp());
-					System.out.println("Found " + safeFunctionOf(txn) + "@" + at);
+					System.out.println("Found " + safeFunctionOf(txn) + "@" + at
+							+ " (resolved to " + record.getReceipt().getStatus() + ")");
 					final var meta = Pair.of(txn, at);
 					final var key = txn.toByteString();
 					if (fromRecords.containsKey(key)) {
