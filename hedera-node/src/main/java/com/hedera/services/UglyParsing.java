@@ -192,18 +192,19 @@ public class UglyParsing {
 		try {
 			final var eventsHere = LegacyDeserialization.loadEventFile(loc);
 			final List<RecordParser.TxnHistory> results = new ArrayList<>();
-			long nanoOffset = -1;
 			for (final var event : eventsHere) {
 				final var firstConsTime = event.getKey();
+				long nanoOffset = -1;
 				for (final var txn : event.getRight()) {
-//					nanoOffset++;
+					nanoOffset++;
 					if (txn.getRight()) {
 						// System txn, skip
 						continue;
 					}
 					final var signedTxn = Transaction.parseFrom(txn.getLeft());
 					final var mockRecord = TransactionRecord.newBuilder()
-							.setConsensusTimestamp(MiscUtils.asTimestamp(firstConsTime.plusNanos(nanoOffset++)))
+							.setConsensusTimestamp(MiscUtils.asTimestamp(firstConsTime.plusNanos(nanoOffset)))
+//							.setConsensusTimestamp(MiscUtils.asTimestamp(firstConsTime))
 							.setReceipt(TransactionReceipt.newBuilder().setStatus(UNKNOWN))
 							.build();
 					results.add(new RecordParser.TxnHistory(signedTxn, mockRecord));
