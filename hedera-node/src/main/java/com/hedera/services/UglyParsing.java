@@ -6,6 +6,8 @@ import com.hedera.services.exceptions.UnknownHederaFunctionality;
 import com.hedera.services.legacy.proto.utils.CommonUtils;
 import com.hedera.services.utils.MiscUtils;
 import com.hederahashgraph.api.proto.java.AccountID;
+import com.hederahashgraph.api.proto.java.ExchangeRate;
+import com.hederahashgraph.api.proto.java.ExchangeRateSet;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionReceipt;
@@ -25,12 +27,14 @@ import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
 import static com.hedera.services.utils.MiscUtils.functionOf;
@@ -82,7 +86,8 @@ public class UglyParsing {
 		final var firstProblemPayer = AccountID.newBuilder().setAccountNum(16378).build();
 		final var firstAnalysisLoc = "payer16378-2019-09-14.txt";
 		analyzeDiscrepantAccount(
-				firstProblemPayer, FIRST_RECORD_STREAM_DIR, FIRST_EVENT_STREAM_DIR, firstAnalysisLoc);
+				firstProblemPayer, FIRST_RECORD_STREAM_DIR, FIRST_EVENT_STREAM_DIR, firstAnalysisLoc,
+				75_494_726);
 
 		// 0.0.909
 //		final var secondProblemPayer = AccountID.newBuilder().setAccountNum(909).build();
@@ -101,34 +106,49 @@ public class UglyParsing {
 //		System.out.println(hex(Arrays.copyOfRange(bytes, 0, 2056)));
 	}
 
+	private static AtomicLong payerBalance = new AtomicLong();
+
 	private static void analyzeDiscrepantAccount(
 			final AccountID payer,
 			final String recordStreamsLoc,
 			final String eventStreamsLoc,
-			final String analysisOutLoc
+			final String analysisOutLoc,
+			final long initialBalance
 	) {
+		payerBalance.set(initialBalance);
+
 		final Map<ByteString, Pair<TransactionBody, Instant>> fromEvents =
 				new TreeMap<>(ByteString.unsignedLexicographicalComparator());
 		final Map<ByteString, Pair<TransactionBody, Instant>> fromRecords =
 				new TreeMap<>(ByteString.unsignedLexicographicalComparator());
+		final Map<ByteString, ExchangeRate> knownRates = new HashMap<>();
+		final Map<ByteString, Long> payerBalanceChanges = new HashMap<>();
 
 		for (final var rcdFile : orderedFilesFrom(recordStreamsLoc, ".rcd")) {
 			final var histories = parseOldRecordFile(rcdFile.getPath());
 			for (final var history : histories) {
 				final var signedTxn = history.getSignedTxn();
 				final var txn = txnFrom(signedTxn);
+				final var key = txn.toByteString();
+				final var record = history.getRecord();
+				final var at = timestampToInstant(record.getConsensusTimestamp());
+				knownRates.put(key, rateNow(record.getReceipt().getExchangeRate(), at));
 				if (txn.getTransactionID().getAccountID().equals(payer)) {
-					final var record = history.getRecord();
-					final var at = timestampToInstant(record.getConsensusTimestamp());
 					System.out.println("Found " + safeFunctionOf(txn) + "@" + at
 							+ " (resolved to " + record.getReceipt().getStatus() + ")");
 					final var meta = Pair.of(txn, at);
-					final var key = txn.toByteString();
 					if (fromRecords.containsKey(key)) {
 						System.out.println("OOPS! Duplicate of: " + txn);
 					} else {
 						fromRecords.put(key, meta);
 					}
+					long changeHere = 0;
+					for (final var adjust : record.getTransferList().getAccountAmountsList()) {
+						if (adjust.getAccountID().equals(payer)) {
+							changeHere += adjust.getAmount();
+						}
+					}
+					payerBalanceChanges.put(key, changeHere);
 				}
 			}
 		}
@@ -136,16 +156,26 @@ public class UglyParsing {
 		for (final var evtsFile : orderedFilesFrom(eventStreamsLoc, ".evts")) {
 			final var histories = horrorParsing(evtsFile.getPath());
 //			System.out.println("Read " + histories.size() + " user txns from " + evtsFile.getPath());
+			ExchangeRate closestRate = null;
 			for (final var history : histories) {
 				final var signedTxn = history.getSignedTxn();
 				final var txn = txnFrom(signedTxn);
+				final var key = txn.toByteString();
+				if (knownRates.containsKey(key)) {
+					closestRate = knownRates.get(key);
+				}
 				if (txn.getTransactionID().getAccountID().equals(payer)) {
 					final var record = history.getRecord();
 					final var at = timestampToInstant(record.getConsensusTimestamp());
 					System.out.println("(EVTS) Found " + safeFunctionOf(txn) + "@" + at
 							+ " (resolved to " + record.getReceipt().getStatus() + ")");
+					if (payerBalanceChanges.containsKey(key)) {
+						payerBalance.addAndGet(payerBalanceChanges.get(key));
+						System.out.println(" -> this changed payer balance to " + payerBalance.get());
+					} else {
+						System.out.println(" ! closest rate-set for simulation is " + readableRate(closestRate));
+					}
 					final var meta = Pair.of(txn, at);
-					final var key = txn.toByteString();
 					if (fromEvents.containsKey(key)) {
 						System.out.println("OOPS! (EVTS) Duplicate of: " + txn);
 					} else {
@@ -179,6 +209,14 @@ public class UglyParsing {
 		}
 	}
 
+	private static String readableRate(ExchangeRate rate) {
+		return rate.getHbarEquiv() + "ℏ <-> " + rate.getCentEquiv() + "¢";
+	}
+
+	private static ExchangeRate rateNow(final ExchangeRateSet rateSet, final Instant now) {
+		final var firstExpiry = Instant.ofEpochSecond(rateSet.getCurrentRate().getExpirationTime().getSeconds());
+		return now.isAfter(firstExpiry) ? rateSet.getNextRate() : rateSet.getCurrentRate();
+	}
 
 	private static String safeFunctionOf(final TransactionBody txn) {
 		try {
