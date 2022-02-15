@@ -4,9 +4,12 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.services.exceptions.UnknownHederaFunctionality;
 import com.hedera.services.legacy.proto.utils.CommonUtils;
+import com.hedera.services.utils.MiscUtils;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
+import com.hederahashgraph.api.proto.java.TransactionReceipt;
+import com.hederahashgraph.api.proto.java.TransactionRecord;
 import org.apache.commons.lang3.time.StopWatch;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
@@ -32,6 +35,7 @@ import java.util.stream.Stream;
 
 import static com.hedera.services.utils.MiscUtils.functionOf;
 import static com.hedera.services.utils.MiscUtils.timestampToInstant;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.UNKNOWN;
 import static com.swirlds.common.CommonUtils.hex;
 import static com.swirlds.common.CommonUtils.unhex;
 import static java.util.stream.Collectors.toList;
@@ -53,7 +57,7 @@ public class UglyParsing {
 	private static final String THIRD_RECORD_STREAM_DIR = THIRD_INTERVAL_BASE_DIR + "/recordstreams";
 	private static final String THIRD_EVENT_STREAM_DIR = THIRD_INTERVAL_BASE_DIR + "/eventsStreams";
 
-	public static void main(String... args) throws UnknownHederaFunctionality {
+	public static void main(String... args) throws UnknownHederaFunctionality, IOException {
 //		final var rcdLoc = FIRST_RECORD_STREAM_DIR + "/2019-09-14T11_18_30.114968Z.rcd";
 //		final var evtsLoc = FIRST_EVENT_STREAM_DIR + "/2019-09-14T11_18_30.027183Z.evts";
 //		compareFiles(rcdLoc, evtsLoc, false);
@@ -75,16 +79,16 @@ public class UglyParsing {
 
 		/* ============================================================================== */
 		// 0.0.16378
-//		final var firstProblemPayer = AccountID.newBuilder().setAccountNum(16378).build();
-//		final var firstAnalysisLoc = "payer16378-2019-09-14.txt";
-//		analyzeDiscrepantAccount(
-//				firstProblemPayer, FIRST_RECORD_STREAM_DIR, FIRST_EVENT_STREAM_DIR, firstAnalysisLoc);
+		final var firstProblemPayer = AccountID.newBuilder().setAccountNum(16378).build();
+		final var firstAnalysisLoc = "payer16378-2019-09-14.txt";
+		analyzeDiscrepantAccount(
+				firstProblemPayer, FIRST_RECORD_STREAM_DIR, FIRST_EVENT_STREAM_DIR, firstAnalysisLoc);
 
 		// 0.0.909
-		final var secondProblemPayer = AccountID.newBuilder().setAccountNum(909).build();
-		final var secondAnalysisLoc = "payer909-2019-09-17.txt";
-		analyzeDiscrepantAccount(
-				secondProblemPayer, SECOND_RECORD_STREAM_DIR, SECOND_EVENT_STREAM_DIR, secondAnalysisLoc);
+//		final var secondProblemPayer = AccountID.newBuilder().setAccountNum(909).build();
+//		final var secondAnalysisLoc = "payer909-2019-09-17.txt";
+//		analyzeDiscrepantAccount(
+//				secondProblemPayer, SECOND_RECORD_STREAM_DIR, SECOND_EVENT_STREAM_DIR, secondAnalysisLoc);
 
 		// 0.0.57
 //		final var thirdProblemPayer = AccountID.newBuilder().setAccountNum(57).build();
@@ -92,6 +96,9 @@ public class UglyParsing {
 //		analyzeDiscrepantAccount(
 //				thirdProblemPayer, THIRD_RECORD_STREAM_DIR, THIRD_EVENT_STREAM_DIR, thirdAnalysisLoc);
 
+
+//		final var bytes = Files.readAllBytes(Paths.get(firstEvtsLoc));
+//		System.out.println(hex(Arrays.copyOfRange(bytes, 0, 2056)));
 	}
 
 	private static void analyzeDiscrepantAccount(
@@ -100,7 +107,7 @@ public class UglyParsing {
 			final String eventStreamsLoc,
 			final String analysisOutLoc
 	) {
-		final Map<ByteString, TransactionBody> fromEvents =
+		final Map<ByteString, Pair<TransactionBody, Instant>> fromEvents =
 				new TreeMap<>(ByteString.unsignedLexicographicalComparator());
 		final Map<ByteString, Pair<TransactionBody, Instant>> fromRecords =
 				new TreeMap<>(ByteString.unsignedLexicographicalComparator());
@@ -127,16 +134,22 @@ public class UglyParsing {
 		}
 
 		for (final var evtsFile : orderedFilesFrom(eventStreamsLoc, ".evts")) {
-			final var items = uglyParsing(evtsFile.getPath(), false);
-			for (final var item : items) {
-				final var txn = item.txn();
+			final var histories = horrorParsing(evtsFile.getPath());
+//			System.out.println("Read " + histories.size() + " user txns from " + evtsFile.getPath());
+			for (final var history : histories) {
+				final var signedTxn = history.getSignedTxn();
+				final var txn = txnFrom(signedTxn);
 				if (txn.getTransactionID().getAccountID().equals(payer)) {
-					System.out.println("Ugly-parsed " + safeFunctionOf(txn));
+					final var record = history.getRecord();
+					final var at = timestampToInstant(record.getConsensusTimestamp());
+					System.out.println("(EVTS) Found " + safeFunctionOf(txn) + "@" + at
+							+ " (resolved to " + record.getReceipt().getStatus() + ")");
+					final var meta = Pair.of(txn, at);
 					final var key = txn.toByteString();
 					if (fromEvents.containsKey(key)) {
-						System.out.println("OOPS! Duplicate of: " + txn);
+						System.out.println("OOPS! (EVTS) Duplicate of: " + txn);
 					} else {
-						fromEvents.put(key, txn);
+						fromEvents.put(key, meta);
 					}
 				}
 			}
@@ -145,14 +158,11 @@ public class UglyParsing {
 		try (final var out = Files.newBufferedWriter(Paths.get(analysisOutLoc))) {
 			out.write(fromEvents.size() + " from events, " + fromRecords.size() +  " from records\n");
 			out.write("--- IN events, NOT IN records ---\n");
-			Instant lastConsTime = Instant.EPOCH;
 			for (final var key : fromEvents.keySet()) {
-				if (fromRecords.containsKey(key)) {
-					lastConsTime = fromRecords.get(key).getRight();
-				} else {
+				if (!fromRecords.containsKey(key)) {
 					final var missing = fromEvents.get(key);
-					out.write("After consensus time "
-							+ lastConsTime + ", missing record for event txn: " + missing + "\n");
+					out.write("@ inferred "
+							+ missing.getRight() + ", missing record for event txn: " + missing.getKey() + "\n");
 				}
 			}
 
@@ -170,25 +180,38 @@ public class UglyParsing {
 	}
 
 
-	private static TransactionBody txnFrom(final Transaction signedTxn) {
-		var txn = signedTxn.getBody();
-		if (!txn.hasTransactionID()) {
-			try {
-				txn = TransactionBody.parseFrom(signedTxn.getBodyBytes());
-				System.out.println("Had to re-parse to find payer 0.0."
-						+ txn.getTransactionID().getAccountID().getAccountNum());
-			} catch (InvalidProtocolBufferException e) {
-				e.printStackTrace();
-			}
-		}
-		return txn;
-	}
-
 	private static String safeFunctionOf(final TransactionBody txn) {
 		try {
 			return "" + functionOf(txn);
 		} catch (UnknownHederaFunctionality unknownHederaFunctionality) {
 			return "N/A";
+		}
+	}
+
+	private static List<RecordParser.TxnHistory> horrorParsing(final String loc) {
+		try {
+			final var eventsHere = LegacyDeserialization.loadEventFile(loc);
+			final List<RecordParser.TxnHistory> results = new ArrayList<>();
+			long nanoOffset = -1;
+			for (final var event : eventsHere) {
+				final var firstConsTime = event.getKey();
+				for (final var txn : event.getRight()) {
+//					nanoOffset++;
+					if (txn.getRight()) {
+						// System txn, skip
+						continue;
+					}
+					final var signedTxn = Transaction.parseFrom(txn.getLeft());
+					final var mockRecord = TransactionRecord.newBuilder()
+							.setConsensusTimestamp(MiscUtils.asTimestamp(firstConsTime.plusNanos(nanoOffset++)))
+							.setReceipt(TransactionReceipt.newBuilder().setStatus(UNKNOWN))
+							.build();
+					results.add(new RecordParser.TxnHistory(signedTxn, mockRecord));
+				}
+			}
+			return results;
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
 		}
 	}
 
@@ -254,7 +277,7 @@ public class UglyParsing {
 		final var f = new File(loc);
 		final var rcdFile = RecordParser.parseFrom(f);
 		final var histories = rcdFile.getTxnHistories();
-		System.out.println("Found " + histories.size() + " records in " + loc);
+//		System.out.println("Found " + histories.size() + " records in " + loc);
 		return histories;
 	}
 
@@ -333,5 +356,19 @@ public class UglyParsing {
 		desc += "@";
 		final var when = timestampToInstant(txnId.getTransactionValidStart());
 		return desc + when;
+	}
+
+	private static TransactionBody txnFrom(final Transaction signedTxn) {
+		var txn = signedTxn.getBody();
+		if (!txn.hasTransactionID()) {
+			try {
+				txn = TransactionBody.parseFrom(signedTxn.getBodyBytes());
+//				System.out.println("Had to re-parse to find payer 0.0."
+//						+ txn.getTransactionID().getAccountID().getAccountNum());
+			} catch (InvalidProtocolBufferException e) {
+				e.printStackTrace();
+			}
+		}
+		return txn;
 	}
 }
