@@ -137,8 +137,8 @@ public class LoadState {
 	}
 
 	private static List<MerkleLeaf> compareStates(final State stateA, final State stateB) {
-//		final Iterator<MerkleNode> iterator = new ComparisonIterator(stateA, stateB);
-		final Iterator<MerkleNode> iterator = new MerkleDepthFirstIterator<>(stateA);
+		final Iterator<MerkleNode> iterator = new ComparisonIterator(stateA, stateB);
+//		final Iterator<MerkleNode> iterator = new MerkleDepthFirstIterator<>(stateA);
 
 		final List<MerkleLeaf> nodes = new LinkedList<>();
 
