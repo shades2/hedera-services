@@ -90,4 +90,9 @@ public class PlatformTxnAccessor extends SignedTxnAccessor {
 	protected EntityNum unaliased(ContractID grpcId) {
 		return EntityIdUtils.unaliased(grpcId, aliasManager);
 	}
+
+	@Override
+	public AccountID getPayer() {
+		return unaliased(getTxnId().getAccountID()).toGrpcAccountId();
+	}
 }

@@ -26,10 +26,10 @@ import com.hedera.services.ledger.SigImpactHistorian;
 import com.hedera.services.legacy.core.jproto.JKey;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.state.merkle.MerkleTopic;
-import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.txns.TransitionLogic;
 import com.hedera.services.txns.validation.OptionValidator;
 import com.hedera.services.utils.EntityNum;
+import com.hedera.services.utils.accessors.TopicUpdateAccessor;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ConsensusUpdateTopicTransactionBody;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
@@ -66,7 +66,7 @@ public class TopicUpdateTransitionLogic implements TransitionLogic {
 	private final HederaLedger ledger;
 	private final OptionValidator validator;
 	private final SigImpactHistorian sigImpactHistorian;
-	private final TransactionContext transactionContext;
+	private final TransactionContext txnCtx;
 	private final Supplier<MerkleMap<EntityNum, MerkleTopic>> topics;
 	private final Supplier<MerkleMap<EntityNum, MerkleAccount>> accounts;
 
@@ -84,34 +84,35 @@ public class TopicUpdateTransitionLogic implements TransitionLogic {
 		this.topics = topics;
 		this.validator = validator;
 		this.sigImpactHistorian = sigImpactHistorian;
-		this.transactionContext = transactionContext;
+		this.txnCtx = transactionContext;
 	}
 
 	@Override
 	public void doStateTransition() {
-		var transactionBody = transactionContext.accessor().getTxn();
-		var op = transactionBody.getConsensusUpdateTopic();
+		final var accessor = (TopicUpdateAccessor) txnCtx.accessor();
+		var txnBody = accessor.getTxn();
+		var op = txnBody.getConsensusUpdateTopic();
 
 		final var target = op.getTopicID();
 		var topicStatus = validator.queryableTopicStatus(target, topics.get());
 		if (topicStatus != OK) {
-			transactionContext.setStatus(topicStatus);
+			txnCtx.setStatus(topicStatus);
 			return;
 		}
 
 		var topicId = EntityNum.fromTopicId(op.getTopicID());
 		var topic = topics.get().get(topicId);
 		if (!topic.hasAdminKey() && wantsToMutateNonExpiryField(op)) {
-			transactionContext.setStatus(UNAUTHORIZED);
+			txnCtx.setStatus(UNAUTHORIZED);
 			return;
 		}
-		if (!canApplyNewFields(op, topic)) {
+		if (!canApplyNewFields(op, topic, accessor)) {
 			return;
 		}
 
 		var mutableTopic = topics.get().getForModify(topicId);
-		applyNewFields(op, mutableTopic);
-		transactionContext.setStatus(SUCCESS);
+		applyNewFields(op, mutableTopic, accessor);
+		txnCtx.setStatus(SUCCESS);
 		sigImpactHistorian.markEntityChanged(target.getTopicNum());
 	}
 
@@ -121,20 +122,23 @@ public class TopicUpdateTransitionLogic implements TransitionLogic {
 				op.hasAutoRenewPeriod() || op.hasAutoRenewAccount();
 	}
 
-	private boolean canApplyNewFields(ConsensusUpdateTopicTransactionBody op, MerkleTopic topic) {
+	private boolean canApplyNewFields(final ConsensusUpdateTopicTransactionBody op,
+			final MerkleTopic topic,
+			final TopicUpdateAccessor accessor) {
 		return canApplyNewKeys(op, topic) &&
 				canApplyNewMemo(op) &&
 				canApplyNewExpiry(op, topic) &&
 				canApplyNewAutoRenewPeriod(op) &&
-				canApplyNewAutoRenewAccount(op, topic);
+				canApplyNewAutoRenewAccount(op, topic, accessor);
 	}
 
-	private void applyNewFields(ConsensusUpdateTopicTransactionBody op, MerkleTopic topic) {
+	private void applyNewFields(ConsensusUpdateTopicTransactionBody op, MerkleTopic topic,
+			final TopicUpdateAccessor accessor) {
 		applyNewKeys(op, topic);
 		applyNewMemo(op, topic);
 		applyNewExpiry(op, topic);
 		applyNewAutoRenewPeriod(op, topic);
-		applyNewAutoRenewAccount(op, topic);
+		applyNewAutoRenewAccount(op, topic, accessor);
 	}
 
 	private boolean canApplyNewAutoRenewPeriod(ConsensusUpdateTopicTransactionBody op) {
@@ -143,7 +147,7 @@ public class TopicUpdateTransitionLogic implements TransitionLogic {
 		}
 		var newAutoRenewPeriod = op.getAutoRenewPeriod();
 		if (!validator.isValidAutoRenewPeriod(newAutoRenewPeriod)) {
-			transactionContext.setStatus(AUTORENEW_DURATION_NOT_IN_RANGE);
+			txnCtx.setStatus(AUTORENEW_DURATION_NOT_IN_RANGE);
 			return false;
 		}
 		return true;
@@ -155,7 +159,7 @@ public class TopicUpdateTransitionLogic implements TransitionLogic {
 		}
 		var memoValidity = validator.memoCheck(op.getMemo().getValue());
 		if (memoValidity != OK) {
-			transactionContext.setStatus(memoValidity);
+			txnCtx.setStatus(memoValidity);
 			return false;
 		}
 		return true;
@@ -173,13 +177,13 @@ public class TopicUpdateTransitionLogic implements TransitionLogic {
 		}
 		var newExpiry = op.getExpirationTime();
 		if (!validator.isValidExpiry(newExpiry)) {
-			transactionContext.setStatus(INVALID_EXPIRATION_TIME);
+			txnCtx.setStatus(INVALID_EXPIRATION_TIME);
 			return false;
 		}
 
 		var richNewExpiry = fromGrpc(newExpiry);
 		if (topic.hasExpirationTimestamp() && topic.getExpirationTimestamp().isAfter(richNewExpiry)) {
-			transactionContext.setStatus(EXPIRATION_REDUCTION_NOT_ALLOWED);
+			txnCtx.setStatus(EXPIRATION_REDUCTION_NOT_ALLOWED);
 			return false;
 		}
 
@@ -192,7 +196,9 @@ public class TopicUpdateTransitionLogic implements TransitionLogic {
 		}
 	}
 
-	private boolean canApplyNewAutoRenewAccount(ConsensusUpdateTopicTransactionBody op, MerkleTopic topic) {
+	private boolean canApplyNewAutoRenewAccount(final ConsensusUpdateTopicTransactionBody op,
+			final MerkleTopic topic,
+			final TopicUpdateAccessor accessor) {
 		if (!op.hasAutoRenewAccount()) {
 			return true;
 		}
@@ -201,30 +207,32 @@ public class TopicUpdateTransitionLogic implements TransitionLogic {
 			return true;
 		}
 		if (topic.hasAutoRenewAccountId() && ledger.isDetached(topic.getAutoRenewAccountId().toGrpcAccountId())) {
-			transactionContext.setStatus(ACCOUNT_EXPIRED_AND_PENDING_REMOVAL);
+			txnCtx.setStatus(ACCOUNT_EXPIRED_AND_PENDING_REMOVAL);
 			return false;
 		}
 		if (!topic.hasAdminKey() || (op.hasAdminKey() && asFcKeyUnchecked(op.getAdminKey()).isEmpty())) {
-			transactionContext.setStatus(AUTORENEW_ACCOUNT_NOT_ALLOWED);
+			txnCtx.setStatus(AUTORENEW_ACCOUNT_NOT_ALLOWED);
 			return false;
 		}
-		if (OK != validator.queryableAccountStatus(newAutoRenewAccount, accounts.get())) {
-			transactionContext.setStatus(INVALID_AUTORENEW_ACCOUNT);
+		var resolvedAutoRenewAccount = accessor.accountToAutoRenew().asGrpcAccount();
+		if (OK != validator.queryableAccountStatus(resolvedAutoRenewAccount, accounts.get())) {
+			txnCtx.setStatus(INVALID_AUTORENEW_ACCOUNT);
 			return false;
 		}
-		if (ledger.isDetached(newAutoRenewAccount)) {
-			transactionContext.setStatus(ACCOUNT_EXPIRED_AND_PENDING_REMOVAL);
+		if (ledger.isDetached(resolvedAutoRenewAccount)) {
+			txnCtx.setStatus(ACCOUNT_EXPIRED_AND_PENDING_REMOVAL);
 			return false;
 		}
 		return true;
 	}
 
-	private void applyNewAutoRenewAccount(ConsensusUpdateTopicTransactionBody op, MerkleTopic topic) {
+	private void applyNewAutoRenewAccount(ConsensusUpdateTopicTransactionBody op, MerkleTopic topic,
+			final TopicUpdateAccessor accessor) {
 		if (op.hasAutoRenewAccount()) {
 			if (designatesAccountRemoval(op.getAutoRenewAccount())) {
 				topic.setAutoRenewAccountId(null);
 			} else {
-				topic.setAutoRenewAccountId(EntityId.fromGrpcAccountId(op.getAutoRenewAccount()));
+				topic.setAutoRenewAccountId(accessor.accountToAutoRenew().asEntityId());
 			}
 		}
 	}
@@ -254,7 +262,7 @@ public class TopicUpdateTransitionLogic implements TransitionLogic {
 			}
 		} catch (DecoderException e) {
 			log.error("Decoder exception updating topic {}. ", topicId, e);
-			transactionContext.setStatus(BAD_ENCODING);
+			txnCtx.setStatus(BAD_ENCODING);
 			return false;
 		}
 		return true;
@@ -263,7 +271,7 @@ public class TopicUpdateTransitionLogic implements TransitionLogic {
 	private boolean applyNewSubmitKey(final ConsensusUpdateTopicTransactionBody op) throws DecoderException {
 		var newSubmitKey = op.getSubmitKey();
 		if (!validator.hasGoodEncoding(newSubmitKey)) {
-			transactionContext.setStatus(BAD_ENCODING);
+			txnCtx.setStatus(BAD_ENCODING);
 			return false;
 		}
 		JKey.mapKey(newSubmitKey);
@@ -277,7 +285,7 @@ public class TopicUpdateTransitionLogic implements TransitionLogic {
 		if (!validator.hasGoodEncoding(newAdminKey)) {
 			log.error("Update topic {} has invalid admin key specified, " +
 					"which should have been caught during signature validation", topicId);
-			transactionContext.setStatus(BAD_ENCODING);
+			txnCtx.setStatus(BAD_ENCODING);
 			return false;
 		}
 		var fcKey = JKey.mapKey(newAdminKey);
@@ -285,7 +293,7 @@ public class TopicUpdateTransitionLogic implements TransitionLogic {
 			boolean opRemovesAutoRenewId = op.hasAutoRenewAccount() &&
 					designatesAccountRemoval(op.getAutoRenewAccount());
 			if (topic.hasAutoRenewAccountId() && !opRemovesAutoRenewId) {
-				transactionContext.setStatus(AUTORENEW_ACCOUNT_NOT_ALLOWED);
+				txnCtx.setStatus(AUTORENEW_ACCOUNT_NOT_ALLOWED);
 				return false;
 			}
 		}

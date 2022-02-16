@@ -30,6 +30,7 @@ import com.hedera.services.store.models.Id;
 import com.hedera.services.store.models.Topic;
 import com.hedera.services.txns.TransitionLogic;
 import com.hedera.services.txns.validation.OptionValidator;
+import com.hedera.services.utils.accessors.TopicCreateAccessor;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 
@@ -58,7 +59,7 @@ public final class TopicCreateTransitionLogic implements TransitionLogic {
 	private final EntityIdSource entityIdSource;
 	private final OptionValidator validator;
 	private final SigImpactHistorian sigImpactHistorian;
-	private final TransactionContext transactionContext;
+	private final TransactionContext txnCtx;
 
 	@Inject
 	public TopicCreateTransitionLogic(
@@ -74,20 +75,21 @@ public final class TopicCreateTransitionLogic implements TransitionLogic {
 		this.entityIdSource = entityIdSource;
 		this.validator = validator;
 		this.sigImpactHistorian = sigImpactHistorian;
-		this.transactionContext = transactionContext;
+		this.txnCtx = transactionContext;
 	}
 
 	@Override
 	public void doStateTransition() {
 		/* --- Extract gRPC --- */
-		final var transactionBody = transactionContext.accessor().getTxn();
-		final var payerAccountId = transactionBody.getTransactionID().getAccountID();
-		final var op = transactionBody.getConsensusCreateTopic();
+		final var accessor = (TopicCreateAccessor) txnCtx.accessor();
+		final var txnBody = accessor.getTxn();
+		final var payerAccountId = accessor.getPayer();
+		final var op = txnBody.getConsensusCreateTopic();
 		final var submitKey = op.hasSubmitKey() ? validator.attemptDecodeOrThrow(op.getSubmitKey()) : null;
 		final var adminKey = op.hasAdminKey() ? validator.attemptDecodeOrThrow(op.getAdminKey()) : null;
 		final var memo = op.getMemo();
 		final var autoRenewPeriod = op.getAutoRenewPeriod();
-		final var autoRenewAccountId = Id.fromGrpcAccount(op.getAutoRenewAccount());
+		final var autoRenewAccountId = accessor.accountToAutoRenew();
 
 		/* --- Validate --- */
 		final var memoValidationResult = validator.memoCheck(memo);
@@ -102,7 +104,7 @@ public final class TopicCreateTransitionLogic implements TransitionLogic {
 		}
 
 		/* --- Do business logic --- */
-		final var expirationTime = transactionContext.consensusTime().plusSeconds(autoRenewPeriod.getSeconds());
+		final var expirationTime = txnCtx.consensusTime().plusSeconds(autoRenewPeriod.getSeconds());
 		final var topicId = entityIdSource.newTopicId(payerAccountId);
 		final var topic = Topic.fromGrpcTopicCreate(
 				Id.fromGrpcTopic(topicId),
