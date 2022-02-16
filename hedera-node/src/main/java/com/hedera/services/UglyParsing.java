@@ -5,6 +5,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.services.exceptions.UnknownHederaFunctionality;
 import com.hedera.services.fees.calculation.contract.txns.ContractCallResourceUsage;
 import com.hedera.services.legacy.proto.utils.CommonUtils;
+import com.hedera.services.stream.RecordStreamObject;
 import com.hedera.services.utils.MiscUtils;
 import com.hedera.services.utils.SignedTxnAccessor;
 import com.hederahashgraph.api.proto.java.AccountAmount;
@@ -24,6 +25,7 @@ import com.hederahashgraph.exception.InvalidTxBodyException;
 import com.hederahashgraph.fee.FeeObject;
 import com.hederahashgraph.fee.SigValueObj;
 import com.hederahashgraph.fee.SmartContractFeeBuilder;
+import com.swirlds.common.io.SerializableDataOutputStream;
 import org.apache.commons.lang3.time.StopWatch;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
@@ -63,14 +65,17 @@ public class UglyParsing {
 
 	private static final int MAX_BODY_SIZE = 2048;
 
+	private static final String FIRST_BLOCK_DIR = "/Users/tinkerm/Dev/rosetta/errata/block___2019-09-14T11_30_00.232322Z";
 	private static final String FIRST_INTERVAL_BASE_DIR = "/Users/tinkerm/Dev/rosetta/mainnet_balance_file_issue";
 	private static final String FIRST_RECORD_STREAM_DIR = FIRST_INTERVAL_BASE_DIR + "/recordstreams";
 	private static final String FIRST_EVENT_STREAM_DIR = FIRST_INTERVAL_BASE_DIR + "/eventsStreams";
 
+	private static final String SECOND_BLOCK_DIR = "/Users/tinkerm/Dev/rosetta/errata/block___2019-09-17T00_45_00.418867Z";
 	private static final String SECOND_INTERVAL_BASE_DIR = "/Users/tinkerm/Dev/rosetta/batch2_3/batch2";
 	private static final String SECOND_RECORD_STREAM_DIR = SECOND_INTERVAL_BASE_DIR + "/recordstreams";
 	private static final String SECOND_EVENT_STREAM_DIR = SECOND_INTERVAL_BASE_DIR + "/eventsStreams";
 
+	private static final String THIRD_BLOCK_DIR = "/Users/tinkerm/Dev/rosetta/errata/block___2019-09-18T19_15_00.383318Z";
 	private static final String THIRD_INTERVAL_BASE_DIR = "/Users/tinkerm/Dev/rosetta/batch2_3/batch3";
 	private static final String THIRD_RECORD_STREAM_DIR = THIRD_INTERVAL_BASE_DIR + "/recordstreams";
 	private static final String THIRD_EVENT_STREAM_DIR = THIRD_INTERVAL_BASE_DIR + "/eventsStreams";
@@ -97,32 +102,36 @@ public class UglyParsing {
 
 		/* ============================================================================== */
 		// 0.0.16378
-		final var firstProblemPayer = AccountID.newBuilder().setAccountNum(16378).build();
-		final var firstAnalysisLoc = "payer16378-2019-09-14.txt";
-		analyzeDiscrepantAccount(
-				firstProblemPayer, FIRST_RECORD_STREAM_DIR, FIRST_EVENT_STREAM_DIR, firstAnalysisLoc,
-				75_494_726);
-		System.out.println("<drum roll> True final payer balance was   : " + payerBalance.get());
-		System.out.println("<drum roll> Missed node adjustments were   : " + missedNodeChange.get());
-		System.out.println("<drum roll> Missed funding adjustments were: " + missedFundingChange.get());
+//		final var firstProblemPayer = AccountID.newBuilder().setAccountNum(16378).build();
+//		final var firstAnalysisLoc = "payer16378-2019-09-14.txt";
+//		analyzeDiscrepantAccount(
+//				firstProblemPayer, FIRST_RECORD_STREAM_DIR, FIRST_EVENT_STREAM_DIR, firstAnalysisLoc,
+//				75_494_726, FIRST_BLOCK_DIR);
 
 		// 0.0.909
-//		final var secondProblemPayer = AccountID.newBuilder().setAccountNum(909).build();
-//		final var secondAnalysisLoc = "payer909-2019-09-17.txt";
-//		analyzeDiscrepantAccount(
-//				secondProblemPayer, SECOND_RECORD_STREAM_DIR, SECOND_EVENT_STREAM_DIR, secondAnalysisLoc);
+		numPayerKeys = 2;
+		final var secondProblemPayer = AccountID.newBuilder().setAccountNum(909).build();
+		final var secondAnalysisLoc = "payer909-2019-09-17.txt";
+		analyzeDiscrepantAccount(
+				secondProblemPayer, SECOND_RECORD_STREAM_DIR, SECOND_EVENT_STREAM_DIR, secondAnalysisLoc,
+				40_081_754_179L, SECOND_BLOCK_DIR);
 
 		// 0.0.57
 //		final var thirdProblemPayer = AccountID.newBuilder().setAccountNum(57).build();
 //		final var thirdAnalysisLoc = "payer57-2019-09-18.txt";
 //		analyzeDiscrepantAccount(
-//				thirdProblemPayer, THIRD_RECORD_STREAM_DIR, THIRD_EVENT_STREAM_DIR, thirdAnalysisLoc);
+//				thirdProblemPayer, THIRD_RECORD_STREAM_DIR, THIRD_EVENT_STREAM_DIR, thirdAnalysisLoc,
+//				1004252124L, THIRD_BLOCK_DIR);
 
+		System.out.println("<drum roll> True final payer balance was   : " + payerBalance.get());
+		System.out.println("<drum roll> Missed node adjustments were   : " + missedNodeChange.get());
+		System.out.println("<drum roll> Missed funding adjustments were: " + missedFundingChange.get());
 
 //		final var bytes = Files.readAllBytes(Paths.get(firstEvtsLoc));
 //		System.out.println(hex(Arrays.copyOfRange(bytes, 0, 2056)));
 	}
 
+	private static int numPayerKeys = 1;
 	private static AtomicLong payerBalance = new AtomicLong();
 	private static AtomicLong missedNodeChange = new AtomicLong();
 	private static AtomicLong missedFundingChange = new AtomicLong();
@@ -133,8 +142,8 @@ public class UglyParsing {
 			final ExchangeRate rate
 	) {
 		final var prices = historicalCryptoTransferPrices();
-//		System.out.println(signedTxn);
-		final var sigUsage = new SigValueObj(1, 1, getSignatureSize(signedTxn));
+		System.out.println(signedTxn);
+		final var sigUsage = new SigValueObj(1, numPayerKeys, getSignatureSize(signedTxn));
 		try {
 			final var builder = new CryptoFeeBuilder();
 			final var usage = builder.getCryptoTransferTxFeeMatrices(txn, sigUsage);
@@ -155,6 +164,7 @@ public class UglyParsing {
 			final ExchangeRate rate
 	) {
 		final var prices = historicalContractCallPrices();
+//		final var prices = otherHistoricalContractCallPrices();
 		final var estimator = new ContractCallResourceUsage(new SmartContractFeeBuilder());
 		final var sigUsage = new SigValueObj(1, 1, getSignatureSize(signedTxn));
 		try {
@@ -185,8 +195,10 @@ public class UglyParsing {
 			final String recordStreamsLoc,
 			final String eventStreamsLoc,
 			final String analysisOutLoc,
-			final long initialBalance
-	) {
+			final long initialBalance,
+			final String blockErrataDir
+	) throws IOException {
+		Files.createDirectories(Paths.get(blockErrataDir));
 		payerBalance.set(initialBalance);
 
 		final Map<ByteString, Pair<TransactionBody, Instant>> fromEvents =
@@ -209,6 +221,7 @@ public class UglyParsing {
 				final var at = timestampToInstant(record.getConsensusTimestamp());
 				if (record.getReceipt().hasExchangeRate()) {
 					closestRateSet = record.getReceipt().getExchangeRate();
+//					System.out.println(closestRateSet);
 					closestRate = rateNow(closestRateSet, at);
 					knownRates.put(key, closestRate);
 					knownRateSets.put(key, record.getReceipt().getExchangeRate());
@@ -224,6 +237,7 @@ public class UglyParsing {
 						fromRecords.put(key, meta);
 					}
 					if (HederaFunctionality.valueOf(function) == HederaFunctionality.ContractCall) {
+						System.out.println("Closest rate is " + readableRate(closestRate));
 						final var callEst = estimateForContractCall(signedTxn, txn, closestRate);
 						System.out.println("Fee estimate: " + callEst);
 					} else if (HederaFunctionality.valueOf(function) == HederaFunctionality.CryptoTransfer) {
@@ -267,18 +281,30 @@ public class UglyParsing {
 					} else {
 						System.out.println(" ! closest rate-set for simulation is " + readableRate(closestRate));
 						System.out.println(" ! last known payer balance was " + payerBalance.get());
+						RecordStreamObject errata = null;
 						if (HederaFunctionality.valueOf(function) == HederaFunctionality.ContractCall) {
 							final var callEst = estimateForContractCall(signedTxn, txn, closestRate);
 							System.out.println("    -->> vs fee estimate: " + callEst);
 							final var errataRecord = errataRecordFor(
 									callEst, closestRateSet, history.getRecord().getConsensusTimestamp(), signedTxn);
 							System.out.println("Errata record: " + errataRecord);
+							errata = new RecordStreamObject(errataRecord, signedTxn, at);
 						} else if (HederaFunctionality.valueOf(function) == HederaFunctionality.CryptoTransfer) {
 							final var xferEst = estimateForCryptoTransfer(signedTxn, txn, closestRate);
 							System.out.println("    -->> vs fee estimate: " + xferEst);
 							final var errataRecord = errataRecordFor(
 									xferEst, closestRateSet, history.getRecord().getConsensusTimestamp(), signedTxn);
 							System.out.println("Errata record: " + errataRecord);
+							errata = new RecordStreamObject(errataRecord, signedTxn, at);
+						}
+						if (errata != null) {
+							final var loc = blockErrataDir + "/errata_record___" + at + ".bin";
+							final var realLoc = loc.replace(":", "_");
+							try (final var fout =
+										 new SerializableDataOutputStream(Files.newOutputStream(Paths.get(realLoc)))) {
+								errata.serialize(fout);
+								System.out.println("Wrote errata record @ " + realLoc);
+							}
 						}
 					}
 					final var meta = Pair.of(txn, at);
@@ -352,6 +378,8 @@ public class UglyParsing {
 			xfers.addAccountAmounts(aaWith(node, +fees.getNodeFee()));
 			xfers.addAccountAmounts(aaWith(FUNDING, +fees.getNetworkFee()));
 			xfers.addAccountAmounts(aaWith(accessor.getPayer(), -chargedFees));
+		} else {
+			throw new AssertionError("Don't know about this one yet!");
 		}
 		return record
 				.setReceipt(receipt)
@@ -587,6 +615,32 @@ public class UglyParsing {
 				.setConstant(54743320481L)
 				.setRbh(58345)
 				.setSbh(4376);
+		return FeeData.newBuilder()
+				.setNetworkdata(network)
+				.setNodedata(node)
+				.setServicedata(service)
+				.build();
+	}
+
+	private static FeeData otherHistoricalContractCallPrices() {
+		final var node = FeeComponents.newBuilder()
+				.setMax(1000000000000000L)
+				.setConstant(4054335935L)
+				.setBpt(6481668)
+				.setVpt(16204170504L)
+				.setBpr(6481668)
+				.setSbpr(162042);
+		final var network = FeeComponents.newBuilder()
+				.setMax(1000000000000000L)
+				.setConstant(52706367151L)
+				.setBpt(84261687)
+				.setVpt(210654216558L)
+				.setRbh(56174);
+		final var service = FeeComponents.newBuilder()
+				.setMax(1000000000000000L)
+				.setConstant(52706367151L)
+				.setRbh(56174)
+				.setSbh(4213);
 		return FeeData.newBuilder()
 				.setNetworkdata(network)
 				.setNodedata(node)

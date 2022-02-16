@@ -191,7 +191,7 @@ public class RecordStreamObject
 	}
 
 	/* --- Only used by unit tests --- */
-	RecordStreamObject(
+	public RecordStreamObject(
 			final TransactionRecord transactionRecord,
 			final Transaction transaction,
 			final Instant consensusTimestamp
