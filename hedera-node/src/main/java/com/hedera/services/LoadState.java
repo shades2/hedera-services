@@ -155,11 +155,11 @@ public class LoadState {
 				return;
 			}
 
-			if (nodeB != null && !nodeA.getHash().equals(nodeB.getHash())) {
-				// These nodes are equal, don't report them.
-				// This check is not necessary if ComparisonIterator is used
-				return;
-			}
+//			if (nodeB != null && nodeA.getHash().equals(nodeB.getHash())) {
+//				// These nodes are equal, don't report them.
+//				// This check is not necessary if ComparisonIterator is used
+//				return;
+//			}
 
 			if (nodeA instanceof MerkleLeaf || nodeB instanceof MerkleLeaf) {
 				if (nodeA instanceof MerkleInternal) {
