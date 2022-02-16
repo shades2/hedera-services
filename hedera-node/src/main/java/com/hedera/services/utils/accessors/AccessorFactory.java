@@ -29,9 +29,6 @@ import javax.inject.Inject;
 
 import static com.hedera.services.legacy.proto.utils.CommonUtils.extractTransactionBody;
 import static com.hedera.services.utils.accessors.SignedTxnAccessor.functionExtractor;
-import static com.hederahashgraph.api.proto.java.HederaFunctionality.ConsensusCreateTopic;
-import static com.hederahashgraph.api.proto.java.HederaFunctionality.ConsensusUpdateTopic;
-import static com.hederahashgraph.api.proto.java.HederaFunctionality.TokenAccountWipe;
 
 public class AccessorFactory {
 	final AliasManager aliasManager;
@@ -44,12 +41,12 @@ public class AccessorFactory {
 	public PlatformTxnAccessor constructFrom(SwirldTransaction transaction) throws InvalidProtocolBufferException {
 		final var body = extractTransactionBody(Transaction.parseFrom(transaction.getContents()));
 		final var function = functionExtractor.apply(body);
-		if (function == TokenAccountWipe) {
-			return new TokenWipeAccessor(transaction, aliasManager);
-		} else if (function == ConsensusCreateTopic || function == ConsensusUpdateTopic) {
-			return new TopicCreateAccessor(transaction, aliasManager);
-		}
-		return new PlatformTxnAccessor(transaction, aliasManager);
+		return switch (function) {
+			case TokenAccountWipe -> new TokenWipeAccessor(transaction, aliasManager);
+			case ConsensusCreateTopic -> new TopicCreateAccessor(transaction, aliasManager);
+			case ConsensusUpdateTopic -> new TopicUpdateAccessor(transaction, aliasManager);
+			default -> new PlatformTxnAccessor(transaction, aliasManager);
+		};
 	}
 }
 

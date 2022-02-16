@@ -35,15 +35,19 @@ import java.util.function.Function;
 
 import static com.hedera.services.bdd.spec.HapiApiSpec.defaultHapiSpec;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getTopicInfo;
+import static com.hedera.services.bdd.spec.queries.QueryVerbs.getTxnRecord;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.createTopic;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoCreate;
+import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoTransfer;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.updateTopic;
+import static com.hedera.services.bdd.spec.transactions.crypto.HapiCryptoTransfer.tinyBarsFromToWithAlias;
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.newKeyNamed;
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.validateChargedUsdWithin;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.AUTORENEW_ACCOUNT_NOT_ALLOWED;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.AUTORENEW_DURATION_NOT_IN_RANGE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.BAD_ENCODING;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.EXPIRATION_REDUCTION_NOT_ALLOWED;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_AUTORENEW_ACCOUNT;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_EXPIRATION_TIME;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_SIGNATURE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOPIC_ID;
@@ -78,7 +82,9 @@ public class TopicUpdateSuite extends HapiApiSuite {
 						clearingAdminKeyWhenAutoRenewAccountPresent(),
 						feeAsExpected(),
 						updateExpiryOnTopicWithNoAdminKey(),
-						updateToMissingTopicFails()
+						updateToMissingTopicFails(),
+						autoRenewAccountUpdateWorksWithAlias(),
+						invalidAutoRenewAccountUpdateFailsWithAlias()
 				}
 		);
 	}
@@ -360,6 +366,70 @@ public class TopicUpdateSuite extends HapiApiSuite {
 				.then(
 						validateChargedUsdWithin("updateTopic", 0.00022, 3.0)
 				);
+	}
+
+	private HapiApiSpec invalidAutoRenewAccountUpdateFailsWithAlias() {
+		final var alias = "alias";
+		return defaultHapiSpec("invalidAutoRenewAccountUpdateFailsWithAlias")
+				.given(
+						newKeyNamed("adminKey"),
+						newKeyNamed("adminKey2"),
+						newKeyNamed("submitKey"),
+						newKeyNamed(alias),
+
+						cryptoCreate("autoRenewAccount"),
+
+						createTopic("testTopic")
+								.autoRenewPeriod(validAutoRenewPeriod)
+								.adminKeyName("adminKey")
+								.autoRenewAccountId("autoRenewAccount"),
+
+						getTopicInfo("testTopic")
+								.hasAutoRenewAccount("autoRenewAccount").logged()
+				)
+				.when(
+						updateTopic("testTopic")
+								.autoRenewAccountIdWithAlias(alias)
+								.hasKnownStatus(INVALID_AUTORENEW_ACCOUNT)
+				)
+				.then();
+	}
+
+	private HapiApiSpec autoRenewAccountUpdateWorksWithAlias() {
+		final var alias = "alias";
+		return defaultHapiSpec("autoRenewAccountUpdateWorksWithAlias")
+				.given(
+						newKeyNamed("adminKey"),
+						newKeyNamed("adminKey2"),
+						newKeyNamed("submitKey"),
+						newKeyNamed(alias),
+
+						cryptoCreate("autoRenewAccount"),
+
+						createTopic("testTopic")
+								.autoRenewPeriod(validAutoRenewPeriod)
+								.adminKeyName("adminKey")
+								.autoRenewAccountId("autoRenewAccount"),
+
+						getTopicInfo("testTopic")
+								.hasAutoRenewAccount("autoRenewAccount").logged()
+				)
+				.when(
+						cryptoTransfer(
+								tinyBarsFromToWithAlias(DEFAULT_PAYER, alias, ONE_HUNDRED_HBARS)
+						).via("transferTxn"),
+						getTxnRecord("transferTxn")
+								.andAllChildRecords()
+								.hasChildRecordCount(1)
+								.hasAliasInChildRecord(alias, 0),
+
+						updateTopic("testTopic")
+								.autoRenewAccountIdWithAlias(alias)
+								.hasKnownStatus(SUCCESS).logged()
+				)
+				.then(
+						getTopicInfo("testTopic")
+								.hasAutoRenewAccountWithAlias(alias).logged());
 	}
 
 	@Override

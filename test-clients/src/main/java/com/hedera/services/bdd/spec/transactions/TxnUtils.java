@@ -31,6 +31,7 @@ import com.hedera.services.bdd.spec.keys.KeyFactory;
 import com.hedera.services.bdd.spec.keys.KeyGenerator;
 import com.hedera.services.bdd.spec.keys.SigControl;
 import com.hedera.services.bdd.spec.queries.contract.HapiGetContractInfo;
+import com.hedera.services.bdd.spec.queries.crypto.ReferenceType;
 import com.hedera.services.bdd.spec.queries.file.HapiGetFileInfo;
 import com.hedera.services.bdd.spec.transactions.contract.HapiContractCall;
 import com.hedera.services.usage.SigUsage;
@@ -193,6 +194,14 @@ public class TxnUtils {
 		return isIdLiteral(s) ? asAccount(s) :
 				(lookupSpec.registry().hasAccountId(s) ?
 						lookupSpec.registry().getAccountID(s) : lookUpAccount(lookupSpec, s));
+	}
+
+	public static AccountID getResolvedIdFromRegistry(final String idOrAlias, final HapiApiSpec spec,
+			final ReferenceType referenceType) {
+		if (referenceType == ReferenceType.ALIAS_KEY_NAME) {
+			return spec.registry().getAccountID(spec.registry().getKey(idOrAlias).toByteString().toStringUtf8());
+		}
+		return spec.registry().getAccountID(idOrAlias);
 	}
 
 	private static AccountID lookUpAccount(HapiApiSpec spec, String alias) {
@@ -595,6 +604,7 @@ public class TxnUtils {
 	public static String toReadableString(Transaction grpcTransaction) throws InvalidProtocolBufferException {
 		TransactionBody body = extractTransactionBody(grpcTransaction);
 		return "body=" + TextFormat.shortDebugString(body) + "; sigs="
-				+ TextFormat.shortDebugString(com.hedera.services.legacy.proto.utils.CommonUtils.extractSignatureMap(grpcTransaction));
+				+ TextFormat.shortDebugString(
+				com.hedera.services.legacy.proto.utils.CommonUtils.extractSignatureMap(grpcTransaction));
 	}
 }
