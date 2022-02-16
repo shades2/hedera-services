@@ -287,7 +287,7 @@ public class LoadState {
 //			lookAtBadLeaves(stateA, stateB);
 //			extractContract(stateA);
 
-		} catch (final Exception ex) {
+		} catch (final Throwable ex) {
 			ex.printStackTrace();
 		}
 	}
