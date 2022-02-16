@@ -30,12 +30,9 @@ import com.hedera.services.store.AccountStore;
 import com.hedera.services.store.contracts.CodeCache;
 import com.hedera.services.store.contracts.HederaMutableWorldState;
 import com.hedera.services.store.contracts.HederaWorldState;
-import com.hedera.services.store.models.Id;
 import com.hedera.services.txns.PreFetchableTransition;
-import com.hedera.services.utils.EntityIdUtils;
-import com.hedera.services.utils.EntityNum;
+import com.hedera.services.utils.accessors.ContractCallAccessor;
 import com.hedera.services.utils.accessors.TxnAccessor;
-import com.hederahashgraph.api.proto.java.ContractCallTransactionBody;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.swirlds.common.CommonUtils;
@@ -47,8 +44,11 @@ import javax.inject.Inject;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
+import static com.hedera.services.exceptions.ValidationUtils.validateFalse;
+import static com.hedera.services.utils.EntityIdUtils.isInvalid;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_NEGATIVE_GAS;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_NEGATIVE_VALUE;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_CONTRACT_ID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.MAX_GAS_LIMIT_EXCEEDED;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
 
@@ -91,24 +91,24 @@ public class ContractCallTransitionLogic implements PreFetchableTransition {
 	@Override
 	public void doStateTransition() {
 		/* --- Translate from gRPC types --- */
-		var contractCallTxn = txnCtx.accessor().getTxn();
-		var op = contractCallTxn.getContractCall();
-		final var target = targetOf(op);
-		final var senderId = Id.fromGrpcAccount(contractCallTxn.getTransactionID().getAccountID());
-		final var contractId = target.toId();
+		final var accessor = (ContractCallAccessor) txnCtx.accessor();
+		final var target = accessor.targetID();
+		final var senderId = accessor.getPayerId();
+
+		validateFalse(isInvalid(target), INVALID_CONTRACT_ID);
 
 		/* --- Load the model objects --- */
 		final var sender = accountStore.loadAccount(senderId);
-		final var receiver = accountStore.loadContract(contractId);
-		final var callData = !op.getFunctionParameters().isEmpty()
-				? Bytes.fromHexString(CommonUtils.hex(op.getFunctionParameters().toByteArray())) : Bytes.EMPTY;
+		final var receiver = accountStore.loadContract(target);
+		final var callData = !accessor.getFunctionParams().isEmpty()
+				? Bytes.fromHexString(CommonUtils.hex(accessor.getFunctionParams().toByteArray())) : Bytes.EMPTY;
 
 		/* --- Do the business logic --- */
 		final var result = evmTxProcessor.execute(
 				sender,
 				receiver.canonicalAddress(),
-				op.getGas(),
-				op.getAmount(),
+				accessor.gas(),
+				accessor.amount(),
 				callData,
 				txnCtx.consensusTime());
 
@@ -118,7 +118,7 @@ public class ContractCallTransitionLogic implements PreFetchableTransition {
 		result.setCreatedContracts(createdContracts);
 
 		/* --- Externalise result --- */
-		txnCtx.setTargetedContract(target.toGrpcContractID());
+		txnCtx.setTargetedContract(target.asGrpcContract());
 		for (final var createdContract : createdContracts) {
 			sigImpactHistorian.markEntityChanged(createdContract.getContractNum());
 		}
@@ -152,20 +152,14 @@ public class ContractCallTransitionLogic implements PreFetchableTransition {
 
 	@Override
 	public void preFetch(final TxnAccessor accessor) {
-		final var op = accessor.getTxn().getContractCall();
-		final var id = targetOf(op);
-		final var address = id.toEvmAddress();
+		final var id = ((ContractCallAccessor) accessor).targetID();
+		final var address = id.asEvmAddress();
 
 		try {
 			codeCache.getIfPresent(address);
 		} catch (Exception e) {
 			log.warn("Exception while attempting to pre-fetch code for {}", address, e);
 		}
-	}
-
-	private EntityNum targetOf(final ContractCallTransactionBody op) {
-		final var idOrAlias = op.getContractID();
-		return EntityIdUtils.unaliased(idOrAlias, aliasManager);
 	}
 }
 

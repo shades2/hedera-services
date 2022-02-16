@@ -23,6 +23,7 @@ package com.hedera.services.txns.contract;
 import com.hedera.services.context.TransactionContext;
 import com.hedera.services.txns.TransitionLogic;
 import com.hedera.services.txns.contract.helpers.DeletionLogic;
+import com.hedera.services.utils.accessors.ContractDeleteAccessor;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 
@@ -44,10 +45,8 @@ public class ContractDeleteTransitionLogic implements TransitionLogic {
 
 	@Override
 	public void doStateTransition() {
-		final var contractDeleteTxn = txnCtx.accessor().getTxn();
-		final var op = contractDeleteTxn.getContractDeleteInstance();
-
-		final var deleted = deletionLogic.performFor(op);
+		final var accessor = (ContractDeleteAccessor) txnCtx.accessor();
+		final var deleted = deletionLogic.performFor(accessor);
 
 		txnCtx.setTargetedContract(deleted);
 	}

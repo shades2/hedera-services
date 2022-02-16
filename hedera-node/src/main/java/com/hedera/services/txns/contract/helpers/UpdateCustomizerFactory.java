@@ -26,6 +26,7 @@ import com.hedera.services.legacy.core.jproto.JKey;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.txns.validation.OptionValidator;
 import com.hedera.services.utils.MiscUtils;
+import com.hedera.services.utils.accessors.ContractUpdateAccessor;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.ContractUpdateTransactionBody;
 import com.hederahashgraph.api.proto.java.Key;
@@ -34,11 +35,13 @@ import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.Optional;
 
+import static com.hedera.services.exceptions.ValidationUtils.validateFalse;
 import static com.hedera.services.sigs.utils.ImmutableKeyUtils.IMMUTABILITY_SENTINEL_KEY;
-import static com.hedera.services.state.submerkle.EntityId.fromGrpcAccountId;
+import static com.hedera.services.utils.EntityIdUtils.isInvalid;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.EXPIRATION_REDUCTION_NOT_ALLOWED;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_ADMIN_KEY;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_EXPIRATION_TIME;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_PROXY_ACCOUNT_ID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.MODIFYING_IMMUTABLE_CONTRACT;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
 
@@ -46,8 +49,9 @@ public class UpdateCustomizerFactory {
 	public Pair<Optional<HederaAccountCustomizer>, ResponseCodeEnum> customizerFor(
 			MerkleAccount contract,
 			OptionValidator validator,
-			ContractUpdateTransactionBody updateOp
+			ContractUpdateAccessor accessor
 	) {
+		final var updateOp = accessor.txnBody();
 		if (!onlyAffectsExpiry(updateOp) && !isMutable(contract)) {
 			return Pair.of(Optional.empty(), MODIFYING_IMMUTABLE_CONTRACT);
 		}
@@ -62,7 +66,9 @@ public class UpdateCustomizerFactory {
 			return Pair.of(Optional.empty(), INVALID_ADMIN_KEY);
 		}
 		if (updateOp.hasProxyAccountID()) {
-			customizer.proxy(fromGrpcAccountId(updateOp.getProxyAccountID()));
+			final var proxy = accessor.proxy();
+			validateFalse(isInvalid(proxy), INVALID_PROXY_ACCOUNT_ID);
+			customizer.proxy(proxy.asEntityId());
 		}
 		if (updateOp.hasAutoRenewPeriod()) {
 			customizer.autoRenewPeriod(updateOp.getAutoRenewPeriod().getSeconds());

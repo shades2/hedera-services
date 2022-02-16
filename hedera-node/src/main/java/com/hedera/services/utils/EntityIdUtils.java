@@ -336,4 +336,8 @@ public final class EntityIdUtils {
 			return EntityNum.fromContractId(idOrAlias);
 		}
 	}
+
+	public static boolean isInvalid(Id id) {
+		return id.equals(Id.DEFAULT);
+	}
 }

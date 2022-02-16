@@ -45,6 +45,9 @@ public class AccessorFactory {
 			case TokenAccountWipe -> new TokenWipeAccessor(transaction, aliasManager);
 			case ConsensusCreateTopic -> new TopicCreateAccessor(transaction, aliasManager);
 			case ConsensusUpdateTopic -> new TopicUpdateAccessor(transaction, aliasManager);
+			case ContractCreate -> new ContractCreateAccessor(transaction, aliasManager);
+			case ContractUpdate -> new ContractUpdateAccessor(transaction, aliasManager);
+			case ContractCall -> new ContractCallAccessor(transaction, aliasManager);
 			default -> new PlatformTxnAccessor(transaction, aliasManager);
 		};
 	}

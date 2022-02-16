@@ -25,10 +25,12 @@ import com.hedera.services.ledger.HederaLedger;
 import com.hedera.services.ledger.SigImpactHistorian;
 import com.hedera.services.ledger.accounts.AliasManager;
 import com.hedera.services.state.merkle.MerkleAccount;
+import com.hedera.services.store.models.Id;
 import com.hedera.services.txns.TransitionLogic;
 import com.hedera.services.txns.contract.helpers.UpdateCustomizerFactory;
 import com.hedera.services.txns.validation.OptionValidator;
 import com.hedera.services.utils.EntityNum;
+import com.hedera.services.utils.accessors.ContractUpdateAccessor;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.swirlds.merkle.map.MerkleMap;
@@ -39,9 +41,11 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+import static com.hedera.services.exceptions.ValidationUtils.validateTrue;
 import static com.hedera.services.utils.EntityIdUtils.unaliased;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.AUTORENEW_DURATION_NOT_IN_RANGE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.FAIL_INVALID;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_CONTRACT_ID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_RENEWAL_PERIOD;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.SUCCESS;
@@ -78,21 +82,22 @@ public class ContractUpdateTransitionLogic implements TransitionLogic {
 	@Override
 	public void doStateTransition() {
 		try {
-			final var contractUpdateTxn = txnCtx.accessor().getTxn();
-			final var op = contractUpdateTxn.getContractUpdateInstance();
-			final var id = unaliased(op.getContractID(), aliasManager);
-			final var target = contracts.get().get(id);
+			final var accessor = (ContractUpdateAccessor) txnCtx.accessor();
+			final var id = accessor.targetID();
 
-			var result = customizerFactory.customizerFor(target, validator, op);
+			validateTrue(!id.equals(Id.DEFAULT), INVALID_CONTRACT_ID);
+
+			final var target = contracts.get().get(id);
+			var result = customizerFactory.customizerFor(target, validator, accessor);
 			var customizer = result.getLeft();
 			if (customizer.isPresent()) {
-				ledger.customize(id.toGrpcAccountId(), customizer.get());
-				sigImpactHistorian.markEntityChanged(id.longValue());
+				ledger.customize(id.asGrpcAccount(), customizer.get());
+				sigImpactHistorian.markEntityChanged(id.num());
 				if (target.hasAlias()) {
 					sigImpactHistorian.markAliasChanged(target.getAlias());
 				}
 				txnCtx.setStatus(SUCCESS);
-				txnCtx.setTargetedContract(id.toGrpcContractID());
+				txnCtx.setTargetedContract(id.asGrpcContract());
 			} else {
 				txnCtx.setStatus(result.getRight());
 			}
@@ -115,7 +120,7 @@ public class ContractUpdateTransitionLogic implements TransitionLogic {
 	public ResponseCodeEnum validate(TransactionBody contractUpdateTxn) {
 		final var op = contractUpdateTxn.getContractUpdateInstance();
 
-		final var id = unaliased(op.getContractID(), aliasManager);
+		final var id = unaliased(op.getContractID(), aliasManager); // can inject accessor into validate
 		var status = validator.queryableContractStatus(id, contracts.get());
 		if (status != OK) {
 			return status;

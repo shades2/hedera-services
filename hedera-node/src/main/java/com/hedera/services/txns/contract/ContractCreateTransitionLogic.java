@@ -25,18 +25,18 @@ import com.hedera.services.context.properties.GlobalDynamicProperties;
 import com.hedera.services.contracts.execution.CreateEvmTxProcessor;
 import com.hedera.services.exceptions.InvalidTransactionException;
 import com.hedera.services.files.HederaFs;
-import com.hedera.services.ledger.SigImpactHistorian;
 import com.hedera.services.ledger.HederaLedger;
+import com.hedera.services.ledger.SigImpactHistorian;
 import com.hedera.services.ledger.accounts.HederaAccountCustomizer;
 import com.hedera.services.legacy.core.jproto.JContractIDKey;
 import com.hedera.services.records.TransactionRecordService;
 import com.hedera.services.store.AccountStore;
 import com.hedera.services.store.contracts.HederaMutableWorldState;
 import com.hedera.services.store.contracts.HederaWorldState;
-import com.hedera.services.store.models.Id;
 import com.hedera.services.txns.TransitionLogic;
 import com.hedera.services.txns.validation.OptionValidator;
 import com.hedera.services.utils.EntityIdUtils;
+import com.hedera.services.utils.accessors.ContractCreateAccessor;
 import com.hederahashgraph.api.proto.java.ContractCreateTransactionBody;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TransactionBody;
@@ -51,11 +51,13 @@ import java.util.function.Predicate;
 import static com.hedera.services.exceptions.ValidationUtils.validateFalse;
 import static com.hedera.services.exceptions.ValidationUtils.validateTrue;
 import static com.hedera.services.utils.EntityIdUtils.contractIdFromEvmAddress;
+import static com.hedera.services.utils.EntityIdUtils.isInvalid;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.AUTORENEW_DURATION_NOT_IN_RANGE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_FILE_EMPTY;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_NEGATIVE_GAS;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_NEGATIVE_VALUE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_FILE_ID;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_PROXY_ACCOUNT_ID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_RENEWAL_PERIOD;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.MAX_GAS_LIMIT_EXCEEDED;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.SERIALIZATION_FAILED;
@@ -102,26 +104,27 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 	@Override
 	public void doStateTransition() {
 		/* --- Translate from gRPC types --- */
-		var contractCreateTxn = txnCtx.accessor().getTxn();
-		var op = contractCreateTxn.getContractCreateInstance();
-		final var senderId = Id.fromGrpcAccount(contractCreateTxn.getTransactionID().getAccountID());
-		final var proxyAccount = op.hasProxyAccountID() ? Id.fromGrpcAccount(op.getProxyAccountID()) : Id.DEFAULT;
-		var key = op.hasAdminKey()
-				? validator.attemptToDecodeOrThrow(op.getAdminKey(), SERIALIZATION_FAILED)
+		final var accessor = (ContractCreateAccessor) txnCtx.accessor();
+		final var senderId = accessor.getPayerId();
+		final var proxyAccount = accessor.proxy();
+		var key = accessor.hasAdminKey()
+				? validator.attemptToDecodeOrThrow(accessor.adminKey(), SERIALIZATION_FAILED)
 				: STANDIN_CONTRACT_ID_KEY;
+
+		validateFalse(isInvalid(proxyAccount), INVALID_PROXY_ACCOUNT_ID);
 
 		/* --- Load the model objects --- */
 		final var sender = accountStore.loadAccount(senderId);
-		final var codeWithConstructorArgs = prepareCodeWithConstructorArguments(op);
-		long expiry = RequestBuilder.getExpirationTime(txnCtx.consensusTime(), op.getAutoRenewPeriod()).getSeconds();
+		final var codeWithConstructorArgs = prepareCodeWithConstructorArguments(accessor.txnBody());
+		long expiry = RequestBuilder.getExpirationTime(txnCtx.consensusTime(), accessor.autoRenewPeriod()).getSeconds();
 
 		/* --- Do the business logic --- */
 		final var newContractAddress = worldState.newContractAddress(sender.getId().asEvmAddress());
 		final var result = evmTxProcessor.execute(
 				sender,
 				newContractAddress,
-				op.getGas(),
-				op.getInitialBalance(),
+				accessor.gas(),
+				accessor.initialBalance(),
 				codeWithConstructorArgs,
 				txnCtx.consensusTime(),
 				expiry);
@@ -138,10 +141,10 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 			}
 			final var customizer = new HederaAccountCustomizer()
 					.key(key)
-					.memo(op.getMemo())
+					.memo(accessor.getMemo())
 					.proxy(proxyAccount.asEntityId())
 					.expiry(expiry)
-					.autoRenewPeriod(op.getAutoRenewPeriod().getSeconds())
+					.autoRenewPeriod(accessor.autoRenewPeriod().getSeconds())
 					.isSmartContract(true);
 			hederaLedger.customizePotentiallyDeleted(account, customizer);
 		} else {
