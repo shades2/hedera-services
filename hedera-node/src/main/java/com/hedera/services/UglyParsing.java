@@ -3,15 +3,27 @@ package com.hedera.services;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.services.exceptions.UnknownHederaFunctionality;
+import com.hedera.services.fees.calculation.contract.txns.ContractCallResourceUsage;
 import com.hedera.services.legacy.proto.utils.CommonUtils;
 import com.hedera.services.utils.MiscUtils;
+import com.hedera.services.utils.SignedTxnAccessor;
+import com.hederahashgraph.api.proto.java.AccountAmount;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ExchangeRate;
 import com.hederahashgraph.api.proto.java.ExchangeRateSet;
+import com.hederahashgraph.api.proto.java.FeeComponents;
+import com.hederahashgraph.api.proto.java.FeeData;
+import com.hederahashgraph.api.proto.java.HederaFunctionality;
+import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionReceipt;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
+import com.hederahashgraph.api.proto.java.TransferList;
+import com.hederahashgraph.exception.InvalidTxBodyException;
+import com.hederahashgraph.fee.FeeObject;
+import com.hederahashgraph.fee.SigValueObj;
+import com.hederahashgraph.fee.SmartContractFeeBuilder;
 import org.apache.commons.lang3.time.StopWatch;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
@@ -39,7 +51,9 @@ import java.util.stream.Stream;
 
 import static com.hedera.services.utils.MiscUtils.functionOf;
 import static com.hedera.services.utils.MiscUtils.timestampToInstant;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INSUFFICIENT_PAYER_BALANCE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.UNKNOWN;
+import static com.hederahashgraph.fee.FeeBuilder.getFeeObject;
 import static com.swirlds.common.CommonUtils.hex;
 import static com.swirlds.common.CommonUtils.unhex;
 import static java.util.stream.Collectors.toList;
@@ -88,6 +102,9 @@ public class UglyParsing {
 		analyzeDiscrepantAccount(
 				firstProblemPayer, FIRST_RECORD_STREAM_DIR, FIRST_EVENT_STREAM_DIR, firstAnalysisLoc,
 				75_494_726);
+		System.out.println("<drum roll> True final payer balance was   : " + payerBalance.get());
+		System.out.println("<drum roll> Missed node adjustments were   : " + missedNodeChange.get());
+		System.out.println("<drum roll> Missed funding adjustments were: " + missedFundingChange.get());
 
 		// 0.0.909
 //		final var secondProblemPayer = AccountID.newBuilder().setAccountNum(909).build();
@@ -107,6 +124,61 @@ public class UglyParsing {
 	}
 
 	private static AtomicLong payerBalance = new AtomicLong();
+	private static AtomicLong missedNodeChange = new AtomicLong();
+	private static AtomicLong missedFundingChange = new AtomicLong();
+
+	private static FeeObject estimateForCryptoTransfer(
+			final Transaction signedTxn,
+			final TransactionBody txn,
+			final ExchangeRate rate
+	) {
+		final var prices = historicalCryptoTransferPrices();
+//		System.out.println(signedTxn);
+		final var sigUsage = new SigValueObj(1, 1, getSignatureSize(signedTxn));
+		try {
+			final var builder = new CryptoFeeBuilder();
+			final var usage = builder.getCryptoTransferTxFeeMatrices(txn, sigUsage);
+//			System.out.println(prices);
+//			System.out.println("------");
+//			System.out.println(usage);
+//			System.out.println("------");
+//			System.out.println(rate);
+			return LegacyFeeBuilder.getFeeObject(prices, usage, rate);
+		} catch (InvalidTxBodyException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	private static FeeObject estimateForContractCall(
+			final Transaction signedTxn,
+			final TransactionBody txn,
+			final ExchangeRate rate
+	) {
+		final var prices = historicalContractCallPrices();
+		final var estimator = new ContractCallResourceUsage(new SmartContractFeeBuilder());
+		final var sigUsage = new SigValueObj(1, 1, getSignatureSize(signedTxn));
+		try {
+			final var usage = estimator.usageGiven(txn, sigUsage, null);
+//			System.out.println(prices);
+//			System.out.println("------");
+//			System.out.println(usage);
+//			System.out.println("------");
+//			System.out.println(rate);
+			return getFeeObject(prices, usage, rate, 1);
+		} catch (InvalidTxBodyException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	public static int getSignatureSize(Transaction transaction) {
+		if (transaction.hasSigMap()) {
+			return transaction.getSigMap().toByteArray().length;
+		} else if (transaction.hasSigs()) {
+			return transaction.getSigs().toByteArray().length;
+		} else {
+			return 0;
+		}
+	}
 
 	private static void analyzeDiscrepantAccount(
 			final AccountID payer,
@@ -122,8 +194,11 @@ public class UglyParsing {
 		final Map<ByteString, Pair<TransactionBody, Instant>> fromRecords =
 				new TreeMap<>(ByteString.unsignedLexicographicalComparator());
 		final Map<ByteString, ExchangeRate> knownRates = new HashMap<>();
+		final Map<ByteString, ExchangeRateSet> knownRateSets = new HashMap<>();
 		final Map<ByteString, Long> payerBalanceChanges = new HashMap<>();
 
+		ExchangeRate closestRate = null;
+		ExchangeRateSet closestRateSet = null;
 		for (final var rcdFile : orderedFilesFrom(recordStreamsLoc, ".rcd")) {
 			final var histories = parseOldRecordFile(rcdFile.getPath());
 			for (final var history : histories) {
@@ -132,9 +207,15 @@ public class UglyParsing {
 				final var key = txn.toByteString();
 				final var record = history.getRecord();
 				final var at = timestampToInstant(record.getConsensusTimestamp());
-				knownRates.put(key, rateNow(record.getReceipt().getExchangeRate(), at));
+				if (record.getReceipt().hasExchangeRate()) {
+					closestRateSet = record.getReceipt().getExchangeRate();
+					closestRate = rateNow(closestRateSet, at);
+					knownRates.put(key, closestRate);
+					knownRateSets.put(key, record.getReceipt().getExchangeRate());
+				}
 				if (txn.getTransactionID().getAccountID().equals(payer)) {
-					System.out.println("Found " + safeFunctionOf(txn) + "@" + at
+					final var function = safeFunctionOf(txn);
+					System.out.println("Found " + function + "@" + at
 							+ " (resolved to " + record.getReceipt().getStatus() + ")");
 					final var meta = Pair.of(txn, at);
 					if (fromRecords.containsKey(key)) {
@@ -142,6 +223,14 @@ public class UglyParsing {
 					} else {
 						fromRecords.put(key, meta);
 					}
+					if (HederaFunctionality.valueOf(function) == HederaFunctionality.ContractCall) {
+						final var callEst = estimateForContractCall(signedTxn, txn, closestRate);
+						System.out.println("Fee estimate: " + callEst);
+					} else if (HederaFunctionality.valueOf(function) == HederaFunctionality.CryptoTransfer) {
+						final var xferEst = estimateForCryptoTransfer(signedTxn, txn, closestRate);
+						System.out.println("Fee estimate: " + xferEst);
+					}
+					System.out.println(record.getTransferList().getAccountAmountsList());
 					long changeHere = 0;
 					for (final var adjust : record.getTransferList().getAccountAmountsList()) {
 						if (adjust.getAccountID().equals(payer)) {
@@ -153,16 +242,19 @@ public class UglyParsing {
 			}
 		}
 
+		closestRate = null;
+		closestRateSet = null;
 		for (final var evtsFile : orderedFilesFrom(eventStreamsLoc, ".evts")) {
 			final var histories = horrorParsing(evtsFile.getPath());
 //			System.out.println("Read " + histories.size() + " user txns from " + evtsFile.getPath());
-			ExchangeRate closestRate = null;
 			for (final var history : histories) {
 				final var signedTxn = history.getSignedTxn();
 				final var txn = txnFrom(signedTxn);
 				final var key = txn.toByteString();
+				final var function = safeFunctionOf(txn);
 				if (knownRates.containsKey(key)) {
 					closestRate = knownRates.get(key);
+					closestRateSet = knownRateSets.get(key);
 				}
 				if (txn.getTransactionID().getAccountID().equals(payer)) {
 					final var record = history.getRecord();
@@ -174,6 +266,20 @@ public class UglyParsing {
 						System.out.println(" -> this changed payer balance to " + payerBalance.get());
 					} else {
 						System.out.println(" ! closest rate-set for simulation is " + readableRate(closestRate));
+						System.out.println(" ! last known payer balance was " + payerBalance.get());
+						if (HederaFunctionality.valueOf(function) == HederaFunctionality.ContractCall) {
+							final var callEst = estimateForContractCall(signedTxn, txn, closestRate);
+							System.out.println("    -->> vs fee estimate: " + callEst);
+							final var errataRecord = errataRecordFor(
+									callEst, closestRateSet, history.getRecord().getConsensusTimestamp(), signedTxn);
+							System.out.println("Errata record: " + errataRecord);
+						} else if (HederaFunctionality.valueOf(function) == HederaFunctionality.CryptoTransfer) {
+							final var xferEst = estimateForCryptoTransfer(signedTxn, txn, closestRate);
+							System.out.println("    -->> vs fee estimate: " + xferEst);
+							final var errataRecord = errataRecordFor(
+									xferEst, closestRateSet, history.getRecord().getConsensusTimestamp(), signedTxn);
+							System.out.println("Errata record: " + errataRecord);
+						}
 					}
 					final var meta = Pair.of(txn, at);
 					if (fromEvents.containsKey(key)) {
@@ -186,7 +292,7 @@ public class UglyParsing {
 		}
 
 		try (final var out = Files.newBufferedWriter(Paths.get(analysisOutLoc))) {
-			out.write(fromEvents.size() + " from events, " + fromRecords.size() +  " from records\n");
+			out.write(fromEvents.size() + " from events, " + fromRecords.size() + " from records\n");
 			out.write("--- IN events, NOT IN records ---\n");
 			for (final var key : fromEvents.keySet()) {
 				if (!fromRecords.containsKey(key)) {
@@ -199,7 +305,7 @@ public class UglyParsing {
 			out.write("--- IN records, NOT IN events ---\n");
 			final var recordKeys = new HashSet<>(fromRecords.keySet());
 			recordKeys.removeAll(fromEvents.keySet());
-			out.write("  -> # = " + recordKeys.size() +  "\n");
+			out.write("  -> # = " + recordKeys.size() + "\n");
 			for (final var key : recordKeys) {
 				final var item = fromRecords.get(key);
 				out.write("@" + item.getValue() + " -> " + item.getKey() + "\n");
@@ -207,6 +313,57 @@ public class UglyParsing {
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
 		}
+	}
+
+	private static final AccountID FUNDING = AccountID.newBuilder().setAccountNum(98).build();
+
+	private static TransactionRecord errataRecordFor(
+			final FeeObject fees,
+			final ExchangeRateSet rates,
+			final Timestamp consensusTime,
+			final Transaction signedTxn
+	) {
+		final var accessor = SignedTxnAccessor.uncheckedFrom(signedTxn);
+		final var receipt = TransactionReceipt.newBuilder()
+				.setExchangeRate(rates);
+		final var xfers = TransferList.newBuilder();
+		final var record = TransactionRecord.newBuilder()
+				.setConsensusTimestamp(consensusTime)
+				.setMemo("Errata record for transaction id 0.0."
+						+ accessor.getPayer().getAccountNum()
+						+ "@" + MiscUtils.timestampToInstant(accessor.getTxnId().getTransactionValidStart()));
+		record.setTransactionHash(ByteString.copyFrom(accessor.getHash()));
+		final var offeredFee = accessor.getOfferedFee();
+		final var node = accessor.getTxn().getNodeAccountID();
+		if (fees.getNetworkFee() > payerBalance.get()) {
+			System.out.println("BOOP! Node should be charged");
+			receipt.setStatus(INSUFFICIENT_PAYER_BALANCE);
+			missedNodeChange.addAndGet(-fees.getNetworkFee());
+			missedFundingChange.addAndGet(fees.getNetworkFee());
+			xfers.addAccountAmounts(aaWith(node, -fees.getNetworkFee()));
+			xfers.addAccountAmounts(aaWith(FUNDING, +fees.getNetworkFee()));
+		} else if (payerBalance.get() < offeredFee) {
+			System.out.println("BEEP! Payer should be charged network and node fees, no service");
+			receipt.setStatus(INSUFFICIENT_PAYER_BALANCE);
+			missedNodeChange.addAndGet(+fees.getNodeFee());
+			missedFundingChange.addAndGet(fees.getNetworkFee());
+			final var chargedFees = fees.getNetworkFee() + fees.getNodeFee();
+			payerBalance.addAndGet(-chargedFees);
+			xfers.addAccountAmounts(aaWith(node, +fees.getNodeFee()));
+			xfers.addAccountAmounts(aaWith(FUNDING, +fees.getNetworkFee()));
+			xfers.addAccountAmounts(aaWith(accessor.getPayer(), -chargedFees));
+		}
+		return record
+				.setReceipt(receipt)
+				.setTransferList(xfers)
+				.build();
+	}
+
+	private static AccountAmount aaWith(final AccountID account, final long amount) {
+		return AccountAmount.newBuilder()
+				.setAccountID(account)
+				.setAmount(amount)
+				.build();
 	}
 
 	private static String readableRate(ExchangeRate rate) {
@@ -409,5 +566,57 @@ public class UglyParsing {
 			}
 		}
 		return txn;
+	}
+
+	private static FeeData historicalContractCallPrices() {
+		final var node = FeeComponents.newBuilder()
+				.setMax(1000000000000000L)
+				.setConstant(1403674884L)
+				.setBpt(2244056)
+				.setVpt(5610138756L)
+				.setBpr(2244056)
+				.setSbpr(56101);
+		final var network = FeeComponents.newBuilder()
+				.setMax(1000000000000000L)
+				.setConstant(54743320481L)
+				.setBpt(87518165)
+				.setVpt(218795411465L)
+				.setRbh(58345);
+		final var service = FeeComponents.newBuilder()
+				.setMax(1000000000000000L)
+				.setConstant(54743320481L)
+				.setRbh(58345)
+				.setSbh(4376);
+		return FeeData.newBuilder()
+				.setNetworkdata(network)
+				.setNodedata(node)
+				.setServicedata(service)
+				.build();
+	}
+
+	private static FeeData historicalCryptoTransferPrices() {
+		final var node = FeeComponents.newBuilder()
+				.setMax(1000000000000000L)
+				.setConstant(3965451L)
+				.setBpt(6340)
+				.setVpt(15848920L)
+				.setBpr(6340)
+				.setSbpr(158);
+		final var network = FeeComponents.newBuilder()
+				.setMax(1000000000000000L)
+				.setConstant(154652596L)
+				.setBpt(247243)
+				.setVpt(618107893)
+				.setRbh(165);
+		final var service = FeeComponents.newBuilder()
+				.setMax(1000000000000000L)
+				.setConstant(154652596L)
+				.setRbh(165)
+				.setSbh(12);
+		return FeeData.newBuilder()
+				.setNetworkdata(network)
+				.setNodedata(node)
+				.setServicedata(service)
+				.build();
 	}
 }

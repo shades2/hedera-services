@@ -48,6 +48,8 @@ public class FeeObject {
   public String toString() {
     return "FeeObject{" + "nodeFee=" + nodeFee + ", networkFee=" + networkFee
         + ", serviceFee=" + serviceFee
+            + ", network+service=" + (networkFee + serviceFee)
+            + ", all=" + (networkFee + serviceFee + nodeFee)
         + '}';
     
   }
