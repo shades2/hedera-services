@@ -24,12 +24,12 @@ import com.hedera.services.context.TransactionContext;
 import com.hedera.services.txns.TransitionLogic;
 import com.hedera.services.txns.contract.helpers.DeletionLogic;
 import com.hedera.services.utils.accessors.ContractDeleteAccessor;
+import com.hedera.services.utils.accessors.TxnAccessor;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import java.util.function.Function;
 import java.util.function.Predicate;
 
 @Singleton
@@ -57,11 +57,7 @@ public class ContractDeleteTransitionLogic implements TransitionLogic {
 	}
 
 	@Override
-	public Function<TransactionBody, ResponseCodeEnum> semanticCheck() {
-		return this::validate;
-	}
-
-	public ResponseCodeEnum validate(final TransactionBody contractDeleteTxn) {
-		return deletionLogic.precheckValidity(contractDeleteTxn.getContractDeleteInstance());
+	public ResponseCodeEnum validateSemantics(final TxnAccessor accessor) {
+		return deletionLogic.precheckValidity((ContractDeleteAccessor) accessor);
 	}
 }

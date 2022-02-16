@@ -52,6 +52,7 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
  */
 public interface TransitionLogic {
 	Function<TransactionBody, ResponseCodeEnum> SEMANTIC_RUBBER_STAMP = ignore -> OK;
+	Function<TxnAccessor, ResponseCodeEnum> SEMANTIC_RUBBER_STAMP1 = ignore -> OK;
 
 	/**
 	 * Mutates the active state based on the active node and transaction context.

@@ -31,18 +31,17 @@ import com.hedera.services.txns.contract.helpers.UpdateCustomizerFactory;
 import com.hedera.services.txns.validation.OptionValidator;
 import com.hedera.services.utils.EntityNum;
 import com.hedera.services.utils.accessors.ContractUpdateAccessor;
+import com.hedera.services.utils.accessors.TxnAccessor;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.swirlds.merkle.map.MerkleMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import static com.hedera.services.exceptions.ValidationUtils.validateTrue;
-import static com.hedera.services.utils.EntityIdUtils.unaliased;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.AUTORENEW_DURATION_NOT_IN_RANGE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.FAIL_INVALID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_CONTRACT_ID;
@@ -87,7 +86,7 @@ public class ContractUpdateTransitionLogic implements TransitionLogic {
 
 			validateTrue(!id.equals(Id.DEFAULT), INVALID_CONTRACT_ID);
 
-			final var target = contracts.get().get(id);
+			final var target = contracts.get().get(id.asEntityNum());
 			var result = customizerFactory.customizerFor(target, validator, accessor);
 			var customizer = result.getLeft();
 			if (customizer.isPresent()) {
@@ -113,15 +112,16 @@ public class ContractUpdateTransitionLogic implements TransitionLogic {
 	}
 
 	@Override
-	public Function<TransactionBody, ResponseCodeEnum> semanticCheck() {
-		return this::validate;
+	public ResponseCodeEnum validateSemantics(final TxnAccessor accessor) {
+		return validate((ContractUpdateAccessor) accessor);
 	}
 
-	public ResponseCodeEnum validate(TransactionBody contractUpdateTxn) {
+	public ResponseCodeEnum validate(final ContractUpdateAccessor accessor) {
+		final TransactionBody contractUpdateTxn = accessor.getTxn();
 		final var op = contractUpdateTxn.getContractUpdateInstance();
 
-		final var id = unaliased(op.getContractID(), aliasManager); // can inject accessor into validate
-		var status = validator.queryableContractStatus(id, contracts.get());
+		final var id = accessor.targetID();
+		var status = validator.queryableContractStatus(id.asEntityNum(), contracts.get());
 		if (status != OK) {
 			return status;
 		}

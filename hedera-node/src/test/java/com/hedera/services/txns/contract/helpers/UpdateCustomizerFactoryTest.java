@@ -9,9 +9,9 @@ package com.hedera.services.txns.contract.helpers;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -24,8 +24,10 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.StringValue;
 import com.hedera.services.legacy.core.jproto.JContractIDKey;
 import com.hedera.services.sigs.utils.ImmutableKeyUtils;
+import com.hedera.services.store.models.Id;
 import com.hedera.services.txns.validation.OptionValidator;
 import com.hedera.services.utils.MiscUtils;
+import com.hedera.services.utils.accessors.ContractUpdateAccessor;
 import com.hedera.test.factories.accounts.MerkleAccountFactory;
 import com.hedera.test.factories.scenarios.TxnHandlingScenario;
 import com.hedera.test.utils.IdUtils;
@@ -65,6 +67,8 @@ class UpdateCustomizerFactoryTest {
 
 	@Mock
 	private OptionValidator optionValidator;
+	@Mock
+	private ContractUpdateAccessor accessor;
 
 	@Test
 	void makesExpectedChanges() {
@@ -84,11 +88,13 @@ class UpdateCustomizerFactoryTest {
 				.setMemoWrapper(StringValue.newBuilder().setValue(newMemo))
 				.setExpirationTime(newExpiryTime)
 				.build();
+		given(accessor.txnBody()).willReturn(op);
+		given(accessor.proxy()).willReturn(Id.fromGrpcAccount(newProxy));
 
 		given(optionValidator.isValidExpiry(newExpiryTime)).willReturn(true);
 
 		// when:
-		var result = subject.customizerFor(mutableContract, optionValidator, op);
+		var result = subject.customizerFor(mutableContract, optionValidator, accessor);
 		// and when:
 		mutableContract = result.getLeft().get().customizing(mutableContract);
 
@@ -113,9 +119,10 @@ class UpdateCustomizerFactoryTest {
 		var op = ContractUpdateTransactionBody.newBuilder()
 				.setExpirationTime(newExpiryTime)
 				.build();
+		given(accessor.txnBody()).willReturn(op);
 
 		// when:
-		var result = subject.customizerFor(mutableContract, optionValidator, op);
+		var result = subject.customizerFor(mutableContract, optionValidator, accessor);
 
 		// then:
 		assertTrue(result.getLeft().isEmpty());
@@ -133,9 +140,10 @@ class UpdateCustomizerFactoryTest {
 				.setContractID(target)
 				.setAdminKey(ImmutableKeyUtils.IMMUTABILITY_SENTINEL_KEY)
 				.build();
+		given(accessor.txnBody()).willReturn(op);
 
 		// when:
-		var result = subject.customizerFor(mutableContract, optionValidator, op);
+		var result = subject.customizerFor(mutableContract, optionValidator, accessor);
 		// and when:
 		mutableContract = result.getLeft().get().customizing(mutableContract);
 
@@ -153,9 +161,10 @@ class UpdateCustomizerFactoryTest {
 		var op = ContractUpdateTransactionBody.newBuilder()
 				.setAdminKey(Key.newBuilder().setEd25519(ByteString.copyFrom("1".getBytes())))
 				.build();
+		given(accessor.txnBody()).willReturn(op);
 
 		// when:
-		var result = subject.customizerFor(mutableContract, optionValidator, op);
+		var result = subject.customizerFor(mutableContract, optionValidator, accessor);
 
 		// then:
 		assertTrue(result.getLeft().isEmpty());
@@ -172,9 +181,10 @@ class UpdateCustomizerFactoryTest {
 		var op = ContractUpdateTransactionBody.newBuilder()
 				.setAdminKey(Key.newBuilder().setContractID(target))
 				.build();
+		given(accessor.txnBody()).willReturn(op);
 
 		// when:
-		var result = subject.customizerFor(mutableContract, optionValidator, op);
+		var result = subject.customizerFor(mutableContract, optionValidator, accessor);
 
 		// then:
 		assertTrue(result.getLeft().isEmpty());
@@ -195,9 +205,10 @@ class UpdateCustomizerFactoryTest {
 		var op = ContractUpdateTransactionBody.newBuilder()
 				.setExpirationTime(Timestamp.newBuilder().setSeconds(then - 1).build())
 				.build();
+		given(accessor.txnBody()).willReturn(op);
 
 		// when:
-		var result = subject.customizerFor(mutableContract, optionValidator, op);
+		var result = subject.customizerFor(mutableContract, optionValidator, accessor);
 
 		// then:
 		assertTrue(result.getLeft().isEmpty());
@@ -212,11 +223,12 @@ class UpdateCustomizerFactoryTest {
 				.get();
 		// and:
 		var op = ContractUpdateTransactionBody.newBuilder()
-						.setProxyAccountID(IdUtils.asAccount("0.0.1234"))
-						.build();
+				.setProxyAccountID(IdUtils.asAccount("0.0.1234"))
+				.build();
+		given(accessor.txnBody()).willReturn(op);
 
 		// when:
-		var result = subject.customizerFor(immutableContract, optionValidator, op);
+		var result = subject.customizerFor(immutableContract, optionValidator, accessor);
 
 		// then:
 		assertTrue(result.getLeft().isEmpty());

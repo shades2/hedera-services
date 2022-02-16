@@ -28,7 +28,6 @@ import com.hedera.services.txns.validation.OptionValidator;
 import com.hedera.services.utils.EntityNum;
 import com.hedera.services.utils.accessors.ContractDeleteAccessor;
 import com.hederahashgraph.api.proto.java.AccountID;
-import com.hederahashgraph.api.proto.java.ContractDeleteTransactionBody;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.swirlds.merkle.map.MerkleMap;
@@ -39,7 +38,6 @@ import java.util.function.Supplier;
 import static com.hedera.services.exceptions.ValidationUtils.validateFalse;
 import static com.hedera.services.exceptions.ValidationUtils.validateTrue;
 import static com.hedera.services.utils.EntityIdUtils.isInvalid;
-import static com.hedera.services.utils.EntityIdUtils.unaliased;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_EXPIRED_AND_PENDING_REMOVAL;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_CONTRACT_ID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TRANSFER_ACCOUNT_ID;
@@ -69,9 +67,9 @@ public class DeletionLogic {
 		this.sigImpactHistorian = sigImpactHistorian;
 	}
 
-	public ResponseCodeEnum precheckValidity(final ContractDeleteTransactionBody op) {
-		final var id = unaliased(op.getContractID(), aliasManager);
-		return validator.queryableContractStatus(id, contracts.get());
+	public ResponseCodeEnum precheckValidity(final ContractDeleteAccessor accessor) {
+		final var id = accessor.targetID();
+		return validator.queryableContractStatus(id.asEntityNum(), contracts.get());
 	}
 
 	public ContractID performFor(final ContractDeleteAccessor accessor) {

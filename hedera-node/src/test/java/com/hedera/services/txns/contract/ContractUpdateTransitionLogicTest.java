@@ -28,10 +28,11 @@ import com.hedera.services.ledger.SigImpactHistorian;
 import com.hedera.services.ledger.accounts.AliasManager;
 import com.hedera.services.ledger.accounts.HederaAccountCustomizer;
 import com.hedera.services.state.merkle.MerkleAccount;
+import com.hedera.services.store.models.Id;
 import com.hedera.services.txns.contract.helpers.UpdateCustomizerFactory;
 import com.hedera.services.txns.validation.OptionValidator;
 import com.hedera.services.utils.EntityNum;
-import com.hedera.services.utils.accessors.PlatformTxnAccessor;
+import com.hedera.services.utils.accessors.ContractUpdateAccessor;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.ContractUpdateTransactionBody;
@@ -83,9 +84,9 @@ class ContractUpdateTransitionLogicTest {
 	private UpdateCustomizerFactory customizerFactory;
 	private TransactionBody contractUpdateTxn;
 	private TransactionContext txnCtx;
-	private PlatformTxnAccessor accessor;
 	private MerkleMap<EntityNum, MerkleAccount> contracts;
 	private ContractUpdateTransitionLogic subject;
+	private ContractUpdateAccessor accessor;
 
 	@BeforeEach
 	private void setup() {
@@ -96,11 +97,11 @@ class ContractUpdateTransitionLogicTest {
 		customizerFactory = mock(UpdateCustomizerFactory.class);
 		txnCtx = mock(TransactionContext.class);
 		given(txnCtx.consensusTime()).willReturn(consensusTime);
-		accessor = mock(PlatformTxnAccessor.class);
 		validator = mock(OptionValidator.class);
 		withRubberstampingValidator();
 		sigImpactHistorian = mock(SigImpactHistorian.class);
 		aliasManager = mock(AliasManager.class);
+		accessor = mock(ContractUpdateAccessor.class);
 
 		subject = new ContractUpdateTransitionLogic(
 				ledger, aliasManager, validator, sigImpactHistorian, txnCtx, customizerFactory, () -> contracts);
@@ -112,7 +113,7 @@ class ContractUpdateTransitionLogicTest {
 		customizer = mock(HederaAccountCustomizer.class);
 
 		givenValidTxnCtx();
-		given(customizerFactory.customizerFor(contract, validator, contractUpdateTxn.getContractUpdateInstance()))
+		given(customizerFactory.customizerFor(contract, validator, accessor))
 				.willReturn(Pair.of(Optional.empty(), MODIFYING_IMMUTABLE_CONTRACT));
 
 		// when:
@@ -129,7 +130,7 @@ class ContractUpdateTransitionLogicTest {
 		customizer = mock(HederaAccountCustomizer.class);
 
 		givenValidTxnCtx();
-		given(customizerFactory.customizerFor(contract, validator, contractUpdateTxn.getContractUpdateInstance()))
+		given(customizerFactory.customizerFor(contract, validator, accessor))
 				.willReturn(Pair.of(Optional.of(customizer), OK));
 
 		// when:
@@ -148,7 +149,7 @@ class ContractUpdateTransitionLogicTest {
 		customizer = mock(HederaAccountCustomizer.class);
 
 		givenValidTxnCtx();
-		given(customizerFactory.customizerFor(contract, validator, contractUpdateTxn.getContractUpdateInstance()))
+		given(customizerFactory.customizerFor(contract, validator, accessor))
 				.willReturn(Pair.of(Optional.of(customizer), OK));
 		contract.setAlias(pretendAlias);
 
@@ -178,7 +179,7 @@ class ContractUpdateTransitionLogicTest {
 		given(validator.memoCheck(any())).willReturn(INVALID_ZERO_BYTE_IN_STRING);
 
 		// expect:
-		assertEquals(INVALID_ZERO_BYTE_IN_STRING, subject.semanticCheck().apply(contractUpdateTxn));
+		assertEquals(INVALID_ZERO_BYTE_IN_STRING, subject.validateSemantics(accessor));
 	}
 
 	@Test
@@ -201,10 +202,11 @@ class ContractUpdateTransitionLogicTest {
 	void rejectsInvalidCid() {
 		givenValidTxnCtx();
 		// and:
-		given(validator.queryableContractStatus(EntityNum.fromContractId(target), contracts)).willReturn(CONTRACT_DELETED);
+		given(validator.queryableContractStatus(EntityNum.fromContractId(target), contracts)).willReturn(
+				CONTRACT_DELETED);
 
 		// expect:
-		assertEquals(CONTRACT_DELETED, subject.semanticCheck().apply(contractUpdateTxn));
+		assertEquals(CONTRACT_DELETED, subject.validateSemantics(accessor));
 	}
 
 	@Test
@@ -215,7 +217,7 @@ class ContractUpdateTransitionLogicTest {
 		givenValidTxnCtx();
 
 		// expect:
-		assertEquals(INVALID_RENEWAL_PERIOD, subject.semanticCheck().apply(contractUpdateTxn));
+		assertEquals(INVALID_RENEWAL_PERIOD, subject.validateSemantics(accessor));
 	}
 
 	@Test
@@ -225,7 +227,7 @@ class ContractUpdateTransitionLogicTest {
 		given(validator.isValidAutoRenewPeriod(any())).willReturn(false);
 
 		// expect:
-		assertEquals(AUTORENEW_DURATION_NOT_IN_RANGE, subject.semanticCheck().apply(contractUpdateTxn));
+		assertEquals(AUTORENEW_DURATION_NOT_IN_RANGE, subject.validateSemantics(accessor));
 	}
 
 	private void givenValidTxnCtx() {
@@ -247,6 +249,7 @@ class ContractUpdateTransitionLogicTest {
 		}
 		contractUpdateTxn = op.build();
 		given(accessor.getTxn()).willReturn(contractUpdateTxn);
+		given(accessor.targetID()).willReturn(Id.fromGrpcContract(target));
 		given(txnCtx.accessor()).willReturn(accessor);
 		given(contracts.get(EntityNum.fromContractId(target))).willReturn(contract);
 	}
