@@ -38,6 +38,11 @@ public class AccessorFactory {
 		this.aliasManager = aliasManager;
 	}
 
+	public PlatformTxnAccessor constructFrom(Transaction validSignedTxn) throws InvalidProtocolBufferException {
+		final var platformTxn = new SwirldTransaction(validSignedTxn.toByteArray());
+		return constructFrom(platformTxn);
+	}
+
 	public PlatformTxnAccessor constructFrom(SwirldTransaction transaction) throws InvalidProtocolBufferException {
 		final var body = extractTransactionBody(Transaction.parseFrom(transaction.getContents()));
 		final var function = functionExtractor.apply(body);

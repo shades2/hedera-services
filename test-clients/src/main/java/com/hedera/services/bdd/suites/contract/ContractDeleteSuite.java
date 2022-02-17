@@ -22,6 +22,7 @@ package com.hedera.services.bdd.suites.contract;
 
 import com.hedera.services.bdd.spec.HapiApiSpec;
 import com.hedera.services.bdd.suites.HapiApiSuite;
+import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -32,13 +33,19 @@ import static com.hedera.services.bdd.spec.assertions.ContractInfoAsserts.contra
 import static com.hedera.services.bdd.spec.infrastructure.meta.ContractResources.PAYABLE_CONSTRUCTOR;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getAccountBalance;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getContractInfo;
+import static com.hedera.services.bdd.spec.queries.QueryVerbs.getTxnRecord;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.contractCreate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.contractDelete;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoCreate;
+import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoTransfer;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.fileCreate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.systemContractDelete;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.systemContractUndelete;
+import static com.hedera.services.bdd.spec.transactions.crypto.HapiCryptoTransfer.tinyBarsFromToWithAlias;
+import static com.hedera.services.bdd.spec.utilops.UtilVerbs.newKeyNamed;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_DELETED;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_SIGNATURE;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TRANSFER_ACCOUNT_ID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.MODIFYING_IMMUTABLE_CONTRACT;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
 
@@ -62,10 +69,37 @@ public class ContractDeleteSuite extends HapiApiSuite {
 						deleteWorksWithMutableContract(),
 						deleteFailsWithImmutableContract(),
 						deleteTransfersToAccount(),
-						deleteTransfersToContract()
+						deleteTransfersToContract(),
+						transferAccountContractSpecifiedAsAlias()
 				}
 		);
 	}
+
+	private HapiApiSpec transferAccountContractSpecifiedAsAlias() {
+		final var alias = "alias";
+		final var invalidAlias = "invalidAlias";
+
+		return defaultHapiSpec("transferAccountContractSpecifiedAsAlias")
+				.given(
+						newKeyNamed(alias),
+						newKeyNamed(invalidAlias),
+						cryptoCreate("transferAccount").balance(0L),
+
+						contractCreate("toBeDeleted")
+				).when(
+						cryptoTransfer(tinyBarsFromToWithAlias(DEFAULT_PAYER, alias, ONE_HUNDRED_HBARS)).via(
+								"autoCreation"),
+						getTxnRecord("autoCreation").andAllChildRecords().hasChildRecordCount(1)
+				).then(
+						contractDelete("toBeDeleted").transferAccountAliased(invalidAlias)
+								.hasKnownStatus(INVALID_TRANSFER_ACCOUNT_ID).logged(),
+						contractDelete("toBeDeleted").transferAccountAliased(alias),
+						getContractInfo("toBeDeleted").hasCostAnswerPrecheck(CONTRACT_DELETED),
+						getContractInfo("toBeDeleted").nodePayment(27_159_182L)
+								.hasAnswerOnlyPrecheck(ResponseCodeEnum.CONTRACT_DELETED)
+				);
+	}
+
 
 	HapiApiSpec rejectsWithoutProperSig() {
 		return defaultHapiSpec("ScDelete")

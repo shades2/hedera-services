@@ -30,9 +30,10 @@ import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.state.merkle.MerkleTopic;
 import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.state.submerkle.RichInstant;
-import com.hedera.services.utils.EntityNum;
+import com.hedera.services.store.models.Id;
 import com.hedera.services.txns.validation.OptionValidator;
-import com.hedera.services.utils.accessors.PlatformTxnAccessor;
+import com.hedera.services.utils.EntityNum;
+import com.hedera.services.utils.accessors.TopicUpdateAccessor;
 import com.hedera.test.factories.txns.SignedTxnFactory;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ConsensusUpdateTopicTransactionBody;
@@ -98,7 +99,7 @@ class MerkleTopicUpdateTransitionLogicTest {
 	private TransactionBody transactionBody;
 	private TransactionContext transactionContext;
 	private HederaLedger ledger;
-	private PlatformTxnAccessor accessor;
+	private TopicUpdateAccessor accessor;
 	private SigImpactHistorian sigImpactHistorian;
 	private OptionValidator validator;
 	private MerkleMap<EntityNum, MerkleAccount> accounts = new MerkleMap<>();
@@ -113,7 +114,7 @@ class MerkleTopicUpdateTransitionLogicTest {
 
 		transactionContext = mock(TransactionContext.class);
 		given(transactionContext.consensusTime()).willReturn(consensusTime);
-		accessor = mock(PlatformTxnAccessor.class);
+		accessor = mock(TopicUpdateAccessor.class);
 		validator = mock(OptionValidator.class);
 		given(validator.isValidAutoRenewPeriod(Duration.newBuilder().setSeconds(VALID_AUTORENEW_PERIOD_SECONDS).build()))
 				.willReturn(true);
@@ -451,6 +452,7 @@ class MerkleTopicUpdateTransitionLogicTest {
 				EntityId.fromGrpcAccountId(MISC_ACCOUNT), EXISTING_EXPIRATION_TIME);
 		topics.put(EntityNum.fromTopicId(TOPIC_ID), existingTopic);
 		given(validator.queryableTopicStatus(TOPIC_ID, topics)).willReturn(OK);
+		given(accessor.accountToAutoRenew()).willReturn(Id.fromGrpcAccount(MISC_ACCOUNT));
 	}
 
 	private void givenTransaction(ConsensusUpdateTopicTransactionBody.Builder body) {
@@ -482,6 +484,7 @@ class MerkleTopicUpdateTransitionLogicTest {
 						.setAutoRenewAccount(MISSING_ACCOUNT)
 		);
 		given(validator.queryableAccountStatus(MISSING_ACCOUNT, accounts)).willReturn(INVALID_ACCOUNT_ID);
+		given(accessor.accountToAutoRenew()).willReturn(Id.fromGrpcAccount(MISSING_ACCOUNT));
 	}
 
 	private void givenTransactionWithAutoRenewAccountClearingAdminKey() {
@@ -501,6 +504,7 @@ class MerkleTopicUpdateTransitionLogicTest {
 		);
 		given(validator.queryableAccountStatus(MISC_ACCOUNT, accounts)).willReturn(OK);
 		given(validator.hasGoodEncoding(any())).willReturn(true);
+		given(accessor.accountToAutoRenew()).willReturn(Id.fromGrpcAccount(MISC_ACCOUNT));
 	}
 
 	private void givenTransactionClearingAutoRenewAccount() {
@@ -544,6 +548,7 @@ class MerkleTopicUpdateTransitionLogicTest {
 		given(validator.hasGoodEncoding(updatedSubmitKey)).willReturn(true);
 		given(validator.isValidExpiry(any())).willReturn(true);
 		given(validator.queryableAccountStatus(MISC_ACCOUNT, accounts)).willReturn(OK);
+		given(accessor.accountToAutoRenew()).willReturn(Id.fromGrpcAccount(MISC_ACCOUNT));
 	}
 
 	private void givenTransactionWithInvalidMemo() {

@@ -27,8 +27,8 @@ import com.hedera.services.contracts.execution.CreateEvmTxProcessor;
 import com.hedera.services.contracts.execution.TransactionProcessingResult;
 import com.hedera.services.exceptions.InvalidTransactionException;
 import com.hedera.services.files.HederaFs;
-import com.hedera.services.ledger.SigImpactHistorian;
 import com.hedera.services.ledger.HederaLedger;
+import com.hedera.services.ledger.SigImpactHistorian;
 import com.hedera.services.ledger.accounts.HederaAccountCustomizer;
 import com.hedera.services.legacy.core.jproto.JContractIDKey;
 import com.hedera.services.legacy.core.jproto.JEd25519Key;
@@ -39,7 +39,7 @@ import com.hedera.services.store.contracts.HederaWorldState;
 import com.hedera.services.store.models.Account;
 import com.hedera.services.store.models.Id;
 import com.hedera.services.txns.validation.OptionValidator;
-import com.hedera.services.utils.accessors.PlatformTxnAccessor;
+import com.hedera.services.utils.accessors.ContractCreateAccessor;
 import com.hedera.test.utils.IdUtils;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractCreateTransactionBody;
@@ -104,7 +104,7 @@ class ContractCreateTransitionLogicTest {
 	@Mock
 	private TransactionContext txnCtx;
 	@Mock
-	private PlatformTxnAccessor accessor;
+	private ContractCreateAccessor accessor;
 	@Mock
 	private AccountStore accountStore;
 	@Mock
@@ -134,8 +134,8 @@ class ContractCreateTransitionLogicTest {
 		subject = new ContractCreateTransitionLogic(
 				hfs,
 				txnCtx, accountStore, validator,
-				worldState, recordServices, evmTxProcessor, 
-                                hederaLedger, properties, sigImpactHistorian);
+				worldState, recordServices, evmTxProcessor,
+				hederaLedger, properties, sigImpactHistorian);
 	}
 
 	@Test
@@ -152,7 +152,7 @@ class ContractCreateTransitionLogicTest {
 		givenValidTxnCtx();
 		given(validator.isValidAutoRenewPeriod(any())).willReturn(true);
 		given(validator.memoCheck(any())).willReturn(OK);
-		given(properties.maxGas()).willReturn(gas+1);
+		given(properties.maxGas()).willReturn(gas + 1);
 
 		// expect:
 		assertEquals(OK, subject.semanticCheck().apply(contractCreateTxn));
@@ -243,7 +243,6 @@ class ContractCreateTransitionLogicTest {
 		given(accountStore.loadAccount(senderAccount.getId())).willReturn(senderAccount);
 		given(hfs.exists(bytecodeSrc)).willReturn(true);
 		given(hfs.cat(bytecodeSrc)).willReturn(bytecode);
-		given(accessor.getTxn()).willReturn(contractCreateTxn);
 		given(txnCtx.accessor()).willReturn(accessor);
 		final var result = TransactionProcessingResult
 				.successful(
@@ -265,6 +264,7 @@ class ContractCreateTransitionLogicTest {
 				txnCtx.consensusTime(),
 				expiry))
 				.willReturn(result);
+		givenConditions();
 
 		// when:
 		subject.doStateTransition();
@@ -319,8 +319,10 @@ class ContractCreateTransitionLogicTest {
 		given(accountStore.loadAccount(senderAccount.getId())).willReturn(senderAccount);
 		given(hfs.exists(bytecodeSrc)).willReturn(true);
 		given(hfs.cat(bytecodeSrc)).willReturn(bytecode);
-		given(accessor.getTxn()).willReturn(contractCreateTxn);
 		given(txnCtx.accessor()).willReturn(accessor);
+		given(accessor.hasAdminKey()).willReturn(true);
+		given(accessor.adminKey()).willReturn(adminKey);
+		givenConditions();
 		final var result = TransactionProcessingResult
 				.successful(
 						null,
@@ -368,6 +370,7 @@ class ContractCreateTransitionLogicTest {
 	void capturesUnsuccessfulCreate() {
 		// setup:
 		givenValidTxnCtx();
+		givenConditions();
 		List<ContractID> expectedCreatedContracts = List.of(contractAccount.getId().asGrpcContract());
 
 		// and:
@@ -377,7 +380,6 @@ class ContractCreateTransitionLogicTest {
 		given(worldState.persistProvisionalContractCreations()).willReturn(expectedCreatedContracts);
 		given(hfs.exists(bytecodeSrc)).willReturn(true);
 		given(hfs.cat(bytecodeSrc)).willReturn(bytecode);
-		given(accessor.getTxn()).willReturn(contractCreateTxn);
 		given(txnCtx.accessor()).willReturn(accessor);
 		given(txnCtx.consensusTime()).willReturn(consensusTime);
 		var expiry = RequestBuilder.getExpirationTime(consensusTime,
@@ -413,9 +415,9 @@ class ContractCreateTransitionLogicTest {
 		given(accountStore.loadAccount(senderAccount.getId())).willReturn(senderAccount);
 		given(hfs.exists(bytecodeSrc)).willReturn(true);
 		given(hfs.cat(bytecodeSrc)).willReturn(bytecode);
-		given(accessor.getTxn()).willReturn(contractCreateTxn);
 		given(txnCtx.accessor()).willReturn(accessor);
-		given (worldState.persistProvisionalContractCreations()).willReturn(secondaryCreations);
+		givenConditions();
+		given(worldState.persistProvisionalContractCreations()).willReturn(secondaryCreations);
 		final var result = TransactionProcessingResult
 				.successful(
 						null,
@@ -458,7 +460,7 @@ class ContractCreateTransitionLogicTest {
 		// and:
 		given(validator.isValidAutoRenewPeriod(any())).willReturn(true);
 		given(validator.memoCheck(any())).willReturn(MEMO_TOO_LONG);
-		given(properties.maxGas()).willReturn(gas+1);
+		given(properties.maxGas()).willReturn(gas + 1);
 
 		// expect:
 		assertEquals(MEMO_TOO_LONG, subject.semanticCheck().apply(contractCreateTxn));
@@ -467,10 +469,12 @@ class ContractCreateTransitionLogicTest {
 	@Test
 	void rejectsMissingBytecodeFile() {
 		givenValidTxnCtx();
-		given(accessor.getTxn()).willReturn(contractCreateTxn);
+		given(accessor.getPayerId()).willReturn(senderAccount.getId());
+		given(accessor.txnBody()).willReturn(contractCreateTxn.getContractCreateInstance());
 		given(txnCtx.accessor()).willReturn(accessor);
 		given(accountStore.loadAccount(senderAccount.getId())).willReturn(senderAccount);
 		given(hfs.exists(bytecodeSrc)).willReturn(false);
+		given(accessor.proxy()).willReturn(Id.fromGrpcAccount(proxy));
 		// when:
 		Exception exception = assertThrows(InvalidTransactionException.class, () -> subject.doStateTransition());
 
@@ -481,11 +485,14 @@ class ContractCreateTransitionLogicTest {
 	@Test
 	void rejectsEmptyBytecodeFile() {
 		givenValidTxnCtx();
-		given(accessor.getTxn()).willReturn(contractCreateTxn);
+
 		given(txnCtx.accessor()).willReturn(accessor);
 		given(accountStore.loadAccount(senderAccount.getId())).willReturn(senderAccount);
 		given(hfs.exists(bytecodeSrc)).willReturn(true);
 		given(hfs.cat(bytecodeSrc)).willReturn(new byte[0]);
+		given(accessor.getPayerId()).willReturn(senderAccount.getId());
+		given(accessor.txnBody()).willReturn(contractCreateTxn.getContractCreateInstance());
+		given(accessor.proxy()).willReturn(Id.fromGrpcAccount(proxy));
 
 		// when:
 		Exception exception = assertThrows(InvalidTransactionException.class, () -> subject.doStateTransition());
@@ -508,10 +515,14 @@ class ContractCreateTransitionLogicTest {
 				.setTransactionID(ourTxnId())
 				.setContractCreateInstance(op);
 		contractCreateTxn = txn.build();
-		given(accessor.getTxn()).willReturn(contractCreateTxn);
+		given(accessor.hasAdminKey()).willReturn(true);
+		given(accessor.adminKey()).willReturn(key);
 		given(txnCtx.accessor()).willReturn(accessor);
 		given(validator.attemptToDecodeOrThrow(key, SERIALIZATION_FAILED)).willThrow(
 				new InvalidTransactionException(SERIALIZATION_FAILED));
+		given(accessor.proxy()).willReturn(Id.fromGrpcAccount(proxy));
+		given(accessor.getPayerId()).willReturn(senderAccount.getId());
+
 		// when:
 		Exception exception = assertThrows(InvalidTransactionException.class, () -> subject.doStateTransition());
 
@@ -548,6 +559,15 @@ class ContractCreateTransitionLogicTest {
 				.setTransactionID(ourTxnId())
 				.setContractCreateInstance(op);
 		contractCreateTxn = txn.build();
+	}
+
+	private void givenConditions() {
+		given(accessor.proxy()).willReturn(Id.fromGrpcAccount(proxy));
+		given(accessor.gas()).willReturn((long) gas);
+		given(accessor.initialBalance()).willReturn(balance);
+		given(accessor.getPayerId()).willReturn(senderAccount.getId());
+		given(accessor.txnBody()).willReturn(contractCreateTxn.getContractCreateInstance());
+		given(accessor.autoRenewPeriod()).willReturn(Duration.newBuilder().setSeconds(customAutoRenewPeriod).build());
 	}
 
 	private TransactionID ourTxnId() {

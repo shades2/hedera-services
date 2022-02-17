@@ -73,6 +73,7 @@ class TokenWipeAccessorTest {
 		accessor = new TokenWipeAccessor(wipeTxn, aliasManager);
 
 		given(aliasManager.unaliased(idToWipe)).willReturn(EntityNum.fromAccountId(idToWipe));
+		given(aliasManager.unaliased(payer)).willReturn(EntityNum.fromAccountId(payer));
 		assertEquals(Id.fromGrpcAccount(idToWipe), accessor.accountToWipe());
 		assertEquals(List.of(1L), accessor.serialNums());
 		assertEquals(100L, accessor.amount());
@@ -94,6 +95,7 @@ class TokenWipeAccessorTest {
 		givenTxn(tokenWipeAliasedTxn);
 		accessor = new TokenWipeAccessor(wipeTxn, aliasManager);
 
+		given(aliasManager.unaliased(payer)).willReturn(EntityNum.fromAccountId(payer));
 		given(aliasManager.unaliased(idToWipeAlias)).willReturn(EntityNum.fromAccountId(idToWipe));
 		assertEquals(Id.fromGrpcAccount(idToWipe), accessor.accountToWipe());
 		assertEquals(List.of(1L), accessor.serialNums());

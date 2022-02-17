@@ -27,6 +27,7 @@ import com.hedera.services.bdd.spec.infrastructure.HapiSpecRegistry;
 import com.hedera.services.bdd.spec.keys.KeyFactory;
 import com.hedera.services.bdd.spec.keys.KeyGenerator;
 import com.hedera.services.bdd.spec.keys.SigControl;
+import com.hedera.services.bdd.spec.queries.crypto.ReferenceType;
 import com.hedera.services.bdd.spec.transactions.HapiTxnOp;
 import com.hedera.services.bdd.spec.transactions.TxnUtils;
 import com.hedera.services.bdd.spec.transactions.TxnVerbs;
@@ -57,6 +58,7 @@ import java.util.function.Supplier;
 
 import static com.hedera.services.bdd.spec.transactions.TxnFactory.bannerWith;
 import static com.hedera.services.bdd.spec.transactions.TxnUtils.asId;
+import static com.hedera.services.bdd.spec.transactions.TxnUtils.asIdForKeyLookUp;
 import static com.hedera.services.bdd.spec.transactions.TxnUtils.equivAccount;
 import static com.hedera.services.bdd.spec.transactions.TxnUtils.solidityIdFrom;
 import static com.hedera.services.bdd.spec.transactions.contract.HapiContractCall.doGasLookup;
@@ -89,6 +91,7 @@ public class HapiContractCreate extends HapiTxnOp<HapiContractCreate> {
 	Optional<ObjLongConsumer<ResponseCodeEnum>> gasObserver = Optional.empty();
 	Optional<LongConsumer> newNumObserver = Optional.empty();
 	private Optional<String> proxy = Optional.empty();
+	private ReferenceType proxyReferenceType = ReferenceType.REGISTRY_NAME;
 
 	public HapiContractCreate exposingNumTo(LongConsumer obs) {
 		newNumObserver = Optional.of(obs);
@@ -97,6 +100,12 @@ public class HapiContractCreate extends HapiTxnOp<HapiContractCreate> {
 
 	public HapiContractCreate proxy(String proxy) {
 		this.proxy = Optional.of(proxy);
+		return this;
+	}
+
+	public HapiContractCreate proxyWithAlias(String proxyAlias) {
+		proxyReferenceType = ReferenceType.ALIAS_KEY_NAME;
+		proxy = Optional.of(proxyAlias);
 		return this;
 	}
 
@@ -277,7 +286,14 @@ public class HapiContractCreate extends HapiTxnOp<HapiContractCreate> {
 							balance.ifPresent(b::setInitialBalance);
 							memo.ifPresent(b::setMemo);
 							gas.ifPresent(b::setGas);
-							proxy.ifPresent(p -> b.setProxyAccountID(asId(p, spec)));
+							proxy.ifPresent(p -> {
+										if (proxyReferenceType == ReferenceType.ALIAS_KEY_NAME) {
+											b.setProxyAccountID(asIdForKeyLookUp(p, spec));
+										} else {
+											b.setProxyAccountID(asId(p, spec));
+										}
+									}
+							);
 							params.ifPresent(bytes -> b.setConstructorParameters(ByteString.copyFrom(bytes)));
 						}
 				);

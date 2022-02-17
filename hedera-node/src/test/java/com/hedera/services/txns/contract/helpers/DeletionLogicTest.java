@@ -195,14 +195,14 @@ class DeletionLogicTest {
 	@Test
 	void rejectsSameObtainerContractWithAliasTarget() {
 		final var op = opWithContractObtainer(aliasId, mirrorId);
-		given(aliasManager.lookupIdBy(aliasId.getEvmAddress())).willReturn(id);
+		given(accessor.targetID()).willReturn(id.toId());
 		assertFailsWith(() -> subject.performFor(accessor), OBTAINER_SAME_CONTRACT_ID);
 	}
 
 	@Test
 	void rejectsSameObtainerContractWithAliasObtainer() {
 		final var op = opWithContractObtainer(mirrorId, aliasId);
-		given(aliasManager.lookupIdBy(aliasId.getEvmAddress())).willReturn(id);
+		given(accessor.targetID()).willReturn(id.toId());
 		assertFailsWith(() -> subject.performFor(accessor), OBTAINER_SAME_CONTRACT_ID);
 	}
 

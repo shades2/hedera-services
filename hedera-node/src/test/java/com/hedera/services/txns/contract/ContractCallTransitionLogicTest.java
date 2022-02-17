@@ -34,8 +34,7 @@ import com.hedera.services.store.contracts.HederaWorldState;
 import com.hedera.services.store.models.Account;
 import com.hedera.services.store.models.Id;
 import com.hedera.services.utils.EntityNum;
-import com.hedera.services.utils.accessors.PlatformTxnAccessor;
-import com.hedera.test.utils.IdUtils;
+import com.hedera.services.utils.accessors.ContractCallAccessor;
 import com.hederahashgraph.api.proto.java.ContractCallTransactionBody;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.Timestamp;
@@ -48,7 +47,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
@@ -75,7 +73,7 @@ class ContractCallTransitionLogicTest {
 	@Mock
 	private TransactionContext txnCtx;
 	@Mock
-	private PlatformTxnAccessor accessor;
+	private ContractCallAccessor accessor;
 	@Mock
 	private AccountStore accountStore;
 	@Mock
@@ -120,8 +118,12 @@ class ContractCallTransitionLogicTest {
 		// setup:
 		givenValidTxnCtx();
 		// and:
-		given(accessor.getTxn()).willReturn(contractCallTxn);
 		given(txnCtx.accessor()).willReturn(accessor);
+		given(accessor.targetID()).willReturn(Id.fromGrpcContract(target));
+		given(accessor.getPayerId()).willReturn(senderAccount.getId());
+		given(accessor.getFunctionParams()).willReturn(ByteString.EMPTY);
+		given(accessor.gas()).willReturn((long) gas);
+		given(accessor.amount()).willReturn(sent);
 		// and:
 		given(accountStore.loadAccount(senderAccount.getId())).willReturn(senderAccount);
 		given(accountStore.loadContract(new Id(target.getShardNum(), target.getRealmNum(), target.getContractNum())))
@@ -155,8 +157,13 @@ class ContractCallTransitionLogicTest {
 								.setContractID(target));
 		contractCallTxn = op.build();
 		// and:
-		given(accessor.getTxn()).willReturn(contractCallTxn);
 		given(txnCtx.accessor()).willReturn(accessor);
+		given(accessor.targetID()).willReturn(Id.fromGrpcContract(target));
+
+		given(accessor.getPayerId()).willReturn(senderAccount.getId());
+		given(accessor.getFunctionParams()).willReturn(functionParams);
+		given(accessor.gas()).willReturn((long) gas);
+		given(accessor.amount()).willReturn(sent);
 		// and:
 		given(accountStore.loadAccount(senderAccount.getId())).willReturn(senderAccount);
 		given(accountStore.loadContract(new Id(target.getShardNum(), target.getRealmNum(), target.getContractNum())))
@@ -184,13 +191,8 @@ class ContractCallTransitionLogicTest {
 				.setEvmAddress(ByteString.copyFrom(targetAlias))
 				.build();
 		final var targetNum = EntityNum.fromLong(1234);
-		final var txnBody = Mockito.mock(TransactionBody.class);
-		final var ccTxnBody = Mockito.mock(ContractCallTransactionBody.class);
 
-		given(accessor.getTxn()).willReturn(txnBody);
-		given(txnBody.getContractCall()).willReturn(ccTxnBody);
-		given(ccTxnBody.getContractID()).willReturn(target);
-		given(aliasManager.lookupIdBy(target.getEvmAddress())).willReturn(targetNum);
+		given(accessor.targetID()).willReturn(targetNum.toId());
 
 		subject.preFetch(accessor);
 
@@ -199,12 +201,7 @@ class ContractCallTransitionLogicTest {
 
 	@Test
 	void codeCacheThrowingExceptionDuringGetDoesntPropagate() {
-		TransactionBody txnBody = Mockito.mock(TransactionBody.class);
-		ContractCallTransactionBody ccTxnBody = Mockito.mock(ContractCallTransactionBody.class);
-
-		given(accessor.getTxn()).willReturn(txnBody);
-		given(txnBody.getContractCall()).willReturn(ccTxnBody);
-		given(ccTxnBody.getContractID()).willReturn(IdUtils.asContract("0.0.1324"));
+		given(accessor.targetID()).willReturn(Id.DEFAULT);
 		given(codeCache.getIfPresent(any(Address.class))).willThrow(new RuntimeException("oh no"));
 
 		// when:

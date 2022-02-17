@@ -25,6 +25,7 @@ import com.hedera.services.ledger.accounts.AliasManager;
 import com.hedera.services.store.models.Id;
 import com.hederahashgraph.api.proto.java.ContractCreateTransactionBody;
 import com.hederahashgraph.api.proto.java.Duration;
+import com.hederahashgraph.api.proto.java.FileID;
 import com.hederahashgraph.api.proto.java.Key;
 import com.swirlds.common.SwirldTransaction;
 
@@ -63,5 +64,9 @@ public class ContractCreateAccessor extends PlatformTxnAccessor {
 
 	public long initialBalance() {
 		return body.getInitialBalance();
+	}
+
+	public FileID getFileID() {
+		return body.getFileID();
 	}
 }
