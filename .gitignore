@@ -49,6 +49,7 @@ hs_err_pid*
 !test-clients/yahcli/assets/*.sh
 !test-clients/yahcli/run/test/local/*.sh
 *.json
+!test-clients/uniswap-go-clients/assets/params.json
 !hapi-fees/src/main/resources/*.json
 !hapi-fees/src/test/resources/*.json
 !hapi-utils/src/test/resources/bootstrap/*.json

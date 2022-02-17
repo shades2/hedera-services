@@ -1,0 +1,14 @@
+{
+  "erc20TokenNames": [
+    "Air Superiority Blue",
+    "Banana Mania",
+    "Catawba",
+    "Deep Space Sparkle",
+    "Ecru",
+    "Fuzzy Wuzzy"
+  ],
+  "numTraders": 2,
+  "numLiquidityProviders": 1,
+  "secsBetweenSwaps": 2,
+  "secsBetweenMints": 1
+}

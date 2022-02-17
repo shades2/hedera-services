@@ -27,7 +27,7 @@ func main() {
 	if os.Args[1] == "setup" {
 		misc.SetupSimFromParams(client)
 	} else if os.Args[1] == "do-swaps" {
-
+		misc.DoSwaps(client)
 	} else if os.Args[1] == "manage-liquidity" {
 
 	} else {

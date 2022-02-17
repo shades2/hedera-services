@@ -12,7 +12,6 @@ const (
 	defaultPayerKey string = "3ca7d9a337174a3e3e7b0d1496e2e8a8626f97a39b944805377c2f651a8f8c92"
 )
 
-
 func ClientFromEnvVars() (*hedera.Client) {
 	var client *hedera.Client
 	var err error
@@ -42,7 +41,7 @@ func ClientFromEnvVars() (*hedera.Client) {
 
 	client.SetOperator(payerId, payerKey)
 
-	fmt.Printf("- Initialized client targeting %s; default payer is %s\n\n", targetNetwork, payerId.String())
+	fmt.Printf("🗝  Initialized client targeting %s; default payer is %s\n\n", targetNetwork, payerId.String())
 
 	return client
 }

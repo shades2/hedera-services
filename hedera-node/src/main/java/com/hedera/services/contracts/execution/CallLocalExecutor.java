@@ -73,7 +73,9 @@ public class CallLocalExecutor {
 			final var paymentTxn = SignedTxnAccessor.uncheckedFrom(op.getHeader().getPayment()).getTxn();
 			final var senderId = Id.fromGrpcAccount(paymentTxn.getTransactionID().getAccountID());
 			final var idOrAlias = op.getContractID();
+			System.out.println("Targeting contract " + idOrAlias);
 			final var contractId = EntityIdUtils.unaliased(idOrAlias, aliasManager).toId();
+			System.out.println("  -> Resolved contract " + contractId);
 
 			/* --- Load the model objects --- */
 			final var sender = accountStore.loadAccount(senderId);

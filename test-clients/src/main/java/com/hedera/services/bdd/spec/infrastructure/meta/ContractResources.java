@@ -114,6 +114,13 @@ public class ContractResources {
 	public static final String REVERTING_CREATE_FACTORY_PATH = bytecodePath("RevertingCreateFactory");
 	public static final String REVERTING_CREATE2_FACTORY_PATH = bytecodePath("RevertingCreate2Factory");
 
+	public static final String INIT_POOL_ABI = "{\"inputs\":[{\"internalType\":\"uint64\",\"name\":\"sqrtPriceX96\"," +
+			"\"type\":\"uint64\"}],\"name\":\"initialize\",\"outputs\":[],\"stateMutability\":\"nonpayable\"," +
+			"\"type\":\"function\"}";
+	public static final String CREATE_POOL_ABI = "{\"inputs\":[{\"internalType\":\"address\",\"name\":\"tokenA\",\"type\":\"address\"},{\"internal" +
+			"Type\":\"address\",\"name\":\"tokenB\",\"type\":\"address\"},{\"internalType\":\"uint32\"," +
+			"\"name\":\"fee\",\"type\":\"uint32\"}],\"name\":\"createPool\",\"outputs\":[{\"internalType\":\"addres" +
+			"s\",\"name\":\"pool\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}";
 	public static final String NORMAL_DEPLOY_ABI = "{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"bytecode\"," +
 			"\"type\":\"bytes\"}],\"name\":\"deploy\",\"outputs\":[],\"stateMutability\":\"payable\"," +
 			"\"type\":\"function\"}";
@@ -809,7 +816,7 @@ public class ContractResources {
 	public static final String TEMPORARY_SSTORE_HOLD_PERMANENTLY_ABI = "{\"constant\": false,\"inputs\": " +
 			"[{\"internalType\": \"uint256\",\"name\": \"_permanentValue\",\"type\": \"uint256\"}],\"name\": \"holdPermanently\"," +
 			"\"outputs\": [],\"payable\": false,\"stateMutability\": \"nonpayable\",\"type\": \"function\"}";
-	
+
 	public static final String ERC_1155_ABI_SAFE_TRANSFER_FROM = "{\"inputs\":[{\"internalType\":\"address\",\"name\":\"from\",\"type\":\"address\"}," +
 			"{\"internalType\":\"address\",\"name\":\"to\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"id\",\"type\":\"uint256\"}," +
 			"{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}]" +

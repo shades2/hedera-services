@@ -88,7 +88,10 @@ public class ContractCallLocalAnswer extends AbstractAnswer {
 					} else if (op.getGas() > dynamicProperties.maxGas()) {
 						return MAX_GAS_LIMIT_EXCEEDED;
 					} else {
+						System.out.println("Need to validate: " + op.getContractID());
 						final var target = unaliased(op.getContractID(), aliasManager);
+						final var ans = validator.queryableContractStatus(target, view.contracts());
+						System.out.println("  ??? -> " + target + " -> " + ans);
 						return validator.queryableContractStatus(target, view.contracts());
 					}
 				});
