@@ -20,11 +20,13 @@ package com.hedera.services.ledger.accounts;
  * ‍
  */
 
+import com.google.common.primitives.Longs;
 import com.google.protobuf.ByteString;
 import com.hedera.services.ledger.SigImpactHistorian;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.utils.EntityNum;
 import com.hederahashgraph.api.proto.java.AccountID;
+import com.hederahashgraph.api.proto.java.ContractID;
 import com.swirlds.merkle.map.MerkleMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -33,8 +35,10 @@ import org.jetbrains.annotations.Nullable;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import static com.hedera.services.utils.EntityIdUtils.isAlias;
@@ -177,5 +181,25 @@ public class AliasManager extends AbstractContractAliases implements ContractAli
 			return lookupIdBy(grpcId.getAlias());
 		}
 		return EntityNum.fromAccountId(grpcId);
+	}
+
+	public EntityNum unaliased(
+			final ContractID idOrAlias,
+			@javax.annotation.Nullable final Consumer<ByteString> aliasObs
+	) {
+		if (isAlias(idOrAlias)) {
+			final var alias = idOrAlias.getEvmAddress();
+			final var evmAddress = alias.toByteArray();
+			if (isMirror(evmAddress)) {
+				final var contractNum = Longs.fromByteArray(Arrays.copyOfRange(evmAddress, 12, 20));
+				return EntityNum.fromLong(contractNum);
+			}
+			if (aliasObs != null) {
+				aliasObs.accept(alias);
+			}
+			return lookupIdBy(alias);
+		} else {
+			return EntityNum.fromContractId(idOrAlias);
+		}
 	}
 }

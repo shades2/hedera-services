@@ -74,7 +74,7 @@ class TopicCreateAccessorTest {
 
 		given(aliasManager.unaliased(autoRenewAccount)).willReturn(EntityNum.fromAccountId(autoRenewAccount));
 		given(aliasManager.unaliased(payer)).willReturn(EntityNum.fromAccountId(payer));
-		assertEquals(Id.fromGrpcAccount(autoRenewAccount), accessor.accountToAutoRenew());
+		assertEquals(Id.fromGrpcAccount(autoRenewAccount), accessor.autoRenewAccount());
 		assertEquals(payer, accessor.getPayer());
 	}
 
@@ -96,7 +96,7 @@ class TopicCreateAccessorTest {
 		given(aliasManager.unaliased(autoRenewAlias)).willReturn(EntityNum.fromAccountId(autoRenewAccount));
 		given(aliasManager.unaliased(payerAlias)).willReturn(EntityNum.fromAccountId(payer));
 
-		assertEquals(Id.fromGrpcAccount(autoRenewAccount), accessor.accountToAutoRenew());
+		assertEquals(Id.fromGrpcAccount(autoRenewAccount), accessor.autoRenewAccount());
 		assertEquals(payer, accessor.getPayer());
 	}
 
@@ -118,7 +118,7 @@ class TopicCreateAccessorTest {
 		given(aliasManager.unaliased(autoRenewAlias)).willReturn(MISSING_NUM);
 		given(aliasManager.unaliased(payerAlias)).willReturn(MISSING_NUM);
 
-		assertEquals(MISSING_NUM.toId(), accessor.accountToAutoRenew());
+		assertEquals(MISSING_NUM.toId(), accessor.autoRenewAccount());
 		assertEquals(MISSING_NUM.toGrpcAccountId(), accessor.getPayer());
 	}
 

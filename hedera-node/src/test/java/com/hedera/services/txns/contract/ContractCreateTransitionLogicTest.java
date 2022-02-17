@@ -21,6 +21,7 @@ package com.hedera.services.txns.contract;
  */
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.services.context.TransactionContext;
 import com.hedera.services.context.properties.GlobalDynamicProperties;
 import com.hedera.services.contracts.execution.CreateEvmTxProcessor;
@@ -29,6 +30,7 @@ import com.hedera.services.exceptions.InvalidTransactionException;
 import com.hedera.services.files.HederaFs;
 import com.hedera.services.ledger.HederaLedger;
 import com.hedera.services.ledger.SigImpactHistorian;
+import com.hedera.services.ledger.accounts.AliasManager;
 import com.hedera.services.ledger.accounts.HederaAccountCustomizer;
 import com.hedera.services.legacy.core.jproto.JContractIDKey;
 import com.hedera.services.legacy.core.jproto.JEd25519Key;
@@ -39,6 +41,7 @@ import com.hedera.services.store.contracts.HederaWorldState;
 import com.hedera.services.store.models.Account;
 import com.hedera.services.store.models.Id;
 import com.hedera.services.txns.validation.OptionValidator;
+import com.hedera.services.utils.EntityNum;
 import com.hedera.services.utils.accessors.ContractCreateAccessor;
 import com.hedera.test.utils.IdUtils;
 import com.hederahashgraph.api.proto.java.AccountID;
@@ -48,10 +51,12 @@ import com.hederahashgraph.api.proto.java.Duration;
 import com.hederahashgraph.api.proto.java.FileID;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.Timestamp;
+import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionID;
 import com.hederahashgraph.builder.RequestBuilder;
 import com.swirlds.common.CommonUtils;
+import com.swirlds.common.SwirldTransaction;
 import org.apache.tuweni.bytes.Bytes;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -104,7 +109,7 @@ class ContractCreateTransitionLogicTest {
 	@Mock
 	private TransactionContext txnCtx;
 	@Mock
-	private ContractCreateAccessor accessor;
+	private AliasManager aliasManager;
 	@Mock
 	private AccountStore accountStore;
 	@Mock
@@ -122,12 +127,15 @@ class ContractCreateTransitionLogicTest {
 	@Mock
 	private SigImpactHistorian sigImpactHistorian;
 
+	private ContractCreateAccessor accessor;
+
 	private ContractCreateTransitionLogic subject;
 
 	private final Instant consensusTime = Instant.now();
 	private final Account senderAccount = new Account(new Id(0, 0, 1002));
 	private final Account contractAccount = new Account(new Id(0, 0, 1006));
-	private TransactionBody contractCreateTxn;
+	private TransactionBody contractCreateBody;
+	private Transaction contractCreateTxn;
 
 	@BeforeEach
 	private void setup() {
@@ -143,7 +151,7 @@ class ContractCreateTransitionLogicTest {
 		givenValidTxnCtx();
 
 		// expect:
-		assertTrue(subject.applicability().test(contractCreateTxn));
+		assertTrue(subject.applicability().test(contractCreateBody));
 		assertFalse(subject.applicability().test(TransactionBody.getDefaultInstance()));
 	}
 
@@ -155,7 +163,7 @@ class ContractCreateTransitionLogicTest {
 		given(properties.maxGas()).willReturn(gas + 1);
 
 		// expect:
-		assertEquals(OK, subject.semanticCheck().apply(contractCreateTxn));
+		assertEquals(OK, subject.semanticCheck().apply(contractCreateBody));
 	}
 
 	@Test
@@ -165,7 +173,7 @@ class ContractCreateTransitionLogicTest {
 		given(properties.maxGas()).willReturn(gas - 1);
 		// expect:
 		assertEquals(MAX_GAS_LIMIT_EXCEEDED,
-				subject.semanticCheck().apply(contractCreateTxn));
+				subject.semanticCheck().apply(contractCreateBody));
 	}
 
 	@Test
@@ -173,7 +181,7 @@ class ContractCreateTransitionLogicTest {
 		givenValidTxnCtx(false);
 
 		// expect:
-		assertEquals(INVALID_RENEWAL_PERIOD, subject.semanticCheck().apply(contractCreateTxn));
+		assertEquals(INVALID_RENEWAL_PERIOD, subject.semanticCheck().apply(contractCreateBody));
 	}
 
 	@Test
@@ -184,7 +192,7 @@ class ContractCreateTransitionLogicTest {
 		givenValidTxnCtx();
 
 		// expect:
-		assertEquals(INVALID_RENEWAL_PERIOD, subject.semanticCheck().apply(contractCreateTxn));
+		assertEquals(INVALID_RENEWAL_PERIOD, subject.semanticCheck().apply(contractCreateBody));
 	}
 
 	@Test
@@ -194,7 +202,7 @@ class ContractCreateTransitionLogicTest {
 		given(validator.isValidAutoRenewPeriod(any())).willReturn(false);
 
 		// expect:
-		assertEquals(AUTORENEW_DURATION_NOT_IN_RANGE, subject.semanticCheck().apply(contractCreateTxn));
+		assertEquals(AUTORENEW_DURATION_NOT_IN_RANGE, subject.semanticCheck().apply(contractCreateBody));
 	}
 
 	@Test
@@ -206,7 +214,7 @@ class ContractCreateTransitionLogicTest {
 		given(validator.isValidAutoRenewPeriod(any())).willReturn(true);
 
 		// expect:
-		assertEquals(CONTRACT_NEGATIVE_GAS, subject.semanticCheck().apply(contractCreateTxn));
+		assertEquals(CONTRACT_NEGATIVE_GAS, subject.semanticCheck().apply(contractCreateBody));
 	}
 
 	@Test
@@ -217,7 +225,7 @@ class ContractCreateTransitionLogicTest {
 		givenValidTxnCtx();
 		given(validator.isValidAutoRenewPeriod(any())).willReturn(true);
 		// expect:
-		assertEquals(CONTRACT_NEGATIVE_VALUE, subject.semanticCheck().apply(contractCreateTxn));
+		assertEquals(CONTRACT_NEGATIVE_VALUE, subject.semanticCheck().apply(contractCreateBody));
 	}
 
 	@Test
@@ -233,7 +241,8 @@ class ContractCreateTransitionLogicTest {
 		var txn = TransactionBody.newBuilder()
 				.setTransactionID(ourTxnId())
 				.setContractCreateInstance(op);
-		contractCreateTxn = txn.build();
+		contractCreateBody = txn.build();
+		setUpAccessor();
 
 		var contractByteCodeString = new String(bytecode);
 		var constructorParamsHexString = CommonUtils.hex(op.getConstructorParameters().toByteArray());
@@ -243,7 +252,11 @@ class ContractCreateTransitionLogicTest {
 		given(accountStore.loadAccount(senderAccount.getId())).willReturn(senderAccount);
 		given(hfs.exists(bytecodeSrc)).willReturn(true);
 		given(hfs.cat(bytecodeSrc)).willReturn(bytecode);
+
 		given(txnCtx.accessor()).willReturn(accessor);
+		given(aliasManager.unaliased(senderAccount.getId().asGrpcAccount())).willReturn(
+				senderAccount.getId().asEntityNum());
+		given(aliasManager.unaliased(proxy)).willReturn(EntityNum.fromAccountId(proxy));
 		final var result = TransactionProcessingResult
 				.successful(
 						null,
@@ -264,7 +277,6 @@ class ContractCreateTransitionLogicTest {
 				txnCtx.consensusTime(),
 				expiry))
 				.willReturn(result);
-		givenConditions();
 
 		// when:
 		subject.doStateTransition();
@@ -309,7 +321,11 @@ class ContractCreateTransitionLogicTest {
 		final var txn = TransactionBody.newBuilder()
 				.setTransactionID(ourTxnId())
 				.setContractCreateInstance(op);
-		contractCreateTxn = txn.build();
+		contractCreateBody = txn.build();
+		setUpAccessor();
+		given(aliasManager.unaliased(senderAccount.getId().asGrpcAccount())).willReturn(
+				senderAccount.getId().asEntityNum());
+		given(aliasManager.unaliased(proxy)).willReturn(EntityNum.fromAccountId(proxy));
 
 		var contractByteCodeString = new String(bytecode);
 		final var constructorParamsHexString = CommonUtils.hex(op.getConstructorParameters().toByteArray());
@@ -320,9 +336,6 @@ class ContractCreateTransitionLogicTest {
 		given(hfs.exists(bytecodeSrc)).willReturn(true);
 		given(hfs.cat(bytecodeSrc)).willReturn(bytecode);
 		given(txnCtx.accessor()).willReturn(accessor);
-		given(accessor.hasAdminKey()).willReturn(true);
-		given(accessor.adminKey()).willReturn(adminKey);
-		givenConditions();
 		final var result = TransactionProcessingResult
 				.successful(
 						null,
@@ -370,7 +383,9 @@ class ContractCreateTransitionLogicTest {
 	void capturesUnsuccessfulCreate() {
 		// setup:
 		givenValidTxnCtx();
-		givenConditions();
+		given(aliasManager.unaliased(senderAccount.getId().asGrpcAccount())).willReturn(
+				senderAccount.getId().asEntityNum());
+		given(aliasManager.unaliased(proxy)).willReturn(EntityNum.fromAccountId(proxy));
 		List<ContractID> expectedCreatedContracts = List.of(contractAccount.getId().asGrpcContract());
 
 		// and:
@@ -416,8 +431,10 @@ class ContractCreateTransitionLogicTest {
 		given(hfs.exists(bytecodeSrc)).willReturn(true);
 		given(hfs.cat(bytecodeSrc)).willReturn(bytecode);
 		given(txnCtx.accessor()).willReturn(accessor);
-		givenConditions();
 		given(worldState.persistProvisionalContractCreations()).willReturn(secondaryCreations);
+		given(aliasManager.unaliased(senderAccount.getId().asGrpcAccount())).willReturn(
+				senderAccount.getId().asEntityNum());
+		given(aliasManager.unaliased(proxy)).willReturn(EntityNum.fromAccountId(proxy));
 		final var result = TransactionProcessingResult
 				.successful(
 						null,
@@ -463,18 +480,20 @@ class ContractCreateTransitionLogicTest {
 		given(properties.maxGas()).willReturn(gas + 1);
 
 		// expect:
-		assertEquals(MEMO_TOO_LONG, subject.semanticCheck().apply(contractCreateTxn));
+		assertEquals(MEMO_TOO_LONG, subject.semanticCheck().apply(contractCreateBody));
 	}
 
 	@Test
 	void rejectsMissingBytecodeFile() {
 		givenValidTxnCtx();
-		given(accessor.getPayerId()).willReturn(senderAccount.getId());
-		given(accessor.txnBody()).willReturn(contractCreateTxn.getContractCreateInstance());
+		given(aliasManager.unaliased(senderAccount.getId().asGrpcAccount())).willReturn(
+				senderAccount.getId().asEntityNum());
+		given(aliasManager.unaliased(proxy)).willReturn(EntityNum.fromAccountId(proxy));
+
 		given(txnCtx.accessor()).willReturn(accessor);
 		given(accountStore.loadAccount(senderAccount.getId())).willReturn(senderAccount);
 		given(hfs.exists(bytecodeSrc)).willReturn(false);
-		given(accessor.proxy()).willReturn(Id.fromGrpcAccount(proxy));
+
 		// when:
 		Exception exception = assertThrows(InvalidTransactionException.class, () -> subject.doStateTransition());
 
@@ -485,14 +504,14 @@ class ContractCreateTransitionLogicTest {
 	@Test
 	void rejectsEmptyBytecodeFile() {
 		givenValidTxnCtx();
+		given(aliasManager.unaliased(senderAccount.getId().asGrpcAccount())).willReturn(
+				senderAccount.getId().asEntityNum());
+		given(aliasManager.unaliased(proxy)).willReturn(EntityNum.fromAccountId(proxy));
 
 		given(txnCtx.accessor()).willReturn(accessor);
 		given(accountStore.loadAccount(senderAccount.getId())).willReturn(senderAccount);
 		given(hfs.exists(bytecodeSrc)).willReturn(true);
 		given(hfs.cat(bytecodeSrc)).willReturn(new byte[0]);
-		given(accessor.getPayerId()).willReturn(senderAccount.getId());
-		given(accessor.txnBody()).willReturn(contractCreateTxn.getContractCreateInstance());
-		given(accessor.proxy()).willReturn(Id.fromGrpcAccount(proxy));
 
 		// when:
 		Exception exception = assertThrows(InvalidTransactionException.class, () -> subject.doStateTransition());
@@ -514,14 +533,15 @@ class ContractCreateTransitionLogicTest {
 		var txn = TransactionBody.newBuilder()
 				.setTransactionID(ourTxnId())
 				.setContractCreateInstance(op);
-		contractCreateTxn = txn.build();
-		given(accessor.hasAdminKey()).willReturn(true);
-		given(accessor.adminKey()).willReturn(key);
+		contractCreateBody = txn.build();
+		setUpAccessor();
+
 		given(txnCtx.accessor()).willReturn(accessor);
 		given(validator.attemptToDecodeOrThrow(key, SERIALIZATION_FAILED)).willThrow(
 				new InvalidTransactionException(SERIALIZATION_FAILED));
-		given(accessor.proxy()).willReturn(Id.fromGrpcAccount(proxy));
-		given(accessor.getPayerId()).willReturn(senderAccount.getId());
+		given(aliasManager.unaliased(senderAccount.getId().asGrpcAccount())).willReturn(
+				senderAccount.getId().asEntityNum());
+		given(aliasManager.unaliased(proxy)).willReturn(EntityNum.fromAccountId(proxy));
 
 		// when:
 		Exception exception = assertThrows(InvalidTransactionException.class, () -> subject.doStateTransition());
@@ -558,16 +578,18 @@ class ContractCreateTransitionLogicTest {
 		var txn = TransactionBody.newBuilder()
 				.setTransactionID(ourTxnId())
 				.setContractCreateInstance(op);
-		contractCreateTxn = txn.build();
+		contractCreateBody = txn.build();
+
+		setUpAccessor();
 	}
 
-	private void givenConditions() {
-		given(accessor.proxy()).willReturn(Id.fromGrpcAccount(proxy));
-		given(accessor.gas()).willReturn((long) gas);
-		given(accessor.initialBalance()).willReturn(balance);
-		given(accessor.getPayerId()).willReturn(senderAccount.getId());
-		given(accessor.txnBody()).willReturn(contractCreateTxn.getContractCreateInstance());
-		given(accessor.autoRenewPeriod()).willReturn(Duration.newBuilder().setSeconds(customAutoRenewPeriod).build());
+	private void setUpAccessor() {
+		contractCreateTxn = Transaction.newBuilder().setBodyBytes(contractCreateBody.toByteString()).build();
+		try {
+			accessor = new ContractCreateAccessor(new SwirldTransaction(contractCreateTxn.toByteArray()), aliasManager);
+		} catch (InvalidProtocolBufferException e) {
+			e.printStackTrace();
+		}
 	}
 
 	private TransactionID ourTxnId() {

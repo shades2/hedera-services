@@ -21,11 +21,11 @@ package com.hedera.services.txns.contract.helpers;
  */
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.services.ledger.HederaLedger;
 import com.hedera.services.ledger.SigImpactHistorian;
 import com.hedera.services.ledger.accounts.AliasManager;
 import com.hedera.services.state.merkle.MerkleAccount;
-import com.hedera.services.store.models.Id;
 import com.hedera.services.txns.validation.OptionValidator;
 import com.hedera.services.utils.EntityNum;
 import com.hedera.services.utils.accessors.ContractDeleteAccessor;
@@ -33,6 +33,8 @@ import com.hedera.test.utils.IdUtils;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractDeleteTransactionBody;
 import com.hederahashgraph.api.proto.java.ContractID;
+import com.hederahashgraph.api.proto.java.Transaction;
+import com.swirlds.common.SwirldTransaction;
 import com.swirlds.merkle.map.MerkleMap;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -74,8 +76,10 @@ class DeletionLogicTest {
 	private SigImpactHistorian sigImpactHistorian;
 	@Mock
 	private MerkleMap<EntityNum, MerkleAccount> contracts;
-	@Mock
+
 	private ContractDeleteAccessor accessor;
+	private Transaction contractDeleteTxn;
+	private ContractDeleteTransactionBody contractDeleteBody;
 
 	private DeletionLogic subject;
 
@@ -86,14 +90,14 @@ class DeletionLogicTest {
 
 	@Test
 	void precheckValidityUsesValidatorForMirrorTarget() {
-		final var op = opWithAccountObtainer(mirrorId, obtainer);
+		givenOpWithAccountObtainer(mirrorId, obtainer);
 		given(validator.queryableContractStatus(id, contracts)).willReturn(CONTRACT_DELETED);
 		assertEquals(CONTRACT_DELETED, subject.precheckValidity(accessor));
 	}
 
 	@Test
 	void precheckValidityUsesValidatorForAliasTarget() {
-		final var op = opWithAccountObtainer(aliasId, obtainer);
+		givenOpWithAccountObtainer(aliasId, obtainer);
 		given(aliasManager.lookupIdBy(aliasId.getEvmAddress())).willReturn(id);
 		given(validator.queryableContractStatus(id, contracts)).willReturn(CONTRACT_DELETED);
 		assertEquals(CONTRACT_DELETED, subject.precheckValidity(accessor));
@@ -101,9 +105,7 @@ class DeletionLogicTest {
 
 	@Test
 	void happyPathWorksWithAccountObtainerAndMirrorTarget() {
-		final var op = opWithAccountObtainer(mirrorId, obtainer);
-		given(accessor.txnBody()).willReturn(op);
-		given(accessor.targetID()).willReturn(Id.fromGrpcContract(mirrorId));
+		givenOpWithAccountObtainer(mirrorId, obtainer);
 		given(ledger.exists(obtainer)).willReturn(true);
 		given(ledger.alias(target)).willReturn(ByteString.EMPTY);
 
@@ -115,11 +117,8 @@ class DeletionLogicTest {
 
 	@Test
 	void happyPathWorksWithAccountObtainerAndMirrorTargetAndAliasToUnlink() {
-		final var op = opWithAccountObtainer(mirrorId, obtainer);
+		givenOpWithAccountObtainer(mirrorId, obtainer);
 
-		given(accessor.targetID()).willReturn(Id.fromGrpcContract(mirrorId));
-		given(accessor.hasTransferAccountID()).willReturn(true);
-		given(accessor.transferAccountID()).willReturn(Id.fromGrpcAccount(obtainer));
 		given(ledger.exists(obtainer)).willReturn(true);
 		given(ledger.alias(target)).willReturn(aliasId.getEvmAddress());
 
@@ -134,10 +133,7 @@ class DeletionLogicTest {
 
 	@Test
 	void happyPathWorksWithAccountObtainerAndMirrorTargetAndNoAliasToUnlink() {
-		final var op = opWithAccountObtainer(mirrorId, obtainer);
-		given(accessor.targetID()).willReturn(Id.fromGrpcContract(mirrorId));
-		given(accessor.hasTransferAccountID()).willReturn(true);
-		given(accessor.transferAccountID()).willReturn(Id.fromGrpcAccount(obtainer));
+		givenOpWithAccountObtainer(mirrorId, obtainer);
 		given(ledger.exists(obtainer)).willReturn(true);
 		given(ledger.alias(target)).willReturn(ByteString.EMPTY);
 		final var deleted = subject.performFor(accessor);
@@ -148,36 +144,29 @@ class DeletionLogicTest {
 
 	@Test
 	void rejectsNoObtainerWithMirrorTarget() {
-		final var op = opWithNoObtainer(mirrorId);
+		givenOpWithNoObtainer(mirrorId);
 		assertFailsWith(() -> subject.performFor(accessor), OBTAINER_REQUIRED);
 	}
 
 	@Test
 	void rejectsExpiredObtainerAccount() {
-		final var op = opWithAccountObtainer(mirrorId, obtainer);
+		givenOpWithAccountObtainer(mirrorId, obtainer);
 		given(ledger.exists(obtainer)).willReturn(true);
 		given(ledger.isDetached(obtainer)).willReturn(true);
-		given(accessor.targetID()).willReturn(Id.fromGrpcContract(mirrorId));
-		given(accessor.hasTransferAccountID()).willReturn(true);
-		given(accessor.transferAccountID()).willReturn(Id.fromGrpcAccount(obtainer));
 		assertFailsWith(() -> subject.performFor(accessor), ACCOUNT_EXPIRED_AND_PENDING_REMOVAL);
 	}
 
 	@Test
 	void rejectsMissingObtainerAccount() {
-		final var op = opWithAccountObtainer(mirrorId, obtainer);
-		given(accessor.targetID()).willReturn(Id.fromGrpcContract(mirrorId));
-		given(accessor.hasTransferAccountID()).willReturn(true);
-		given(accessor.transferAccountID()).willReturn(Id.fromGrpcAccount(obtainer));
+		givenOpWithAccountObtainer(mirrorId, obtainer);
+		given(aliasManager.unaliased(obtainer)).willReturn(EntityNum.fromAccountId(obtainer));
+		given(aliasManager.unaliased(mirrorId)).willReturn(EntityNum.fromContractId(mirrorId));
 		assertFailsWith(() -> subject.performFor(accessor), OBTAINER_DOES_NOT_EXIST);
 	}
 
 	@Test
 	void rejectsDeletedObtainerAccount() {
-		final var op = opWithAccountObtainer(mirrorId, obtainer);
-		given(accessor.targetID()).willReturn(Id.fromGrpcContract(mirrorId));
-		given(accessor.hasTransferAccountID()).willReturn(true);
-		given(accessor.transferAccountID()).willReturn(Id.fromGrpcAccount(obtainer));
+		givenOpWithAccountObtainer(mirrorId, obtainer);
 		given(ledger.exists(obtainer)).willReturn(true);
 		given(ledger.isDeleted(obtainer)).willReturn(true);
 		assertFailsWith(() -> subject.performFor(accessor), OBTAINER_DOES_NOT_EXIST);
@@ -185,44 +174,44 @@ class DeletionLogicTest {
 
 	@Test
 	void rejectsSameObtainerAccount() {
-		final var op = opWithAccountObtainer(mirrorId, id.toGrpcAccountId());
-		given(accessor.targetID()).willReturn(Id.fromGrpcContract(mirrorId));
-		given(accessor.hasTransferAccountID()).willReturn(true);
-		given(accessor.transferAccountID()).willReturn(id.toId());
+		givenOpWithAccountObtainer(mirrorId, id.toGrpcAccountId());
 		assertFailsWith(() -> subject.performFor(accessor), OBTAINER_SAME_CONTRACT_ID);
 	}
 
 	@Test
 	void rejectsSameObtainerContractWithAliasTarget() {
-		final var op = opWithContractObtainer(aliasId, mirrorId);
-		given(accessor.targetID()).willReturn(id.toId());
+		givenOpWithContractObtainer(aliasId, mirrorId);
 		assertFailsWith(() -> subject.performFor(accessor), OBTAINER_SAME_CONTRACT_ID);
 	}
 
 	@Test
 	void rejectsSameObtainerContractWithAliasObtainer() {
-		final var op = opWithContractObtainer(mirrorId, aliasId);
-		given(accessor.targetID()).willReturn(id.toId());
+		givenOpWithContractObtainer(mirrorId, aliasId);
 		assertFailsWith(() -> subject.performFor(accessor), OBTAINER_SAME_CONTRACT_ID);
 	}
 
-	private ContractDeleteTransactionBody opWithNoObtainer(final ContractID target) {
-		given(accessor.targetID()).willReturn(Id.fromGrpcContract(target));
-		given(accessor.hasTransferContractID()).willReturn(false);
-		given(accessor.hasTransferAccountID()).willReturn(false);
-		return baseOp(target).build();
+	private void givenOpWithNoObtainer(final ContractID target) {
+		contractDeleteBody = baseOp(target).build();
+		setUpAccessor();
 	}
 
-	private ContractDeleteTransactionBody opWithContractObtainer(final ContractID target, final ContractID obtainer) {
-		given(accessor.targetID()).willReturn(Id.fromGrpcContract(target));
-		given(accessor.hasTransferContractID()).willReturn(true);
-		given(accessor.transferContractID()).willReturn(Id.fromGrpcContract(obtainer));
-		given(accessor.hasTransferAccountID()).willReturn(false);
-		return baseOp(target).setTransferContractID(obtainer).build();
+	private void givenOpWithContractObtainer(final ContractID target, final ContractID obtainer) {
+		contractDeleteBody = baseOp(target).setTransferContractID(obtainer).build();
+		setUpAccessor();
 	}
 
-	private ContractDeleteTransactionBody opWithAccountObtainer(final ContractID target, final AccountID obtainer) {
-		return baseOp(target).setTransferAccountID(obtainer).build();
+	private void setUpAccessor() {
+		contractDeleteTxn = Transaction.newBuilder().setBodyBytes(contractDeleteBody.toByteString()).build();
+		try {
+			accessor = new ContractDeleteAccessor(new SwirldTransaction(contractDeleteTxn.toByteArray()), aliasManager);
+		} catch (InvalidProtocolBufferException e) {
+			e.printStackTrace();
+		}
+	}
+
+	private void givenOpWithAccountObtainer(final ContractID target, final AccountID obtainer) {
+		contractDeleteBody = baseOp(target).setTransferAccountID(obtainer).build();
+		setUpAccessor();
 	}
 
 	private ContractDeleteTransactionBody.Builder baseOp(final ContractID target) {

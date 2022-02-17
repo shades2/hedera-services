@@ -31,12 +31,12 @@ import com.hedera.services.store.models.Topic;
 import com.hedera.services.txns.TransitionLogic;
 import com.hedera.services.txns.validation.OptionValidator;
 import com.hedera.services.utils.accessors.TopicCreateAccessor;
+import com.hedera.services.utils.accessors.TxnAccessor;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import java.util.function.Function;
 import java.util.function.Predicate;
 
 import static com.hedera.services.exceptions.ValidationUtils.validateFalse;
@@ -82,25 +82,23 @@ public final class TopicCreateTransitionLogic implements TransitionLogic {
 	public void doStateTransition() {
 		/* --- Extract gRPC --- */
 		final var accessor = (TopicCreateAccessor) txnCtx.accessor();
-		final var txnBody = accessor.getTxn();
 		final var payerAccountId = accessor.getPayer();
-		final var op = txnBody.getConsensusCreateTopic();
-		final var submitKey = op.hasSubmitKey() ? validator.attemptDecodeOrThrow(op.getSubmitKey()) : null;
-		final var adminKey = op.hasAdminKey() ? validator.attemptDecodeOrThrow(op.getAdminKey()) : null;
-		final var memo = op.getMemo();
-		final var autoRenewPeriod = op.getAutoRenewPeriod();
-		final var autoRenewAccountId = accessor.accountToAutoRenew();
+		final var submitKey = accessor.hasSubmitKey() ? validator.attemptDecodeOrThrow(accessor.submitKey()) : null;
+		final var adminKey = accessor.hasAdminKey() ? validator.attemptDecodeOrThrow(accessor.adminKey()) : null;
+		final var memo = accessor.memo();
+		final var autoRenewPeriod = accessor.autoRenewPeriod();
+		final var autoRenewAccountId = accessor.autoRenewAccount();
 
 		/* --- Validate --- */
 		final var memoValidationResult = validator.memoCheck(memo);
 		validateTrue(OK == memoValidationResult, memoValidationResult);
-		validateTrue(op.hasAutoRenewPeriod(), INVALID_RENEWAL_PERIOD);
+		validateTrue(accessor.hasAutoRenewPeriod(), INVALID_RENEWAL_PERIOD);
 		validateTrue(validator.isValidAutoRenewPeriod(autoRenewPeriod), AUTORENEW_DURATION_NOT_IN_RANGE);
 		Account autoRenewAccount = null;
-		if (op.hasAutoRenewAccount()) {
+		if (accessor.hasAutoRenewAccount()) {
 			autoRenewAccount = accountStore.loadAccountOrFailWith(autoRenewAccountId, INVALID_AUTORENEW_ACCOUNT);
 			validateFalse(autoRenewAccount.isSmartContract(), INVALID_AUTORENEW_ACCOUNT);
-			validateTrue(op.hasAdminKey(), AUTORENEW_ACCOUNT_NOT_ALLOWED);
+			validateTrue(accessor.hasAdminKey(), AUTORENEW_ACCOUNT_NOT_ALLOWED);
 		}
 
 		/* --- Do business logic --- */
@@ -126,21 +124,20 @@ public final class TopicCreateTransitionLogic implements TransitionLogic {
 	}
 
 	@Override
-	public Function<TransactionBody, ResponseCodeEnum> semanticCheck() {
-		return this::validate;
+	public ResponseCodeEnum validateSemantics(final TxnAccessor accessor) {
+		return validate((TopicCreateAccessor) accessor);
 	}
 
 	/**
 	 * Pre-consensus (and post-consensus-pre-doStateTransition) validation validates the encoding of the optional
 	 * adminKey; this check occurs before signature validation which occurs before doStateTransition.
 	 *
-	 * @param transactionBody
-	 * 		- the gRPC body
+	 * @param accessor
+	 * 		- the TxnAccessor
 	 * @return the validity
 	 */
-	private ResponseCodeEnum validate(final TransactionBody transactionBody) {
-		final var op = transactionBody.getConsensusCreateTopic();
-		if (op.hasAdminKey() && !validator.hasGoodEncoding(op.getAdminKey())) {
+	private ResponseCodeEnum validate(final TopicCreateAccessor accessor) {
+		if (accessor.hasAdminKey() && !validator.hasGoodEncoding(accessor.adminKey())) {
 			return BAD_ENCODING;
 		}
 		return OK;

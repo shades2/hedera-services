@@ -20,7 +20,6 @@ package com.hedera.services.utils.accessors;
  * ‍
  */
 
-import com.google.common.primitives.Longs;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.services.ledger.accounts.AliasManager;
@@ -32,11 +31,7 @@ import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.swirlds.common.SwirldTransaction;
 
-import javax.annotation.Nullable;
-import java.util.Arrays;
 import java.util.function.Consumer;
-
-import static com.hedera.services.utils.EntityIdUtils.isAlias;
 
 /**
  * Encapsulates access to several commonly referenced parts of a {@link com.swirlds.common.SwirldTransaction}
@@ -91,12 +86,12 @@ public class PlatformTxnAccessor extends SignedTxnAccessor {
 		return sigMeta;
 	}
 
-	protected EntityNum unaliased(AccountID grpcId) {
+	public EntityNum unaliased(AccountID grpcId) {
 		return aliasManager.unaliased(grpcId);
 	}
 
-	protected EntityNum unaliased(ContractID grpcId) {
-		return unaliased(grpcId, aliasManager);
+	public EntityNum unaliased(ContractID grpcId, @javax.annotation.Nullable final Consumer<ByteString> aliasObs) {
+		return aliasManager.unaliased(grpcId, aliasObs);
 	}
 
 	@Override
@@ -108,28 +103,7 @@ public class PlatformTxnAccessor extends SignedTxnAccessor {
 		return Id.fromGrpcAccount(unaliased(getTxnId().getAccountID()).toGrpcAccountId());
 	}
 
-	protected EntityNum unaliased(final ContractID idOrAlias, final AliasManager aliasManager) {
-		return unaliased(idOrAlias, aliasManager, null);
-	}
-
-	public EntityNum unaliased(
-			final ContractID idOrAlias,
-			final AliasManager aliasManager,
-			@Nullable final Consumer<ByteString> aliasObs
-	) {
-		if (isAlias(idOrAlias)) {
-			final var alias = idOrAlias.getEvmAddress();
-			final var evmAddress = alias.toByteArray();
-			if (aliasManager.isMirror(evmAddress)) {
-				final var contractNum = Longs.fromByteArray(Arrays.copyOfRange(evmAddress, 12, 20));
-				return EntityNum.fromLong(contractNum);
-			}
-			if (aliasObs != null) {
-				aliasObs.accept(alias);
-			}
-			return aliasManager.lookupIdBy(alias);
-		} else {
-			return EntityNum.fromContractId(idOrAlias);
-		}
+	protected EntityNum unaliased(final ContractID idOrAlias) {
+		return aliasManager.unaliased(idOrAlias, null);
 	}
 }

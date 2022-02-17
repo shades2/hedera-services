@@ -24,6 +24,8 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.services.ledger.accounts.AliasManager;
 import com.hedera.services.store.models.Id;
 import com.hederahashgraph.api.proto.java.ConsensusCreateTopicTransactionBody;
+import com.hederahashgraph.api.proto.java.Duration;
+import com.hederahashgraph.api.proto.java.Key;
 import com.swirlds.common.SwirldTransaction;
 
 public class TopicCreateAccessor extends PlatformTxnAccessor {
@@ -35,7 +37,39 @@ public class TopicCreateAccessor extends PlatformTxnAccessor {
 		this.body = getTxn().getConsensusCreateTopic();
 	}
 
-	public Id accountToAutoRenew() {
+	public boolean hasAdminKey() {
+		return body.hasAdminKey();
+	}
+
+	public Key adminKey() {
+		return body.getAdminKey();
+	}
+
+	public boolean hasSubmitKey() {
+		return body.hasSubmitKey();
+	}
+
+	public Key submitKey() {
+		return body.getSubmitKey();
+	}
+
+	public String memo() {
+		return body.getMemo();
+	}
+
+	public boolean hasAutoRenewPeriod() {
+		return body.hasAutoRenewPeriod();
+	}
+
+	public Duration autoRenewPeriod() {
+		return body.getAutoRenewPeriod();
+	}
+
+	public boolean hasAutoRenewAccount() {
+		return body.hasAutoRenewAccount();
+	}
+
+	public Id autoRenewAccount() {
 		return unaliased(body.getAutoRenewAccount()).toId();
 	}
 }
