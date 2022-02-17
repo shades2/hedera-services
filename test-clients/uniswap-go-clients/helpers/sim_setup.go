@@ -51,23 +51,7 @@ func SetupSimFromParams(client *hedera.Client) {
 		fmt.Printf("  -> Token '%s' (%s) deployed to %s\n", name, symbol, erc20Id.String())
 	}
 
-	var traderIds []string
-	for i := simParams.NumTraders; i > 0; i-- {
-		nextId := createSuppliedAccountVia(client, initTraderTokenBalance, typedTokenIds)
-		traderIds = append(traderIds, nextId.String())
-		fmt.Printf("😨 Trader #%d created at %s, all ticker balances initialized to %d\n",
-			simParams.NumTraders - i + 1, nextId.String(), initTraderTokenBalance)
-	}
-
-	var lpIds []string
-	for i := simParams.NumLiquidityProviders; i > 0; i-- {
-		nextId := createSuppliedAccountVia(client, initLpTokenBalance, typedTokenIds)
-		lpIds = append(lpIds, nextId.String())
-		fmt.Printf("🤑 Liquidity provider #%d created at %s, all ticker balances initialized to %d\n",
-			simParams.NumLiquidityProviders - i + 1, nextId.String(), initLpTokenBalance)
-	}
-
-	fmt.Println("Now creating pairs...")
+	fmt.Println("\nNow creating pairs...")
 	for i, a := range typedTokenIds {
 		for j, b := range typedTokenIds[(i + 1):] {
 			k := i + j + 1
@@ -95,6 +79,24 @@ func SetupSimFromParams(client *hedera.Client) {
 			initRecord := callContractVia(client, result.EvmAddress, "initialize", initParams)
 			fmt.Printf("initialization at 1:1 price returned %s\n", initRecord.Receipt.Status)
 		}
+	}
+
+
+	fmt.Println("\nNow creating participants...")
+	var traderIds []string
+	for i := simParams.NumTraders; i > 0; i-- {
+		nextId := createSuppliedAccountVia(client, initTraderTokenBalance, typedTokenIds)
+		traderIds = append(traderIds, nextId.String())
+		fmt.Printf("😨 Trader #%d created at %s, all ticker balances initialized to %d\n",
+			simParams.NumTraders - i + 1, nextId.String(), initTraderTokenBalance)
+	}
+
+	var lpIds []string
+	for i := simParams.NumLiquidityProviders; i > 0; i-- {
+		nextId := createSuppliedAccountVia(client, initLpTokenBalance, typedTokenIds)
+		lpIds = append(lpIds, nextId.String())
+		fmt.Printf("🤑 Liquidity provider #%d created at %s, all ticker balances initialized to %d\n",
+			simParams.NumLiquidityProviders - i + 1, nextId.String(), initLpTokenBalance)
 	}
 
 	simDetails := details{
