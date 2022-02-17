@@ -7,8 +7,8 @@
     "Ecru",
     "Fuzzy Wuzzy"
   ],
-  "numTraders": 2,
+  "numTraders": 0,
   "numLiquidityProviders": 1,
   "secsBetweenSwaps": 2,
-  "secsBetweenMints": 1
+  "secsBetweenMints": 10
 }

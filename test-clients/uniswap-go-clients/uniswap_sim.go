@@ -29,7 +29,7 @@ func main() {
 	} else if os.Args[1] == "do-swaps" {
 		misc.DoSwaps(client)
 	} else if os.Args[1] == "manage-liquidity" {
-
+		misc.DoMints(client)
 	} else {
 		panic(fmt.Sprintf("Don't know what to do with '%s'", os.Args[1]))
 	}

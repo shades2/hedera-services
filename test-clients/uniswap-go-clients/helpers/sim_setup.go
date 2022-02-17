@@ -65,38 +65,46 @@ func SetupSimFromParams(client *hedera.Client) {
 				panic(err)
 			}
 			deployParams.AddUint32(poolFee)
-			record := callContractVia(client, factoryId, "createPool", deployParams)
+			record := CallContractVia(client, factoryId, "createPool", deployParams)
 			result, err := record.Children[0].GetContractCreateResult()
 			if err != nil {
 				panic(err)
 			}
-			fmt.Printf("  ☑️  Created %s/%s pair @ %s...",
+			fmt.Printf("  ☑️  Created %s/%s pair @ %s (Hedera id %s)...",
 				tickers[i],
 				tickers[k],
-				result.EvmAddress.String())
+				result.EvmAddress.String(),
+				record.Children[0].Receipt.ContractID.String())
 
 			var initParams = hedera.NewContractFunctionParameters().AddUint64(initSqrtPriceX96)
-			initRecord := callContractVia(client, result.EvmAddress, "initialize", initParams)
+			initRecord := CallContractVia(client, result.EvmAddress, "initialize", initParams)
 			fmt.Printf("initialization at 1:1 price returned %s\n", initRecord.Receipt.Status)
 		}
 	}
 
-
 	fmt.Println("\nNow creating participants...")
+	lpInitcodeId := UploadInitcode(client, "./assets/bytecode/MinimalV3LP.bin")
+	fmt.Printf("LP initcode is at file %s\n", lpInitcodeId.String())
 	var traderIds []string
 	for i := simParams.NumTraders; i > 0; i-- {
 		nextId := createSuppliedAccountVia(client, initTraderTokenBalance, typedTokenIds)
 		traderIds = append(traderIds, nextId.String())
 		fmt.Printf("😨 Trader #%d created at %s, all ticker balances initialized to %d\n",
-			simParams.NumTraders - i + 1, nextId.String(), initTraderTokenBalance)
+			simParams.NumTraders-i+1, nextId.String(), initTraderTokenBalance)
 	}
 
 	var lpIds []string
 	for i := simParams.NumLiquidityProviders; i > 0; i-- {
-		nextId := createSuppliedAccountVia(client, initLpTokenBalance, typedTokenIds)
-		lpIds = append(lpIds, nextId.String())
+		var consParams = hedera.NewContractFunctionParameters()
+		_, err := consParams.AddAddress(factoryId.ToSolidityAddress())
+		if err != nil {
+			panic(err)
+		}
+		nextId := createContractVia(client, lpInitcodeId, consParams)
+		lpIds = append(lpIds, nextId.ToSolidityAddress())
+		fundAccountVia(client, initLpTokenBalance, typedTokenIds, nextId)
 		fmt.Printf("🤑 Liquidity provider #%d created at %s, all ticker balances initialized to %d\n",
-			simParams.NumLiquidityProviders - i + 1, nextId.String(), initLpTokenBalance)
+			simParams.NumLiquidityProviders-i+1, nextId.String(), initLpTokenBalance)
 	}
 
 	simDetails := details{
@@ -143,43 +151,32 @@ func createSuppliedAccountVia(
 			panic(err)
 		}
 		transferParams.AddUint256(asUint256(initBalance))
-		callContractVia(client, tokenId, "transfer", transferParams)
+		CallContractVia(client, tokenId, "transfer", transferParams)
 	}
 	return accountId
+}
+
+func fundAccountVia(
+	client *hedera.Client,
+	initBalance uint32,
+	tokenIds []hedera.ContractID,
+	recipient hedera.ContractID,
+) {
+	for _, tokenId := range tokenIds {
+		var transferParams, err = hedera.NewContractFunctionParameters().
+			AddAddress(recipient.ToSolidityAddress())
+		if err != nil {
+			panic(err)
+		}
+		transferParams.AddUint256(asUint256(initBalance))
+		CallContractVia(client, tokenId, "transfer", transferParams)
+	}
 }
 
 func asUint256(v uint32) []byte {
 	ans := make([]byte, 32)
 	binary.BigEndian.PutUint32(ans[28:32], v)
 	return ans
-}
-
-func callContractVia(
-	client *hedera.Client,
-	target hedera.ContractID,
-	method string,
-	params *hedera.ContractFunctionParameters,
-) hedera.TransactionRecord {
-	txnId, err := hedera.NewContractExecuteTransaction().
-		SetContractID(target).
-		SetGas(4_000_000).
-		SetFunction(method, params).
-		Execute(client)
-	if err != nil {
-		panic(err)
-	}
-
-	var record hedera.TransactionRecord
-
-	record, err = hedera.NewTransactionRecordQuery().
-		SetTransactionID(txnId.TransactionID).
-		SetIncludeChildren(true).
-		Execute(client)
-	if err != nil {
-		panic(err)
-	}
-
-	return record
 }
 
 func createContractVia(

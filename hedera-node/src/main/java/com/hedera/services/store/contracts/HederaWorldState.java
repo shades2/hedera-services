@@ -439,6 +439,8 @@ public class HederaWorldState implements HederaMutableWorldState {
 
 				if (updatedAccount.codeWasUpdated()) {
 					entityAccess.storeCode(accountId, updatedAccount.getCode());
+					System.out.println("Code hash for 0.0." + accountId.getAccountNum()
+							+ " is " + updatedAccount.getCodeHash());
 				}
 			}
 
