@@ -14,17 +14,22 @@ func DoMints(client *hedera.Client) {
 	simDetails := LoadDetails()
 
 	numTickers := len(simDetails.Tickers)
-	numLps := len(simDetails.LpIds)
+	//numLps := len(simDetails.LpIds)
+	liquidityId, err := hedera.ContractIDFromSolidityAddress(simDetails.LiquidityId)
+
+	if err != nil {
+		panic(err)
+	}
 	for {
-		// Choose our liquidity provider
-		choice := rand.Intn(numLps)
-		lpId, err := hedera.ContractIDFromSolidityAddress(simDetails.LpIds[choice])
-		if err != nil {
-			panic(err)
-		}
+		// TODO - choose our liquidity provider
+		//choice := rand.Intn(numLps)
+		//lpId, err := hedera.ContractIDFromSolidityAddress(simDetails.LpIds[choice])
+		//if err != nil {
+		//	panic(err)
+		//}
 
 		// Choose our tickers to mint
-		choice = rand.Intn(numTickers)
+		choice := rand.Intn(numTickers)
 		secondChoice := choice
 		for secondChoice == choice {
 			secondChoice = rand.Intn(numTickers)
@@ -41,28 +46,13 @@ func DoMints(client *hedera.Client) {
 			panic(err)
 		}
 
+		lpId := client.GetOperatorAccountID()
 		aPriorBalance := BalanceVia(client, tokenA, lpId.ToSolidityAddress())
 		bPriorBalance := BalanceVia(client, tokenB, lpId.ToSolidityAddress())
 		fmt.Printf("🍵 LP %s looking to mint %s/%s\n", lpId, tickerA, tickerB)
 		fmt.Printf("  💰 $%s: %d\n", tickerA, aPriorBalance)
 		fmt.Printf("  💰 $%s: %d\n", tickerB, bPriorBalance)
-
-		var mintParams = hedera.NewContractFunctionParameters()
-		_, err = mintParams.AddAddress(tokenA.ToSolidityAddress())
-		if err != nil {
-			panic(err)
-		}
-		_, err = mintParams.AddAddress(tokenB.ToSolidityAddress())
-		if err != nil {
-			panic(err)
-		}
-		var amount uint64 = 1_000_000
-		fmt.Print("💸 Minting new liquidity...")
-		mintParams.
-			AddUint64(amount).
-			AddUint32(poolFee)
-		mintRecord := CallContractVia(client, lpId, "mint", mintParams)
-		fmt.Printf("%s\n", mintRecord.Receipt.Status)
+		mintVia(client, tokenA, tokenB, 1000, 1000, liquidityId)
 
 		aPostBalance := BalanceVia(client, tokenA, lpId.ToSolidityAddress())
 		bPostBalance := BalanceVia(client, tokenB, lpId.ToSolidityAddress())
@@ -72,4 +62,32 @@ func DoMints(client *hedera.Client) {
 		fmt.Printf("💤 Sleeping %d seconds...\n\n", simParams.SecsBetweenMints)
 		time.Sleep(time.Duration(simParams.SecsBetweenMints) * time.Second)
 	}
+}
+
+func mintVia(
+	client *hedera.Client,
+	token0 hedera.ContractID,
+	token1 hedera.ContractID,
+	amount0 uint64,
+	amount1 uint64,
+	liquidityId hedera.ContractID,
+) {
+	encAmount0 := Uint256From64(amount0)
+	encAmount1 := Uint256From64(amount1)
+	var mintParams = hedera.NewContractFunctionParameters()
+	_, err := mintParams.AddAddress(token0.ToSolidityAddress())
+	if err != nil {
+		panic(err)
+	}
+	_, err = mintParams.AddAddress(token1.ToSolidityAddress())
+	if err != nil {
+		panic(err)
+	}
+	fmt.Print("💸 Minting new liquidity...")
+	mintParams.
+		AddUint256(encAmount0).
+		AddUint256(encAmount1)
+	mintRecord := CallContractVia(client, liquidityId, "mintNewPosition", mintParams)
+	fmt.Println(mintRecord.CallResult.ErrorMessage)
+	fmt.Printf("%s\n", mintRecord.Receipt.Status)
 }

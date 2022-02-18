@@ -48,8 +48,15 @@ import org.hyperledger.besu.evm.precompile.PrecompiledContract;
 import org.hyperledger.besu.evm.processor.AbstractMessageProcessor;
 import org.hyperledger.besu.evm.processor.ContractCreationProcessor;
 import org.hyperledger.besu.evm.tracing.OperationTracer;
+import org.hyperledger.besu.evm.tracing.StandardJsonTracer;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.PrintStream;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -72,7 +79,7 @@ import static org.hyperledger.besu.evm.MainnetEVMs.registerLondonOperations;
  */
 abstract class EvmTxProcessor {
 	private static final int MAX_STACK_SIZE = 1024;
-	private static final int MAX_CODE_SIZE = 0x6000;
+	private static final int MAX_CODE_SIZE = 0xF000;
 
 	private HederaMutableWorldState worldState;
 	private final GasCalculator gasCalculator;
@@ -216,8 +223,17 @@ abstract class EvmTxProcessor {
 		final MessageFrame initialFrame = buildInitialFrame(commonInitialFrame, updater, receiver, payload);
 		messageFrameStack.addFirst(initialFrame);
 
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		StandardJsonTracer jsonTracer = new StandardJsonTracer(new PrintStream(baos), false);
 		while (!messageFrameStack.isEmpty()) {
-			process(messageFrameStack.peekFirst(), new HederaTracer());
+			//process(messageFrameStack.peekFirst(), new HederaTracer());
+			process(messageFrameStack.peekFirst(), jsonTracer);
+		}
+		System.out.println(initialFrame.getInputData());
+		try {
+			Files.writeString(Paths.get("trace.txt"), baos.toString(StandardCharsets.UTF_8));
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 
 		var gasUsedByTransaction = calculateGasUsedByTX(gasLimit, initialFrame);

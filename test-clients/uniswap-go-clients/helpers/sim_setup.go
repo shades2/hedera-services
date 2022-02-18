@@ -28,46 +28,11 @@ func SetupSimFromParams(client *hedera.Client) {
 		simParams.NumLiquidityProviders,
 		"\n\n")
 
-	weth9InitcodeId := UploadInitcode(client, "./assets/bytecode/WETH9.bin")
-	fmt.Printf("WETH9 initcode is at file %s\n", weth9InitcodeId.String())
-	weth9Id := createContractVia(client, weth9InitcodeId, &hedera.ContractFunctionParameters{})
-	fmt.Printf("Ⓔ WETH9 contract deployed to %s\n\n", weth9Id.String())
-
-	tokenPosDescInitcodeId := UploadInitcode(client, "./assets/bytecode/NonfungibleTokenPositionDescriptor.bin")
-	fmt.Printf("Token position descriptor initcode is at file %s\n", tokenPosDescInitcodeId.String())
-	var descConsParams = hedera.NewContractFunctionParameters()
-	_, err := descConsParams.AddAddress(weth9Id.ToSolidityAddress())
-	if err != nil {
-		panic(err)
-	}
-	var nativeTokenDesc [32]byte
-	copy(nativeTokenDesc[30:], "ℏ")
-	descConsParams.AddBytes32(nativeTokenDesc)
-	tokenPosDescId := createContractVia(client, tokenPosDescInitcodeId, descConsParams)
-	fmt.Printf("📝 Token position descriptor contract deployed to %s\n\n", tokenPosDescId.String())
-
-	factoryInitcodeId := UploadInitcode(client, "./assets/bytecode/UniswapV3Factory.bin")
-	fmt.Printf("Factory initcode is at file %s\n", factoryInitcodeId.String())
-	factoryId := createContractVia(client, factoryInitcodeId, &hedera.ContractFunctionParameters{})
-	fmt.Printf("🏭 Factory contract deployed to %s\n\n", factoryId.String())
-
-	posManagerInitcodeId := UploadInitcode(client, "./assets/bytecode/NonfungiblePositionManager.bin")
-	fmt.Printf("Position manager initcode is at file %s\n", posManagerInitcodeId.String())
-	var managerConsParams = hedera.NewContractFunctionParameters()
-	_, err = managerConsParams.AddAddress(factoryId.ToSolidityAddress())
-	if err != nil {
-		panic(err)
-	}
-	_, err = managerConsParams.AddAddress(weth9Id.ToSolidityAddress())
-	if err != nil {
-		panic(err)
-	}
-	_, err = managerConsParams.AddAddress(tokenPosDescId.ToSolidityAddress())
-	if err != nil {
-		panic(err)
-	}
-	posManagerId := createContractVia(client, posManagerInitcodeId, managerConsParams)
-	fmt.Printf("🤪️ Token position manager contract deployed to %s\n\n", posManagerId.String())
+	weth9Id := createWETH9(client)
+	posDescId := createNftPositionDescriptor(weth9Id, client)
+	factoryId := createFactory(client)
+	posManagerId := createPositionManager(weth9Id, factoryId, posDescId, client)
+	liqManagerId := createLiquidityManager(weth9Id, factoryId, posManagerId, client)
 
 	erc20InitcodeId := UploadInitcode(client, "./assets/bytecode/NamedERC20.bin")
 	fmt.Printf("💰 ERC20 initcode is at file %s\n", erc20InitcodeId.String())
@@ -144,12 +109,13 @@ func SetupSimFromParams(client *hedera.Client) {
 	}
 
 	simDetails := details{
-		LpIds:     lpIds,
-		Tickers:   tickers,
-		TokenIds:  tokenIds,
-		TraderIds: traderIds,
-		FactoryId: factoryId.String(),
-		Weth9Id:   weth9Id.String(),
+		LpIds:       lpIds,
+		Tickers:     tickers,
+		TokenIds:    tokenIds,
+		TraderIds:   traderIds,
+		FactoryId:   factoryId.String(),
+		Weth9Id:     weth9Id.String(),
+		LiquidityId: liqManagerId.ToSolidityAddress(),
 	}
 
 	rawSimDetails, err := json.Marshal(simDetails)
@@ -160,6 +126,97 @@ func SetupSimFromParams(client *hedera.Client) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func createLiquidityManager(
+	weth9Id hedera.ContractID,
+	factoryId hedera.ContractID,
+	posManagerId hedera.ContractID,
+	client *hedera.Client,
+) hedera.ContractID {
+	liqManagerInitcodeId := UploadInitcode(client, "./assets/bytecode/TypicalV3LP.bin")
+	fmt.Printf("Liquidity manager initcode is at file %s\n", liqManagerInitcodeId.String())
+	var liqConsParams = hedera.NewContractFunctionParameters()
+	_, err := liqConsParams.AddAddress(posManagerId.ToSolidityAddress())
+	if err != nil {
+		panic(err)
+	}
+	_, err = liqConsParams.AddAddress(factoryId.ToSolidityAddress())
+	if err != nil {
+		panic(err)
+	}
+	_, err = liqConsParams.AddAddress(weth9Id.ToSolidityAddress())
+	if err != nil {
+		panic(err)
+	}
+	liqManagerId := createContractVia(client, liqManagerInitcodeId, liqConsParams)
+	fmt.Printf("💧️ Liquidity manager contract deployed to %s\n\n", liqManagerId.String())
+	return liqManagerId
+}
+
+func createPositionManager(
+	weth9Id hedera.ContractID,
+	factoryId hedera.ContractID,
+	posDescId hedera.ContractID,
+	client *hedera.Client,
+) hedera.ContractID {
+	posManagerInitcodeId := UploadInitcode(client, "./assets/bytecode/NonfungiblePositionManager.bin")
+	fmt.Printf("Position manager initcode is at file %s\n", posManagerInitcodeId.String())
+	var managerConsParams = hedera.NewContractFunctionParameters()
+	_, err := managerConsParams.AddAddress(factoryId.ToSolidityAddress())
+	if err != nil {
+		panic(err)
+	}
+	_, err = managerConsParams.AddAddress(weth9Id.ToSolidityAddress())
+	if err != nil {
+		panic(err)
+	}
+	_, err = managerConsParams.AddAddress(posDescId.ToSolidityAddress())
+	if err != nil {
+		panic(err)
+	}
+	posManagerId := createContractVia(client, posManagerInitcodeId, managerConsParams)
+	fmt.Printf("🤪️ Token position manager contract deployed to %s\n\n", posManagerId.String())
+	return posManagerId
+}
+
+func createNftPositionDescriptor(
+	weth9Id hedera.ContractID,
+	client *hedera.Client,
+) hedera.ContractID {
+	posDescInitcodeId := UploadInitcode(client, "./assets/bytecode/NonfungibleTokenPositionDescriptor.bin")
+	fmt.Printf("Token position descriptor initcode is at file %s\n", posDescInitcodeId.String())
+	var descConsParams = hedera.NewContractFunctionParameters()
+	_, err := descConsParams.AddAddress(weth9Id.ToSolidityAddress())
+	if err != nil {
+		panic(err)
+	}
+	var nativeTokenDesc [32]byte
+	copy(nativeTokenDesc[30:], "ℏ")
+	descConsParams.AddBytes32(nativeTokenDesc)
+	tokenPosDescId := createContractVia(client, posDescInitcodeId, descConsParams)
+	fmt.Printf("📝 Token position descriptor contract deployed to %s\n\n", tokenPosDescId.String())
+	return tokenPosDescId
+}
+
+func createFactory(
+	client *hedera.Client,
+) hedera.ContractID {
+	factoryInitcodeId := UploadInitcode(client, "./assets/bytecode/UniswapV3Factory.bin")
+	fmt.Printf("Factory initcode is at file %s\n", factoryInitcodeId.String())
+	factoryId := createContractVia(client, factoryInitcodeId, &hedera.ContractFunctionParameters{})
+	fmt.Printf("🏭 Factory contract deployed to %s\n\n", factoryId.String())
+	return factoryId
+}
+
+func createWETH9(
+	client *hedera.Client,
+) hedera.ContractID {
+	weth9InitcodeId := UploadInitcode(client, "./assets/bytecode/WETH9.bin")
+	fmt.Printf("WETH9 initcode is at file %s\n", weth9InitcodeId.String())
+	weth9Id := createContractVia(client, weth9InitcodeId, &hedera.ContractFunctionParameters{})
+	fmt.Printf("Ⓔ  WETH9 contract deployed to %s\n\n", weth9Id.String())
+	return weth9Id
 }
 
 func createSuppliedAccountVia(
@@ -187,7 +244,7 @@ func createSuppliedAccountVia(
 		if err != nil {
 			panic(err)
 		}
-		transferParams.AddUint256(asUint256(initBalance))
+		transferParams.AddUint256(AsUint256(initBalance))
 		CallContractVia(client, tokenId, "transfer", transferParams)
 	}
 	return accountId
@@ -205,14 +262,20 @@ func fundAccountVia(
 		if err != nil {
 			panic(err)
 		}
-		transferParams.AddUint256(asUint256(initBalance))
+		transferParams.AddUint256(AsUint256(initBalance))
 		CallContractVia(client, tokenId, "transfer", transferParams)
 	}
 }
 
-func asUint256(v uint32) []byte {
+func AsUint256(v uint32) []byte {
 	ans := make([]byte, 32)
 	binary.BigEndian.PutUint32(ans[28:32], v)
+	return ans
+}
+
+func Uint256From64(v uint64) []byte {
+	ans := make([]byte, 32)
+	binary.BigEndian.PutUint64(ans[24:32], v)
 	return ans
 }
 

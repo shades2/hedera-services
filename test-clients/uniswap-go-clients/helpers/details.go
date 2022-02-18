@@ -6,12 +6,13 @@ import (
 )
 
 type details struct {
-	LpIds     []string `json:"lpIds"`
-	Tickers   []string `json:"tickers"`
-	TokenIds  []string `json:"tokenIds"`
-	TraderIds []string `json:"traderIds"`
-	FactoryId string   `json:"factoryId"`
-	Weth9Id   string   `json:"weth9Id"`
+	LpIds       []string `json:"lpIds"`
+	Tickers     []string `json:"tickers"`
+	TokenIds    []string `json:"tokenIds"`
+	TraderIds   []string `json:"traderIds"`
+	FactoryId   string   `json:"factoryId"`
+	Weth9Id     string   `json:"weth9Id"`
+	LiquidityId string   `json:"liquidityId"`
 }
 
 func LoadDetails() details {

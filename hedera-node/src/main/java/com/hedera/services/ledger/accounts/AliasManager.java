@@ -24,7 +24,6 @@ import com.google.protobuf.ByteString;
 import com.hedera.services.ledger.SigImpactHistorian;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.utils.EntityNum;
-import com.swirlds.common.CommonUtils;
 import com.swirlds.merkle.map.MerkleMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -84,14 +83,11 @@ public class AliasManager extends AbstractContractAliases implements ContractAli
 
 	@Override
 	public Address resolveForEvm(final Address addressOrAlias) {
-		System.out.println("😨 looking for " + CommonUtils.hex(addressOrAlias.toArrayUnsafe()));
 		if (isMirror(addressOrAlias)) {
-			System.out.println(" -> (was mirror)");
 			return addressOrAlias;
 		}
 		final var aliasKey = ByteString.copyFrom(addressOrAlias.toArrayUnsafe());
 		final var contractNum = aliases.get(aliasKey);
-		System.out.println(" -> ans was " + contractNum);
 		return (contractNum == null) ? null : contractNum.toEvmAddress();
 	}
 
