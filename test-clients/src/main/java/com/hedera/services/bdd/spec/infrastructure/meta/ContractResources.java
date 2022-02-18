@@ -82,8 +82,8 @@ public class ContractResources {
 	public static final String ZENOS_BANK_CONTRACT = bytecodePath("ZenosBank");
 	public static final String ORDINARY_CALLS_CONTRACT = bytecodePath("HTSCalls");
 	public static final String VERSATILE_TRANSFERS_CONTRACT = bytecodePath("VersatileTransfers");
-	public static final String HBAR_FEE_TRANSFER = bytecodePath("HBARFeeTransfer");
-	public static final String TRANSFERER = bytecodePath("Transferer");
+	public static final String HBAR_FEE_COLLECTOR = bytecodePath("HbarFeeCollector");
+	public static final String NESTED_HTS_TRANSFERRER = bytecodePath("NestedHTSTransferrer");
 	public static final String DISTRIBUTOR_CONTRACT = bytecodePath("FeeDistributor");
 	public static final String MUSICAL_CHAIRS_CONTRACT = bytecodePath("MusicalChairs");
 	public static final String ASSOCIATE_DISSOCIATE_CONTRACT = bytecodePath("AssociateDissociateContract");
@@ -111,7 +111,16 @@ public class ContractResources {
 	public static final String SALTING_CREATOR_FACTORY_PATH = bytecodePath("SaltingCreatorFactory");
 	public static final String ADDRESS_VAL_RETURNER_PATH = bytecodePath("AddressValueRet");
 	public static final String PRECOMPILE_CREATE2_USER_PATH = bytecodePath("Create2PrecompileUser");
+	public static final String REVERTING_CREATE_FACTORY_PATH = bytecodePath("RevertingCreateFactory");
+	public static final String REVERTING_CREATE2_FACTORY_PATH = bytecodePath("RevertingCreate2Factory");
 
+	public static final String NORMAL_DEPLOY_ABI = "{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"bytecode\"," +
+			"\"type\":\"bytes\"}],\"name\":\"deploy\",\"outputs\":[],\"stateMutability\":\"payable\"," +
+			"\"type\":\"function\"}";
+	public static final String CREATE_FACTORY_GET_BYTECODE_ABI = "{\"inputs\":[{\"internalType\":\"address\"," +
+			"\"name\":\"_owner\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_foo\"," +
+			"\"type\":\"uint256\"}],\"name\":\"getBytecode\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\"," +
+			"\"type\":\"bytes\"}],\"stateMutability\":\"pure\",\"type\":\"function\"}";
 	public static final String PC2_CREATE_USER_ABI = "{\"inputs\":[{\"internalType\":\"bytes32\"," +
 			"\"name\":\"salt\",\"type\":\"bytes32\"}],\"name\":\"createUser\",\"outputs\":[]," +
 			"\"stateMutability\":\"nonpayable\",\"type\":\"function\"}";
@@ -821,16 +830,17 @@ public class ContractResources {
 			"\"inputs\": [{\"name\": \"_tokenAddress\",\"type\": \"address\"}]," +
 			"\"payable\": false,\"stateMutability\": \"nonpayable\",\"type\": \"constructor\"}";
 
-	public static final String HBAR_FEE_TRANSFER_CONSTRUCTOR = "{\"inputs\": [{\"internalType\": \"address\"," +
-			"\"name\": " +
-			"\"transfererContractAddress\",\"type\": \"address\"}],\"stateMutability\": \"nonpayable\",\"type\": \"constructor\"}";
+	public static final String HBAR_FEE_COLLECTOR_CONSTRUCTOR = "{\"inputs\": [{\"internalType\": \"address\"," +
+			"\"name\": \"transferrerContractAddress\",\"type\": \"address\"}],\"stateMutability\": \"nonpayable\"," +
+			"\"type\": \"constructor\"}";
 
-	public static final String HBAR_FEE_TRANSFER_DISTRIBUTE = "{\"inputs\":[{\"internalType\":\"address\"," +
-			"\"name\":\"tokenAddress\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"sender\"," +
-			"\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"receiver\",\"type\":\"address\"}," +
-			"{\"internalType\":\"int64\",\"name\":\"amount\",\"type\":\"int64\"},{\"internalType\":\"addresspayable\"" +
-			",\"name\":\"feeCollector\",\"type\":\"address\"}],\"name\":\"feeDistributionAfterTransfer\",\"outputs\":[]," +
-			"\"stateMutability\":\"nonpayable\",\"type\":\"function\"}";
+	public static final String HBAR_FEE_COLLECTOR_DISTRIBUTE = "{\"inputs\": [{\"internalType\": \"address\"," +
+			"\"name\": \"_tokenAddress\",\"type\": \"address\"},{\"internalType\": \"address\",\"name\": \"_sender\"," +
+			"\"type\": \"address\"},{\"internalType\": \"address\",\"name\": \"_tokenReceiver\",\"type\": " +
+			"\"address\"},{\"internalType\": \"address payable\",\"name\": \"_hbarReceiver\",\"type\": \"address\"}," +
+			"{\"internalType\": \"int64\",\"name\": \"_tokenAmount\",\"type\": \"int64\"},{\"internalType\": " +
+			"\"uint256\",\"name\": \"_hbarAmount\",\"type\": \"uint256\"}],\"name\": " +
+			"\"feeDistributionAfterTransfer\",\"outputs\": [],\"stateMutability\": \"nonpayable\",\"type\": \"function\"}";
 
 	public static final String VERSATILE_TRANSFERS_CONSTRUCTOR = "{\"inputs\": [{\"internalType\": \"address\",\"name\": \"feeDistributorContractAddress\",\"type\": \"address\"}],\"stateMutability\": \"nonpayable\",\"type\": \"constructor\"}";
 	public static final String VERSATILE_TRANSFERS_TOKENS = "{\"inputs\": [{\"internalType\": \"address\",\"name\": \"tokenAddress\",\"type\": \"address\"},{\"internalType\": \"address[]\",\"name\": \"accounts\",\"type\": \"address[]\"},{\"internalType\": \"int64[]\",\"name\": \"amounts\",\"type\": \"int64[]\"}],\"name\": \"distributeTokens\",\"outputs\": [],\"stateMutability\": \"nonpayable\",\"type\": \"function\"}";

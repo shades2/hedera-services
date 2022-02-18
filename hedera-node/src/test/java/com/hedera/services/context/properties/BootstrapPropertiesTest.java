@@ -92,6 +92,7 @@ class BootstrapPropertiesTest {
 			entry("accounts.systemDeleteAdmin", 59L),
 			entry("accounts.systemUndeleteAdmin", 60L),
 			entry("accounts.treasury", 2L),
+			entry("contracts.allowCreate2", true),
 			entry("contracts.defaultLifetime", 7890000L),
 			entry("contracts.localCall.estRetBytes", 32),
 			entry("contracts.maxGas", 300000),
@@ -103,6 +104,7 @@ class BootstrapPropertiesTest {
 			entry("contracts.frontendThrottleMaxGasLimit", 5000000L),
 			entry("contracts.consensusThrottleMaxGasLimit", 15000000L),
 			entry("contracts.precompile.htsDefaultGasCost", 10000L),
+			entry("contracts.precompile.exportRecordResults", false),
 			entry("dev.onlyDefaultNodeListens", true),
 			entry("dev.defaultListeningNodeAccount", "0.0.3"),
 			entry("entities.maxLifetime", 3153600000L),
@@ -202,7 +204,9 @@ class BootstrapPropertiesTest {
 			entry("tokens.nfts.maxMetadataBytes", 100),
 			entry("tokens.nfts.maxAllowedMints", 5000000L),
 			entry("tokens.nfts.mintThrottleScaleFactor", ThrottleReqOpsScaleFactor.from("5:2")),
-			entry("upgrade.artifacts.path", "/opt/hgcapp/services-hedera/HapiApp2.0/data/upgrade/current")
+			entry("upgrade.artifacts.path", "/opt/hgcapp/services-hedera/HapiApp2.0/data/upgrade/current"),
+			entry("hedera.allowances.maxTransactionLimit", 20),
+			entry("hedera.allowances.maxAccountLimit", 100)
 	);
 
 	@Test

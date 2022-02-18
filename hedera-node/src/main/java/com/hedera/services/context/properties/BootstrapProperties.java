@@ -210,6 +210,7 @@ public final class BootstrapProperties implements PropertySource {
 			"cache.records.ttl",
 			"contracts.defaultLifetime",
 			"contracts.localCall.estRetBytes",
+			"contracts.allowCreate2",
 			"contracts.maxGas",
 			"contracts.maxKvPairs.aggregate",
 			"contracts.maxKvPairs.individual",
@@ -219,6 +220,7 @@ public final class BootstrapProperties implements PropertySource {
 			"contracts.frontendThrottleMaxGasLimit",
 			"contracts.consensusThrottleMaxGasLimit",
 			"contracts.precompile.htsDefaultGasCost",
+			"contracts.precompile.exportRecordResults",
 			"files.maxSizeKb",
 			"fees.minCongestionPeriod",
 			"fees.percentCongestionMultipliers",
@@ -262,7 +264,9 @@ public final class BootstrapProperties implements PropertySource {
 			"tokens.nfts.mintThrottleScaleFactor",
 			"tokens.nfts.useTreasuryWildcards",
 			"consensus.message.maxBytesAllowed",
-			"upgrade.artifacts.path"
+			"upgrade.artifacts.path",
+			"hedera.allowances.maxTransactionLimit",
+			"hedera.allowances.maxAccountLimit"
 	);
 
 	static final Set<String> NODE_PROPS = Set.of(
@@ -410,6 +414,7 @@ public final class BootstrapProperties implements PropertySource {
 			entry("tokens.nfts.useTreasuryWildcards", AS_BOOLEAN),
 			entry("tokens.nfts.areQueriesEnabled", AS_BOOLEAN),
 			entry("contracts.localCall.estRetBytes", AS_INT),
+			entry("contracts.allowCreate2", AS_BOOLEAN),
 			entry("contracts.defaultLifetime", AS_LONG),
 			entry("contracts.maxGas", AS_INT),
 			entry("contracts.maxKvPairs.aggregate", AS_LONG),
@@ -419,6 +424,7 @@ public final class BootstrapProperties implements PropertySource {
 			entry("contracts.frontendThrottleMaxGasLimit", AS_LONG),
 			entry("contracts.consensusThrottleMaxGasLimit", AS_LONG),
 			entry("contracts.precompile.htsDefaultGasCost", AS_LONG),
+			entry("contracts.precompile.exportRecordResults", AS_BOOLEAN),
 			entry("contracts.throttle.throttleByGas", AS_BOOLEAN),
 			entry("rates.intradayChangeLimitPercent", AS_INT),
 			entry("rates.midnightCheckInterval", AS_LONG),
@@ -430,6 +436,8 @@ public final class BootstrapProperties implements PropertySource {
 			entry("stats.speedometerHalfLifeSecs", AS_DOUBLE),
 			entry("consensus.message.maxBytesAllowed", AS_INT),
 			entry("tokens.nfts.areEnabled", AS_BOOLEAN),
-			entry("stats.executionTimesToTrack", AS_INT)
+			entry("stats.executionTimesToTrack", AS_INT),
+			entry("hedera.allowances.maxTransactionLimit", AS_INT),
+			entry("hedera.allowances.maxAccountLimit", AS_INT)
 	);
 }
