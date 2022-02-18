@@ -39,7 +39,27 @@ import java.util.function.Function;
  */
 public interface MapValueLinkedList<K, S extends MapValueListNode<K, S>, V> {
 	/**
-	 * Adds a new node to this linked list, using the provided function objects to update the map that contains
+	 * Adds a new node at the beginning of this linked list, using the provided function objects to update the map that contains
+	 * the linked list (e.g., a {@link com.swirlds.virtualmap.VirtualMap} or {@link com.swirlds.merkle.map.MerkleMap}).
+	 *
+	 * @param key
+	 * 		the key of the new node
+	 * @param node
+	 * 		the new node to append to the list
+	 * @param maxSize
+	 * 		the maximum size of the list
+	 * @param adder
+	 * 		a callback to add a new mapping
+	 * @param getter
+	 * 		a callback to get a node from the map
+	 * @throws InvalidTransactionException
+	 * 		if list maximum size would be exceeded
+	 * @return whether there was capacity in the list to create the mapping
+	 */
+	boolean addFirst(K key, S node, int maxSize, BiConsumer<K, S> adder, Function<K, S> getter);
+
+	/**
+	 * Adds a new node at the end of this linked list, using the provided function objects to update the map that contains
 	 * the linked list (e.g., a {@link com.swirlds.virtualmap.VirtualMap} or {@link com.swirlds.merkle.map.MerkleMap}).
 	 *
 	 * @param key
@@ -59,20 +79,20 @@ public interface MapValueLinkedList<K, S extends MapValueListNode<K, S>, V> {
 	boolean addLast(K key, S node, int maxSize, BiConsumer<K, S> adder, Function<K, S> getter);
 
 	/**
-	 * Removes an existing node from this list, using the provided function objects to update the map that
+	 * Removes an existing node from this linked list, using the provided function objects to update the map that
 	 * contains the nodes of this linked list.
 	 *
 	 * @param node
 	 * 		the node to remove
 	 * @param remover
-	 * 		a callback remove an existing mapping
+	 * 		a callback to remove an existing mapping
 	 * @throws IllegalArgumentException
 	 * 		if the node does not exist
 	 */
 	void remove(S node, Consumer<K> remover, Function<K, S> getter);
 
 	/**
-	 * Provides a view of all the values in this list.
+	 * Provides a view of all the values in this linked list.
 	 *
 	 * @param getter
 	 * 		a callback to get a node from the map

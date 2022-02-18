@@ -40,6 +40,34 @@ public class BaseMapValueLinkedList<K, S extends MapValueListNode<K, S>, V> impl
 	 * {@inheritDoc}
 	 */
 	@Override
+	public boolean addFirst(
+			@NotNull final K key,
+			@NotNull final S node,
+			@NotNull final int maxSize,
+			@NotNull final BiConsumer<K, S> adder,
+			@NotNull final Function<K, S> getter) {
+		if (size == maxSize) {
+			return false;
+		}
+		if (head == null) {
+			head = key;
+			tail = key;
+		} else {
+			final var firstNode = getter.apply(head);
+			firstNode.setPrevKey(key);
+			node.setNextKey(head);
+			head = key;
+		}
+
+		size++;
+		adder.accept(key, node);
+		return true;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
 	public boolean addLast(
 			@NotNull final K key,
 			@NotNull final S node,

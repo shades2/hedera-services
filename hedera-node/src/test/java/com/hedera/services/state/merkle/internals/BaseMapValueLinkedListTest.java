@@ -47,12 +47,24 @@ class BaseMapValueLinkedListTest {
 	private BaseMapValueLinkedList<EntityNum, StringNode, String> subject = new BaseMapValueLinkedList<>();
 
 	@Test
-	void canJustAppend() {
+	void canJustAppendAtTail() {
 		final List<String> expected = new ArrayList<>();
 		final List<EntityNum> expectedKeys = new ArrayList<>();
 		for (int i = 1; i <= baseListSize; i++) {
 			final var key = EntityNum.fromInt(i);
-			addRandom(key, expected, expectedKeys);
+			addRandomLast(key, expected, expectedKeys);
+		}
+
+		assertExpected(expected, expectedKeys);
+	}
+
+	@Test
+	void canJustAppendAtTheHead() {
+		final List<String> expected = new ArrayList<>();
+		final List<EntityNum> expectedKeys = new ArrayList<>();
+		for (int i = 1; i <= baseListSize; i++) {
+			final var key = EntityNum.fromInt(i);
+			addRandomFirst(key, expected, expectedKeys);
 		}
 
 		assertExpected(expected, expectedKeys);
@@ -66,15 +78,22 @@ class BaseMapValueLinkedListTest {
 
 		final var badKey = EntityNum.fromInt(321);
 		final var badNode = randNode();
-		final var verdict = subject.addLast(badKey, badNode, 1, host::put, host::getForModify);
-		assertFalse(verdict);
+		final var addLastVerdict = subject.addLast(badKey, badNode, 1, host::put, host::getForModify);
+		assertFalse(addLastVerdict);
+
+		final var newKey = EntityNum.fromInt(231);
+		final var newNode = randNode();
+		addFirst(newKey, newNode);
+
+		final var addFirstVerdict = subject.addFirst(badKey, badNode, 2, host::put, host::getForModify);
+		assertFalse(addFirstVerdict);
 	}
 
 	@Test
 	void canRemoveOnlyItem() {
 		final var key = EntityNum.fromInt(123);
 		final var node = randNode();
-		addLast(key, node);
+		addFirst(key, node);
 
 		subject.remove(host.get(key), host::remove, host::get);
 
@@ -114,13 +133,36 @@ class BaseMapValueLinkedListTest {
 	}
 
 	@Test
-	void canPerformRandomValidOperations() {
+	void canPerformRandomValidOperationsAddingLast() {
 		final List<String> expected = new ArrayList<>();
 		final List<EntityNum> expectedKeys = new ArrayList<>();
 		for (int i = 1; i <= 100 * baseListSize; i++) {
 			if (r.nextBoolean()) {
 				final var key = EntityNum.fromInt(i);
-				addRandom(key, expected, expectedKeys);
+				addRandomLast(key, expected, expectedKeys);
+			} else {
+				if (!expected.isEmpty()) {
+					final var n = expected.size();
+					final var tbd = r.nextInt(n);
+					expected.remove(tbd);
+					final var tbdKey = expectedKeys.get(tbd);
+					expectedKeys.remove(tbd);
+					remove(host.get(tbdKey));
+				}
+			}
+		}
+
+		assertExpected(expected, expectedKeys);
+	}
+
+	@Test
+	void canPerformRandomValidOperationsAddingFirst() {
+		final List<String> expected = new ArrayList<>();
+		final List<EntityNum> expectedKeys = new ArrayList<>();
+		for (int i = 1; i <= 100 * baseListSize; i++) {
+			if (r.nextBoolean()) {
+				final var key = EntityNum.fromInt(i);
+				addRandomFirst(key, expected, expectedKeys);
 			} else {
 				if (!expected.isEmpty()) {
 					final var n = expected.size();
@@ -197,8 +239,12 @@ class BaseMapValueLinkedListTest {
 		subject.remove(node, host::remove, host::getForModify);
 	}
 
-	private void addLast(EntityNum k, StringNode node) {
-		subject.addLast(k, node, Integer.MAX_VALUE, host::put, host::getForModify);
+	private boolean addFirst(EntityNum k, StringNode node) {
+		return subject.addFirst(k, node, Integer.MAX_VALUE, host::put, host::getForModify);
+	}
+
+	private boolean addLast(EntityNum k, StringNode node) {
+		return subject.addLast(k, node, Integer.MAX_VALUE, host::put, host::getForModify);
 	}
 
 	private List<String> listedValues() {
@@ -211,11 +257,18 @@ class BaseMapValueLinkedListTest {
 		return new StringNode(CommonUtils.hex(data));
 	}
 
-	private void addRandom(final EntityNum key, final List<String> expected, final List<EntityNum> expectedKeys) {
+	private void addRandomLast(final EntityNum key, final List<String> expected, final List<EntityNum> expectedKeys) {
 		final var node = randNode();
 		addLast(key, node);
 		expected.add(node.getValue());
 		expectedKeys.add(key);
+	}
+
+	private void addRandomFirst(final EntityNum key, final List<String> expected, final List<EntityNum> expectedKeys) {
+		final var node = randNode();
+		addFirst(key, node);
+		expected.add(0, node.getValue());
+		expectedKeys.add(0, key);
 	}
 
 	private void assertExpected(final List<String> expected, final List<EntityNum> expectedKeys) {

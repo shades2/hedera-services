@@ -86,8 +86,8 @@ class ExplicitOwnersUniqTokenViewTest {
 	private void setupFirstMockRange() {
 		willAnswer(invocationOnMock -> {
 			final Consumer<Long> consumer = invocationOnMock.getArgument(0);
-			consumer.accept(someExplicitNftId.value());
-			consumer.accept(wildcardNftId.value());
+			consumer.accept(someExplicitNftId.getValue());
+			consumer.accept(wildcardNftId.getValue());
 			return null;
 		}).given(firstMockRange).forEachRemaining(any());
 	}

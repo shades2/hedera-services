@@ -222,6 +222,6 @@ public class MerkleUniqueToken extends AbstractMerkleLeaf implements Keyed<Entit
 
 	@Override
 	public void setKey(EntityNumPair phl) {
-		this.numbers = phl.value();
+		this.numbers = phl.getValue();
 	}
 }
