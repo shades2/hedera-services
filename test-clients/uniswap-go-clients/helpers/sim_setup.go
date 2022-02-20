@@ -13,7 +13,7 @@ const poolFee = 500
 const initSqrtPriceX96 uint64 = 4295128739
 const initTokenSupply uint64 = 1_000_000_000_000_000_000
 const initLpTokenBalance uint64 = 1_000_000_000_000_000
-const initTraderTokenBalance uint64 = 1_000
+const initTraderTokenBalance uint64 = 1_000_000_000_000
 const initAccountBalanceTinyBars = 10_000 * 100_000_000
 
 func SetupSimFromParams(client *hedera.Client) {
@@ -32,6 +32,7 @@ func SetupSimFromParams(client *hedera.Client) {
 	posDescId := createNftPositionDescriptor(weth9Id, client)
 	factoryId := createFactory(client)
 	posManagerId := createPositionManager(weth9Id, factoryId, posDescId, client)
+	routerId := createRouter(weth9Id, factoryId, client)
 
 	erc20InitcodeId := UploadInitcode(client, "./assets/bytecode/NamedERC20.bin")
 	fmt.Printf("💰 ERC20 initcode is at file %s\n", erc20InitcodeId.String())
@@ -90,26 +91,29 @@ func SetupSimFromParams(client *hedera.Client) {
 		nextId := createLp(weth9Id, factoryId, posManagerId, lpInitcodeId, client)
 		lpIds = append(lpIds, nextId.ToSolidityAddress())
 		fundAccountVia(client, initLpTokenBalance, typedTokenIds, nextId)
-		fmt.Printf("  🤑 LP #%d created at %s, all ticker balances initialized to %d\n",
+		fmt.Printf("  💧 LP #%d created at %s, all ticker balances initialized to %d\n",
 			simParams.NumLiquidityProviders-i+1, nextId.String(), initLpTokenBalance)
 	}
 
 	fmt.Println("\nNow creating traders...")
+	swapInitcodeId := UploadInitcode(client, "./assets/bytecode/TypicalV3Swap.bin")
+	fmt.Printf("Trader initcode is at file %s\n", swapInitcodeId.String())
 	var traderIds []string
 	for i := simParams.NumTraders; i > 0; i-- {
-		nextId := createSuppliedAccountVia(client, initTraderTokenBalance, typedTokenIds)
+		nextId := createTrader(routerId, swapInitcodeId, client)
 		traderIds = append(traderIds, nextId.String())
-		fmt.Printf("  😨 Trader #%d created at %s, all ticker balances initialized to %d\n",
+		fundAccountVia(client, initTraderTokenBalance, typedTokenIds, nextId)
+		fmt.Printf("  🕯 Trader #%d created at %s, all ticker balances initialized to %d\n",
 			simParams.NumTraders-i+1, nextId.String(), initTraderTokenBalance)
 	}
 
 	simDetails := details{
-		LpIds:       lpIds,
-		Tickers:     tickers,
-		TokenIds:    tokenIds,
-		TraderIds:   traderIds,
-		FactoryId:   factoryId.String(),
-		Weth9Id:     weth9Id.String(),
+		LpIds:     lpIds,
+		Tickers:   tickers,
+		TokenIds:  tokenIds,
+		TraderIds: traderIds,
+		FactoryId: factoryId.String(),
+		Weth9Id:   weth9Id.String(),
 	}
 
 	rawSimDetails, err := json.Marshal(simDetails)
@@ -146,6 +150,20 @@ func createLp(
 	return liqManagerId
 }
 
+func createTrader(
+	routerId hedera.ContractID,
+	swapInitcodeId hedera.FileID,
+	client *hedera.Client,
+) hedera.ContractID {
+	var swapConsParams = hedera.NewContractFunctionParameters()
+	_, err := swapConsParams.AddAddress(routerId.ToSolidityAddress())
+	if err != nil {
+		panic(err)
+	}
+	traderId := createContractVia(client, swapInitcodeId, swapConsParams)
+	return traderId
+}
+
 func createPositionManager(
 	weth9Id hedera.ContractID,
 	factoryId hedera.ContractID,
@@ -168,7 +186,7 @@ func createPositionManager(
 		panic(err)
 	}
 	posManagerId := createContractVia(client, posManagerInitcodeId, managerConsParams)
-	fmt.Printf("🤪️ Token position manager contract deployed to %s\n\n", posManagerId.String())
+	fmt.Printf("🔮️ Token position manager contract deployed to %s\n\n", posManagerId.String())
 	return posManagerId
 }
 
@@ -189,6 +207,27 @@ func createNftPositionDescriptor(
 	tokenPosDescId := createContractVia(client, posDescInitcodeId, descConsParams)
 	fmt.Printf("📝 Token position descriptor contract deployed to %s\n\n", tokenPosDescId.String())
 	return tokenPosDescId
+}
+
+func createRouter(
+	weth9Id hedera.ContractID,
+	factoryId hedera.ContractID,
+	client *hedera.Client,
+) hedera.ContractID {
+	routerInitcodeId := UploadInitcode(client, "./assets/bytecode/SwapRouter.bin")
+	fmt.Printf("Router initcode is at file %s\n", routerInitcodeId.String())
+	var routerConsParams = hedera.NewContractFunctionParameters()
+	_, err := routerConsParams.AddAddress(factoryId.ToSolidityAddress())
+	if err != nil {
+		panic(err)
+	}
+	_, err = routerConsParams.AddAddress(weth9Id.ToSolidityAddress())
+	if err != nil {
+		panic(err)
+	}
+	routerId := createContractVia(client, routerInitcodeId, routerConsParams)
+	fmt.Printf("🔀 Router contract deployed to %s\n\n", routerId.String())
+	return routerId
 }
 
 func createFactory(

@@ -3,8 +3,8 @@
     "Air Superiority Blue",
     "Fuzzy Wuzzy"
   ],
-  "numTraders": 0,
+  "numTraders": 1,
   "numLiquidityProviders": 1,
-  "secsBetweenSwaps": 2,
-  "secsBetweenMints": 10
+  "secsBetweenSwaps": 5,
+  "secsBetweenMints": 1
 }
