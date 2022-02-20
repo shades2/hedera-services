@@ -32,7 +32,6 @@ func SetupSimFromParams(client *hedera.Client) {
 	posDescId := createNftPositionDescriptor(weth9Id, client)
 	factoryId := createFactory(client)
 	posManagerId := createPositionManager(weth9Id, factoryId, posDescId, client)
-	liqManagerId := createLiquidityManager(weth9Id, factoryId, posManagerId, client)
 
 	erc20InitcodeId := UploadInitcode(client, "./assets/bytecode/NamedERC20.bin")
 	fmt.Printf("💰 ERC20 initcode is at file %s\n", erc20InitcodeId.String())
@@ -83,29 +82,25 @@ func SetupSimFromParams(client *hedera.Client) {
 		}
 	}
 
-	fmt.Println("\nNow creating participants...")
-	lpInitcodeId := UploadInitcode(client, "./assets/bytecode/MinimalV3LP.bin")
+	fmt.Println("\nNow creating LPs...")
+	lpInitcodeId := UploadInitcode(client, "./assets/bytecode/TypicalV3LP.bin")
 	fmt.Printf("LP initcode is at file %s\n", lpInitcodeId.String())
+	var lpIds []string
+	for i := simParams.NumLiquidityProviders; i > 0; i-- {
+		nextId := createLp(weth9Id, factoryId, posManagerId, lpInitcodeId, client)
+		lpIds = append(lpIds, nextId.ToSolidityAddress())
+		fundAccountVia(client, initLpTokenBalance, typedTokenIds, nextId)
+		fmt.Printf("  🤑 LP #%d created at %s, all ticker balances initialized to %d\n",
+			simParams.NumLiquidityProviders-i+1, nextId.String(), initLpTokenBalance)
+	}
+
+	fmt.Println("\nNow creating traders...")
 	var traderIds []string
 	for i := simParams.NumTraders; i > 0; i-- {
 		nextId := createSuppliedAccountVia(client, initTraderTokenBalance, typedTokenIds)
 		traderIds = append(traderIds, nextId.String())
-		fmt.Printf("😨 Trader #%d created at %s, all ticker balances initialized to %d\n",
+		fmt.Printf("  😨 Trader #%d created at %s, all ticker balances initialized to %d\n",
 			simParams.NumTraders-i+1, nextId.String(), initTraderTokenBalance)
-	}
-
-	var lpIds []string
-	for i := simParams.NumLiquidityProviders; i > 0; i-- {
-		var consParams = hedera.NewContractFunctionParameters()
-		_, err := consParams.AddAddress(factoryId.ToSolidityAddress())
-		if err != nil {
-			panic(err)
-		}
-		nextId := createContractVia(client, lpInitcodeId, consParams)
-		lpIds = append(lpIds, nextId.ToSolidityAddress())
-		fundAccountVia(client, initLpTokenBalance, typedTokenIds, nextId)
-		fmt.Printf("🤑 Liquidity provider #%d created at %s, all ticker balances initialized to %d\n",
-			simParams.NumLiquidityProviders-i+1, nextId.String(), initLpTokenBalance)
 	}
 
 	simDetails := details{
@@ -115,7 +110,6 @@ func SetupSimFromParams(client *hedera.Client) {
 		TraderIds:   traderIds,
 		FactoryId:   factoryId.String(),
 		Weth9Id:     weth9Id.String(),
-		LiquidityId: liqManagerId.ToSolidityAddress(),
 	}
 
 	rawSimDetails, err := json.Marshal(simDetails)
@@ -128,14 +122,13 @@ func SetupSimFromParams(client *hedera.Client) {
 	}
 }
 
-func createLiquidityManager(
+func createLp(
 	weth9Id hedera.ContractID,
 	factoryId hedera.ContractID,
 	posManagerId hedera.ContractID,
+	lpInitcodeId hedera.FileID,
 	client *hedera.Client,
 ) hedera.ContractID {
-	liqManagerInitcodeId := UploadInitcode(client, "./assets/bytecode/TypicalV3LP.bin")
-	fmt.Printf("Liquidity manager initcode is at file %s\n", liqManagerInitcodeId.String())
 	var liqConsParams = hedera.NewContractFunctionParameters()
 	_, err := liqConsParams.AddAddress(posManagerId.ToSolidityAddress())
 	if err != nil {
@@ -149,8 +142,7 @@ func createLiquidityManager(
 	if err != nil {
 		panic(err)
 	}
-	liqManagerId := createContractVia(client, liqManagerInitcodeId, liqConsParams)
-	fmt.Printf("💧️ Liquidity manager contract deployed to %s\n\n", liqManagerId.String())
+	liqManagerId := createContractVia(client, lpInitcodeId, liqConsParams)
 	return liqManagerId
 }
 

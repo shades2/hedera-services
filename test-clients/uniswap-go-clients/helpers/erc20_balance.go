@@ -4,7 +4,7 @@ import (
 	"github.com/hashgraph/hedera-sdk-go/v2"
 )
 
-func BalanceVia(client *hedera.Client, tokenId hedera.ContractID, accountId string) uint32 {
+func BalanceVia(client *hedera.Client, tokenId hedera.ContractID, accountId string) uint64 {
 	var callParams, err = hedera.NewContractFunctionParameters().AddAddress(accountId)
 	if err != nil {
 		panic(err)
@@ -21,5 +21,5 @@ func BalanceVia(client *hedera.Client, tokenId hedera.ContractID, accountId stri
 		panic(err)
 	}
 
-	return response.GetUint32(0)
+	return response.GetUint64(0)
 }

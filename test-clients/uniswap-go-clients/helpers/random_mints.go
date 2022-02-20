@@ -14,30 +14,25 @@ func DoMints(client *hedera.Client) {
 	simDetails := LoadDetails()
 
 	numTickers := len(simDetails.Tickers)
-	//numLps := len(simDetails.LpIds)
-	liquidityId, err := hedera.ContractIDFromSolidityAddress(simDetails.LiquidityId)
+	numLps := len(simDetails.LpIds)
 
-	if err != nil {
-		panic(err)
-	}
 	for {
-		// TODO - choose our liquidity provider
-		//choice := rand.Intn(numLps)
-		//lpId, err := hedera.ContractIDFromSolidityAddress(simDetails.LpIds[choice])
-		//if err != nil {
-		//	panic(err)
-		//}
+		chosenLp := rand.Intn(numLps)
+		lpId, err := hedera.ContractIDFromSolidityAddress(simDetails.LpIds[chosenLp])
+		if err != nil {
+			panic(err)
+		}
 
 		// Choose our tickers to mint
-		choice := rand.Intn(numTickers)
-		secondChoice := choice
-		for secondChoice == choice {
+		firstChoice := rand.Intn(numTickers)
+		secondChoice := firstChoice
+		for secondChoice == firstChoice {
 			secondChoice = rand.Intn(numTickers)
 		}
-		tickerA := simDetails.Tickers[choice]
+		tickerA := simDetails.Tickers[firstChoice]
 		tickerB := simDetails.Tickers[secondChoice]
 
-		tokenA, err := hedera.ContractIDFromSolidityAddress(simDetails.TokenIds[choice])
+		tokenA, err := hedera.ContractIDFromSolidityAddress(simDetails.TokenIds[firstChoice])
 		if err != nil {
 			panic(err)
 		}
@@ -46,13 +41,12 @@ func DoMints(client *hedera.Client) {
 			panic(err)
 		}
 
-		lpId := client.GetOperatorAccountID()
 		aPriorBalance := BalanceVia(client, tokenA, lpId.ToSolidityAddress())
 		bPriorBalance := BalanceVia(client, tokenB, lpId.ToSolidityAddress())
 		fmt.Printf("🍵 LP %s looking to mint %s/%s\n", lpId, tickerA, tickerB)
 		fmt.Printf("  💰 $%s: %d\n", tickerA, aPriorBalance)
 		fmt.Printf("  💰 $%s: %d\n", tickerB, bPriorBalance)
-		mintVia(client, tokenA, tokenB, mintAmount, mintAmount, liquidityId)
+		mintVia(client, tokenA, tokenB, mintAmount, mintAmount, lpId)
 
 		aPostBalance := BalanceVia(client, tokenA, lpId.ToSolidityAddress())
 		bPostBalance := BalanceVia(client, tokenB, lpId.ToSolidityAddress())
@@ -70,7 +64,7 @@ func mintVia(
 	token1 hedera.ContractID,
 	amount0 uint64,
 	amount1 uint64,
-	liquidityId hedera.ContractID,
+	lpId hedera.ContractID,
 ) {
 	encAmount0 := Uint256From64(amount0)
 	encAmount1 := Uint256From64(amount1)
@@ -87,7 +81,7 @@ func mintVia(
 	mintParams.
 		AddUint256(encAmount0).
 		AddUint256(encAmount1)
-	mintRecord := CallContractVia(client, liquidityId, "mintNewPosition", mintParams)
+	mintRecord := CallContractVia(client, lpId, "mintNewPosition", mintParams)
 	fmt.Println(mintRecord.CallResult.ErrorMessage)
 	fmt.Printf("%s\n", mintRecord.Receipt.Status)
 }

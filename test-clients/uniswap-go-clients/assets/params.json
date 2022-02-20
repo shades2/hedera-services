@@ -4,7 +4,7 @@
     "Fuzzy Wuzzy"
   ],
   "numTraders": 0,
-  "numLiquidityProviders": 0,
+  "numLiquidityProviders": 1,
   "secsBetweenSwaps": 2,
   "secsBetweenMints": 10
 }

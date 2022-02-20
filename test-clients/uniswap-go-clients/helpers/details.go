@@ -12,7 +12,6 @@ type details struct {
 	TraderIds   []string `json:"traderIds"`
 	FactoryId   string   `json:"factoryId"`
 	Weth9Id     string   `json:"weth9Id"`
-	LiquidityId string   `json:"liquidityId"`
 }
 
 func LoadDetails() details {
