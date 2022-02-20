@@ -10,10 +10,10 @@ import (
 )
 
 const poolFee = 500
-const initSqrtPriceX96 = 1
-const initTokenSupply = 1_000_000_000
-const initLpTokenBalance = 1_000_000
-const initTraderTokenBalance = 1_000
+const initSqrtPriceX96 uint64 = 4295128739
+const initTokenSupply uint64 = 1_000_000_000_000_000_000
+const initLpTokenBalance uint64 = 1_000_000_000_000_000
+const initTraderTokenBalance uint64 = 1_000
 const initAccountBalanceTinyBars = 10_000 * 100_000_000
 
 func SetupSimFromParams(client *hedera.Client) {
@@ -44,7 +44,7 @@ func SetupSimFromParams(client *hedera.Client) {
 		var consParams = hedera.NewContractFunctionParameters().
 			AddString(name).
 			AddString(symbol).
-			AddInt32(initTokenSupply)
+			AddUint64(initTokenSupply)
 		erc20Id := createContractVia(client, erc20InitcodeId, consParams)
 		tickers = append(tickers, symbol)
 		tokenIds = append(tokenIds, erc20Id.ToSolidityAddress())
@@ -221,7 +221,7 @@ func createWETH9(
 
 func createSuppliedAccountVia(
 	client *hedera.Client,
-	initBalance uint32,
+	initBalance uint64,
 	tokenIds []hedera.ContractID,
 ) hedera.AccountID {
 	txnId, err := hedera.NewAccountCreateTransaction().
@@ -244,7 +244,7 @@ func createSuppliedAccountVia(
 		if err != nil {
 			panic(err)
 		}
-		transferParams.AddUint256(AsUint256(initBalance))
+		transferParams.AddUint256(Uint256From64(initBalance))
 		CallContractVia(client, tokenId, "transfer", transferParams)
 	}
 	return accountId
@@ -252,7 +252,7 @@ func createSuppliedAccountVia(
 
 func fundAccountVia(
 	client *hedera.Client,
-	initBalance uint32,
+	initBalance uint64,
 	tokenIds []hedera.ContractID,
 	recipient hedera.ContractID,
 ) {
@@ -262,15 +262,9 @@ func fundAccountVia(
 		if err != nil {
 			panic(err)
 		}
-		transferParams.AddUint256(AsUint256(initBalance))
+		transferParams.AddUint256(Uint256From64(initBalance))
 		CallContractVia(client, tokenId, "transfer", transferParams)
 	}
-}
-
-func AsUint256(v uint32) []byte {
-	ans := make([]byte, 32)
-	binary.BigEndian.PutUint32(ans[28:32], v)
-	return ans
 }
 
 func Uint256From64(v uint64) []byte {

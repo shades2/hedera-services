@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-var mintFracDenom = []int{10, 100, 1000}
+const mintAmount uint64 = 1_000_000_000_000
 
 func DoMints(client *hedera.Client) {
 	simParams := LoadParams()
@@ -52,7 +52,7 @@ func DoMints(client *hedera.Client) {
 		fmt.Printf("🍵 LP %s looking to mint %s/%s\n", lpId, tickerA, tickerB)
 		fmt.Printf("  💰 $%s: %d\n", tickerA, aPriorBalance)
 		fmt.Printf("  💰 $%s: %d\n", tickerB, bPriorBalance)
-		mintVia(client, tokenA, tokenB, 1000, 1000, liquidityId)
+		mintVia(client, tokenA, tokenB, mintAmount, mintAmount, liquidityId)
 
 		aPostBalance := BalanceVia(client, tokenA, lpId.ToSolidityAddress())
 		bPostBalance := BalanceVia(client, tokenB, lpId.ToSolidityAddress())
