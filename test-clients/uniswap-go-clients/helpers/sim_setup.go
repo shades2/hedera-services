@@ -101,7 +101,7 @@ func SetupSimFromParams(client *hedera.Client) {
 	var traderIds []string
 	for i := simParams.NumTraders; i > 0; i-- {
 		nextId := createTrader(routerId, swapInitcodeId, client)
-		traderIds = append(traderIds, nextId.String())
+		traderIds = append(traderIds, nextId.ToSolidityAddress())
 		fundAccountVia(client, initTraderTokenBalance, typedTokenIds, nextId)
 		fmt.Printf("  🕯 Trader #%d created at %s, all ticker balances initialized to %d\n",
 			simParams.NumTraders-i+1, nextId.String(), initTraderTokenBalance)
@@ -114,6 +114,11 @@ func SetupSimFromParams(client *hedera.Client) {
 		TraderIds: traderIds,
 		FactoryId: factoryId.String(),
 		Weth9Id:   weth9Id.String(),
+	}
+
+	fmt.Println("\nNow doing pre-mints...")
+	for i := simParams.NumStartupMints; i > 0; i-- {
+		MintRandomlyGiven(client, simDetails)
 	}
 
 	rawSimDetails, err := json.Marshal(simDetails)

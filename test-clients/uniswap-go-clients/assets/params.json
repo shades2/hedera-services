@@ -5,6 +5,10 @@
   ],
   "numTraders": 1,
   "numLiquidityProviders": 1,
-  "secsBetweenSwaps": 5,
-  "secsBetweenMints": 1
+  "millisBetweenSwaps": 500,
+  "millisBetweenMints": 1000,
+  "checkSwapRecords": true,
+  "checkMintRecords": true,
+  "numStartupMints": 1,
+  "swapsBetweenBalanceDisplay": 10
 }

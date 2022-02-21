@@ -6,11 +6,15 @@ import (
 )
 
 type params struct {
-	SecsBetweenSwaps      int      `json:"secsBetweenSwaps"`
-	SecsBetweenMints      int      `json:"secsBetweenMints"`
-	TokenNames            []string `json:"erc20TokenNames"`
-	NumTraders            int      `json:"numTraders"`
-	NumLiquidityProviders int      `json:"numLiquidityProviders"`
+	MillisBetweenSwaps         int      `json:"millisBetweenSwaps"`
+	MillisBetweenMints         int      `json:"millisBetweenMints"`
+	TokenNames                 []string `json:"erc20TokenNames"`
+	NumTraders                 int      `json:"numTraders"`
+	NumLiquidityProviders      int      `json:"numLiquidityProviders"`
+	NumStartupMints            int      `json:"numStartupMints"`
+	CheckSwapRecords           bool     `json:"checkSwapRecords"`
+	CheckMintRecords           bool     `json:"checkMintRecords"`
+	SwapsBetweenBalanceDisplay int      `json:"swapsBetweenBalanceDisplay"`
 }
 
 func LoadParams() params {
