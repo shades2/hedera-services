@@ -49,6 +49,10 @@ public class EntityNumPair implements SelfSerializable, FastCopyable{
 
 	private long value;
 
+	public EntityNumPair() {
+		/* RuntimeConstructable */
+	}
+
 	public EntityNumPair(final long value) {
 		this.value = value;
 	}

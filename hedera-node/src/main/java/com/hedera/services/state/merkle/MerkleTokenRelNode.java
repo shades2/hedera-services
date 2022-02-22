@@ -13,6 +13,10 @@ public class MerkleTokenRelNode extends AbstractMerkleMapValueListNode<EntityNum
 
 	private MerkleTokenRelStatus value;
 
+	public MerkleTokenRelNode() {
+		/* RuntimeConstructable */
+	}
+
 	public MerkleTokenRelNode(MerkleTokenRelStatus value) {
 		this.value = value;
 	}
