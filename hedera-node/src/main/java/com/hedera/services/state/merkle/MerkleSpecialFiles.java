@@ -83,6 +83,11 @@ public class MerkleSpecialFiles extends AbstractMerkleLeaf {
 		}
 	}
 
+	@Override
+	public boolean isSelfHashing() {
+		return true;
+	}
+
 	/**
 	 * {@inheritDoc}
 	 */
