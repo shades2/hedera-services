@@ -25,13 +25,8 @@ import com.hedera.services.store.models.NftId;
 import com.hedera.services.store.models.TokenRelationship;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.TokenID;
-import com.swirlds.common.FastCopyable;
-import com.swirlds.common.io.SelfSerializable;
-import com.swirlds.common.io.SerializableDataInputStream;
-import com.swirlds.common.io.SerializableDataOutputStream;
 import org.apache.commons.lang3.tuple.Pair;
 
-import java.io.IOException;
 import java.util.Objects;
 
 import static com.hedera.services.context.properties.StaticPropertiesHolder.STATIC_PROPERTIES;
@@ -41,25 +36,11 @@ import static com.hedera.services.state.merkle.internals.BitPackUtils.unsignedHi
 import static com.hedera.services.state.merkle.internals.BitPackUtils.unsignedLowOrder32From;
 import static com.hedera.services.utils.EntityNum.areValidNums;
 
-public class EntityNumPair implements SelfSerializable, FastCopyable{
-	private static final int VERSION = 1;
-	private static final long CLASS_ID = 0x3a47f339cc81b546L;
-
+public record EntityNumPair(long value) {
 	static final EntityNumPair MISSING_NUM_PAIR = new EntityNumPair(0);
 
-	private long value;
-
-	public EntityNumPair() {
-		/* RuntimeConstructable */
-	}
-
-	public EntityNumPair(final long value) {
-		this.value = value;
-	}
-
-	public EntityNumPair(final EntityNumPair that) {
-		Objects.requireNonNull(that);
-		this.value = that.getValue();
+	public EntityNumPair {
+		Objects.requireNonNull(value);
 	}
 
 	public static EntityNumPair fromLongs(long hi, long lo) {
@@ -128,36 +109,5 @@ public class EntityNumPair implements SelfSerializable, FastCopyable{
 				+ BitPackUtils.unsignedHighOrder32From(value)
 				+ ", "
 				+ BitPackUtils.unsignedLowOrder32From(value) + ")";
-	}
-
-	@Override
-	public EntityNumPair copy() {
-		return new EntityNumPair(this);
-	}
-
-	@Override
-	public void release() {
-		/* No-op */
-	}
-
-	@Override
-	public void deserialize(final SerializableDataInputStream din,
-			final int version) throws IOException {
-		value = din.readLong();
-	}
-
-	@Override
-	public void serialize(final SerializableDataOutputStream dout) throws IOException {
-		dout.writeLong(value);
-	}
-
-	@Override
-	public long getClassId() {
-		return CLASS_ID;
-	}
-
-	@Override
-	public int getVersion() {
-		return VERSION;
 	}
 }
