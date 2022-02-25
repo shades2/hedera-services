@@ -1632,7 +1632,7 @@ jobs:
           name: mvn install
           # use double quote otherwise the backslash of line continuation will be treated as part of mvn parameter
           command: |
-            mvn --no-transfer-progress -Dsonar.branch.name=${CIRCLE_BRANCH} -Dsonar.login=${SONAR_TOKEN} clean install sonar:sonar \
+            mvn --no-transfer-progress -Dsonar.branch.name=${CIRCLE_BRANCH} -Dsonar.login=${SONAR_TOKEN} clean install -DskipTests sonar:sonar \
               | tee /repo/test-clients/output/hapi-client.log
       - run:
           name: Save Unit Test Results
