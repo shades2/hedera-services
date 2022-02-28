@@ -124,6 +124,7 @@ public class ContractCallTransitionLogic implements PreFetchableTransition {
 		final var receiver = accountStore.loadContract(contractId);
 		final Bytes callData;
 		if (contractCallTxn.hasForeignTransactionData()) {
+			System.out.println(contractCallTxn);
 			var foreignTxData = contractCallTxn.getForeignTransactionData();
 			var foreignTxBytes = foreignTxData.getForeignTransactionBytes().toByteArray();
 			callData = Bytes.wrap(foreignTxBytes, foreignTxData.getPayloadStart(), foreignTxData.getPayloadLength());

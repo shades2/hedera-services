@@ -25,8 +25,9 @@ import com.hedera.services.ledger.accounts.AliasManager;
 import com.hedera.services.queries.AnswerService;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.state.merkle.MerkleToken;
-import com.hedera.services.utils.EntityNum;
 import com.hedera.services.txns.validation.OptionValidator;
+import com.hedera.services.utils.EntityIdUtils;
+import com.hedera.services.utils.EntityNum;
 import com.hedera.services.utils.SignedTxnAccessor;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.CryptoGetAccountBalanceQuery;
@@ -38,6 +39,7 @@ import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TokenBalance;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.swirlds.merkle.map.MerkleMap;
+import org.hyperledger.besu.datatypes.Address;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -138,6 +140,12 @@ public class GetAccountBalanceAnswer implements AnswerService {
 		if (isAlias(idOrAlias)) {
 			final var id = aliasManager.lookupIdBy(idOrAlias.getAlias());
 			return id.toGrpcAccountId();
+		} else if (idOrAlias.getShardNum() != 0) {
+			// temporary measure until EntityId gets evmAddress
+			// attempt to de-alias
+			Address address = EntityIdUtils.asTypedEvmAddress(idOrAlias);
+			Address resolvedAddress = aliasManager.resolveForEvm(address);
+			return EntityIdUtils.accountIdFromEvmAddress(resolvedAddress);
 		} else {
 			return idOrAlias;
 		}

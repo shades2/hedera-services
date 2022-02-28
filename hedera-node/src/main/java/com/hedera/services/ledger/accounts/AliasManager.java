@@ -42,6 +42,7 @@ import javax.inject.Singleton;
 import java.math.BigInteger;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Predicate;
 
 import static com.hedera.services.utils.EntityNum.MISSING_NUM;
 import static com.hedera.services.utils.MiscUtils.forEach;
@@ -54,6 +55,8 @@ import static com.hedera.services.utils.MiscUtils.forEach;
 public class AliasManager extends AbstractContractAliases implements ContractAliases {
 	private static final Logger log = LogManager.getLogger(AliasManager.class);
 
+	private static final String NON_TRANSACTIONAL_MSG = "Base alias manager does not buffer changes";
+
 	private Map<ByteString, EntityNum> aliases;
 
 	@Inject
@@ -63,12 +66,17 @@ public class AliasManager extends AbstractContractAliases implements ContractAli
 
 	@Override
 	public void revert() {
-		throw new UnsupportedOperationException("Base alias manager does not buffer changes");
+		throw new UnsupportedOperationException(NON_TRANSACTIONAL_MSG);
+	}
+
+	@Override
+	public void filterPendingChanges(Predicate<Address> filter) {
+		throw new UnsupportedOperationException(NON_TRANSACTIONAL_MSG);
 	}
 
 	@Override
 	public void commit(final @Nullable SigImpactHistorian observer) {
-		throw new UnsupportedOperationException("Base alias manager does not buffer changes");
+		throw new UnsupportedOperationException(NON_TRANSACTIONAL_MSG);
 	}
 
 	@Override
@@ -88,7 +96,7 @@ public class AliasManager extends AbstractContractAliases implements ContractAli
 		}
 		final var aliasKey = ByteString.copyFrom(addressOrAlias.toArrayUnsafe());
 		final var contractNum = aliases.get(aliasKey);
-		return (contractNum == null) ? null : contractNum.toEvmAddress();
+		return (contractNum == null) ? addressOrAlias : contractNum.toEvmAddress();
 	}
 
 	@Override

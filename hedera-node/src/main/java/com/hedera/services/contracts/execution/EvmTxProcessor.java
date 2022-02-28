@@ -50,6 +50,7 @@ import org.hyperledger.besu.evm.processor.ContractCreationProcessor;
 import org.hyperledger.besu.evm.tracing.OperationTracer;
 
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -216,8 +217,12 @@ abstract class EvmTxProcessor {
 		final MessageFrame initialFrame = buildInitialFrame(commonInitialFrame, updater, receiver, payload);
 		messageFrameStack.addFirst(initialFrame);
 
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		StandardJsonTracer jsonTracer = new StandardJsonTracer(new PrintStream(baos), false);
+
 		while (!messageFrameStack.isEmpty()) {
-			process(messageFrameStack.peekFirst(), new HederaTracer());
+//			process(messageFrameStack.peekFirst(), new HederaTracer());
+			process(messageFrameStack.peekFirst(), jsonTracer);
 		}
 
 		var gasUsedByTransaction = calculateGasUsedByTX(gasLimit, initialFrame);
