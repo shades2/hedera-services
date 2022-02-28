@@ -53,6 +53,7 @@ import org.hyperledger.besu.evm.tracing.StandardJsonTracer;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -228,6 +229,14 @@ abstract class EvmTxProcessor {
 			process(messageFrameStack.peekFirst(), new HederaTracer());
 //			process(messageFrameStack.peekFirst(), jsonTracer);
 		}
+
+		System.out.println(baos.toString(StandardCharsets.UTF_8));
+		System.out.printf("Smart contract call%ninput  - %s%ncode   - %s%noutput - %s%nrevert - %s%n", 
+				initialFrame.getInputData(), 
+				"<redacted>", //initialFrame.getCode().getBytes().toHexString(),
+				initialFrame.getOutputData(), 
+				initialFrame.getRevertReason().orElse(Bytes.EMPTY));
+
 
 		var gasUsedByTransaction = calculateGasUsedByTX(gasLimit, initialFrame);
 		final Gas sbhRefund = updater.getSbhRefund();
