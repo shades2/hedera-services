@@ -171,6 +171,10 @@ public class SolidityFnResult implements SelfSerializable {
 	}
 
 	/* --- Bean --- */
+	public void setContractId(EntityId contractId) {
+		this.contractId = contractId;
+	}
+
 	public EntityId getContractId() {
 		return contractId;
 	}

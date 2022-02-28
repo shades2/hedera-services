@@ -48,9 +48,11 @@ import org.hyperledger.besu.evm.precompile.PrecompiledContract;
 import org.hyperledger.besu.evm.processor.AbstractMessageProcessor;
 import org.hyperledger.besu.evm.processor.ContractCreationProcessor;
 import org.hyperledger.besu.evm.tracing.OperationTracer;
+import org.hyperledger.besu.evm.tracing.StandardJsonTracer;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import java.math.BigInteger;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -66,22 +68,20 @@ import static org.hyperledger.besu.evm.MainnetEVMs.registerLondonOperations;
 
 /**
  * Abstract processor of EVM transactions that prepares the {@link EVM} and all of the peripherals upon
- * instantiation
- * Provides
- * a base{@link EvmTxProcessor#execute(Account, Address, long, long, long, Bytes, boolean, Instant, boolean, OptionalLong)}
- * method that handles the end-to-end execution of a EVM transaction
+ * instantiation. Provides a base
+ * {@link EvmTxProcessor#execute(Account, Address, long, long, long, Bytes, boolean, Instant, boolean, OptionalLong,
+ * Address)}
+ * method that handles the end-to-end execution of a EVM transaction.
  */
 abstract class EvmTxProcessor {
 	private static final int MAX_STACK_SIZE = 1024;
 	private static final int MAX_CODE_SIZE = 0x6000;
-
-	private HederaMutableWorldState worldState;
+	protected final GlobalDynamicProperties dynamicProperties;
 	private final GasCalculator gasCalculator;
 	private final LivePricesSource livePricesSource;
 	private final AbstractMessageProcessor messageCallProcessor;
 	private final AbstractMessageProcessor contractCreationProcessor;
-
-	protected final GlobalDynamicProperties dynamicProperties;
+	private HederaMutableWorldState worldState;
 
 	protected EvmTxProcessor(
 			final LivePricesSource livePricesSource,
@@ -91,10 +91,6 @@ abstract class EvmTxProcessor {
 			final Map<String, PrecompiledContract> precompiledContractMap
 	) {
 		this(null, livePricesSource, dynamicProperties, gasCalculator, hederaOperations, precompiledContractMap);
-	}
-
-	protected void setWorldState(HederaMutableWorldState worldState) {
-		this.worldState = worldState;
 	}
 
 	protected EvmTxProcessor(
@@ -119,13 +115,18 @@ abstract class EvmTxProcessor {
 		final PrecompileContractRegistry precompileContractRegistry = new PrecompileContractRegistry();
 		MainnetPrecompiledContracts.populateForIstanbul(precompileContractRegistry, this.gasCalculator);
 
-		this.messageCallProcessor = new HederaMessageCallProcessor(evm, precompileContractRegistry, precompiledContractMap);
+		this.messageCallProcessor = new HederaMessageCallProcessor(evm, precompileContractRegistry,
+				precompiledContractMap);
 		this.contractCreationProcessor = new ContractCreationProcessor(
 				gasCalculator,
 				evm,
 				true,
 				List.of(MaxCodeSizeRule.of(MAX_CODE_SIZE), PrefixCodeRule.of()),
 				1);
+	}
+
+	protected void setWorldState(HederaMutableWorldState worldState) {
+		this.worldState = worldState;
 	}
 
 	/**
@@ -135,7 +136,7 @@ abstract class EvmTxProcessor {
 	 * @param sender
 	 * 		The origin {@link Account} that initiates the transaction
 	 * @param receiver
-	 * 		Receiving {@link Address}. For Create transactions, the newly created Contract address
+	 * 		the priority form of the receiving {@link Address} (i.e., EIP-1014 if present); or the newly created address
 	 * @param gasPrice
 	 * 		GasPrice to use for gas calculations
 	 * @param gasLimit
@@ -152,6 +153,8 @@ abstract class EvmTxProcessor {
 	 * 		Whether or not the execution is static
 	 * @param expiry
 	 * 		In the case of Create transactions, the expiry of the top-level contract being created
+	 * @param mirrorReceiver
+	 * 		the mirror form of the receiving {@link Address}; or the newly created address
 	 * @return the result of the EVM execution returned as {@link TransactionProcessingResult}
 	 */
 	protected TransactionProcessingResult execute(
@@ -164,7 +167,8 @@ abstract class EvmTxProcessor {
 			final boolean contractCreation,
 			final Instant consensusTime,
 			final boolean isStatic,
-			final OptionalLong expiry
+			final OptionalLong expiry,
+			final Address mirrorReceiver
 	) {
 		final Wei gasCost = Wei.of(Math.multiplyExact(gasLimit, gasPrice));
 		final Wei upfrontCost = gasCost.add(value);
@@ -221,8 +225,8 @@ abstract class EvmTxProcessor {
 		StandardJsonTracer jsonTracer = new StandardJsonTracer(new PrintStream(baos), false);
 
 		while (!messageFrameStack.isEmpty()) {
-//			process(messageFrameStack.peekFirst(), new HederaTracer());
-			process(messageFrameStack.peekFirst(), jsonTracer);
+			process(messageFrameStack.peekFirst(), new HederaTracer());
+//			process(messageFrameStack.peekFirst(), jsonTracer);
 		}
 
 		var gasUsedByTransaction = calculateGasUsedByTX(gasLimit, initialFrame);
@@ -253,7 +257,7 @@ abstract class EvmTxProcessor {
 					sbhRefund.toLong(),
 					gasPrice,
 					initialFrame.getOutputData(),
-					initialFrame.getRecipientAddress());
+					mirrorReceiver);
 		} else {
 			return TransactionProcessingResult.failed(
 					gasUsedByTransaction.toLong(),
