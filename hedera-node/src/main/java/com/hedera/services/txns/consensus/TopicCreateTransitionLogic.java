@@ -87,7 +87,7 @@ public final class TopicCreateTransitionLogic implements TransitionLogic {
 		final var adminKey = accessor.hasAdminKey() ? validator.attemptDecodeOrThrow(accessor.adminKey()) : null;
 		final var memo = accessor.memo();
 		final var autoRenewPeriod = accessor.autoRenewPeriod();
-		final var autoRenewAccountId = accessor.autoRenewAccount();
+		final var autoRenewAccountId = accessor.hasAutoRenewAccount() ? accessor.autoRenewAccount() : null;
 
 		/* --- Validate --- */
 		final var memoValidationResult = validator.memoCheck(memo);

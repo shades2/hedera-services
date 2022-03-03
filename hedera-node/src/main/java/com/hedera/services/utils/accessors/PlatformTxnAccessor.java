@@ -94,6 +94,10 @@ public class PlatformTxnAccessor extends SignedTxnAccessor {
 		return aliasManager.unaliased(grpcId, aliasObs);
 	}
 
+	protected EntityNum unaliased(final ContractID idOrAlias) {
+		return aliasManager.unaliased(idOrAlias, null);
+	}
+
 	@Override
 	public AccountID getPayer() {
 		return unaliased(getTxnId().getAccountID()).toGrpcAccountId();
@@ -101,9 +105,5 @@ public class PlatformTxnAccessor extends SignedTxnAccessor {
 
 	public Id getPayerId() {
 		return Id.fromGrpcAccount(unaliased(getTxnId().getAccountID()).toGrpcAccountId());
-	}
-
-	protected EntityNum unaliased(final ContractID idOrAlias) {
-		return aliasManager.unaliased(idOrAlias, null);
 	}
 }

@@ -33,7 +33,10 @@ import com.hedera.test.utils.IdUtils;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractDeleteTransactionBody;
 import com.hederahashgraph.api.proto.java.ContractID;
+import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.Transaction;
+import com.hederahashgraph.api.proto.java.TransactionBody;
+import com.hederahashgraph.api.proto.java.TransactionID;
 import com.swirlds.common.SwirldTransaction;
 import com.swirlds.merkle.map.MerkleMap;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,6 +44,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.time.Instant;
 
 import static com.hedera.test.utils.TxnUtils.assertFailsWith;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_EXPIRED_AND_PENDING_REMOVAL;
@@ -65,6 +70,8 @@ class DeletionLogicTest {
 	private static final EntityNum id = EntityNum.fromLong(1234);
 	private static final ContractID mirrorId = id.toGrpcContractID();
 	private static final AccountID target = id.toGrpcAccountId();
+	private static final AccountID payer = AccountID.newBuilder().setAccountNum(2_345L).build();
+	private static final Instant consensusTimestamp = Instant.ofEpochSecond(1546304463);
 
 	@Mock
 	private HederaLedger ledger;
@@ -78,7 +85,6 @@ class DeletionLogicTest {
 	private MerkleMap<EntityNum, MerkleAccount> contracts;
 
 	private ContractDeleteAccessor accessor;
-	private Transaction contractDeleteTxn;
 	private ContractDeleteTransactionBody contractDeleteBody;
 
 	private DeletionLogic subject;
@@ -92,14 +98,15 @@ class DeletionLogicTest {
 	void precheckValidityUsesValidatorForMirrorTarget() {
 		givenOpWithAccountObtainer(mirrorId, obtainer);
 		given(validator.queryableContractStatus(id, contracts)).willReturn(CONTRACT_DELETED);
+		given(aliasManager.unaliased(mirrorId, null)).willReturn(EntityNum.fromContractId(mirrorId));
 		assertEquals(CONTRACT_DELETED, subject.precheckValidity(accessor));
 	}
 
 	@Test
 	void precheckValidityUsesValidatorForAliasTarget() {
 		givenOpWithAccountObtainer(aliasId, obtainer);
-		given(aliasManager.lookupIdBy(aliasId.getEvmAddress())).willReturn(id);
 		given(validator.queryableContractStatus(id, contracts)).willReturn(CONTRACT_DELETED);
+		given(aliasManager.unaliased(aliasId, null)).willReturn(id);
 		assertEquals(CONTRACT_DELETED, subject.precheckValidity(accessor));
 	}
 
@@ -108,6 +115,8 @@ class DeletionLogicTest {
 		givenOpWithAccountObtainer(mirrorId, obtainer);
 		given(ledger.exists(obtainer)).willReturn(true);
 		given(ledger.alias(target)).willReturn(ByteString.EMPTY);
+		given(aliasManager.unaliased(mirrorId, null)).willReturn(EntityNum.fromContractId(mirrorId));
+		given(aliasManager.unaliased(obtainer)).willReturn(EntityNum.fromAccountId(obtainer));
 
 		final var deleted = subject.performFor(accessor);
 		verify(ledger).delete(id.toGrpcAccountId(), obtainer);
@@ -121,6 +130,9 @@ class DeletionLogicTest {
 
 		given(ledger.exists(obtainer)).willReturn(true);
 		given(ledger.alias(target)).willReturn(aliasId.getEvmAddress());
+
+		given(aliasManager.unaliased(mirrorId, null)).willReturn(EntityNum.fromContractId(mirrorId));
+		given(aliasManager.unaliased(obtainer)).willReturn(EntityNum.fromAccountId(obtainer));
 
 		final var deleted = subject.performFor(accessor);
 		verify(ledger).delete(id.toGrpcAccountId(), obtainer);
@@ -136,6 +148,9 @@ class DeletionLogicTest {
 		givenOpWithAccountObtainer(mirrorId, obtainer);
 		given(ledger.exists(obtainer)).willReturn(true);
 		given(ledger.alias(target)).willReturn(ByteString.EMPTY);
+		given(aliasManager.unaliased(mirrorId, null)).willReturn(EntityNum.fromContractId(mirrorId));
+		given(aliasManager.unaliased(obtainer)).willReturn(EntityNum.fromAccountId(obtainer));
+
 		final var deleted = subject.performFor(accessor);
 		verify(ledger).delete(id.toGrpcAccountId(), obtainer);
 		verify(aliasManager, never()).unlink(any(ByteString.class));
@@ -145,6 +160,7 @@ class DeletionLogicTest {
 	@Test
 	void rejectsNoObtainerWithMirrorTarget() {
 		givenOpWithNoObtainer(mirrorId);
+		given(aliasManager.unaliased(mirrorId, null)).willReturn(EntityNum.fromContractId(mirrorId));
 		assertFailsWith(() -> subject.performFor(accessor), OBTAINER_REQUIRED);
 	}
 
@@ -153,6 +169,8 @@ class DeletionLogicTest {
 		givenOpWithAccountObtainer(mirrorId, obtainer);
 		given(ledger.exists(obtainer)).willReturn(true);
 		given(ledger.isDetached(obtainer)).willReturn(true);
+		given(aliasManager.unaliased(mirrorId, null)).willReturn(EntityNum.fromContractId(mirrorId));
+		given(aliasManager.unaliased(obtainer)).willReturn(EntityNum.fromAccountId(obtainer));
 		assertFailsWith(() -> subject.performFor(accessor), ACCOUNT_EXPIRED_AND_PENDING_REMOVAL);
 	}
 
@@ -160,7 +178,7 @@ class DeletionLogicTest {
 	void rejectsMissingObtainerAccount() {
 		givenOpWithAccountObtainer(mirrorId, obtainer);
 		given(aliasManager.unaliased(obtainer)).willReturn(EntityNum.fromAccountId(obtainer));
-		given(aliasManager.unaliased(mirrorId)).willReturn(EntityNum.fromContractId(mirrorId));
+		given(aliasManager.unaliased(mirrorId, null)).willReturn(EntityNum.fromContractId(mirrorId));
 		assertFailsWith(() -> subject.performFor(accessor), OBTAINER_DOES_NOT_EXIST);
 	}
 
@@ -169,24 +187,32 @@ class DeletionLogicTest {
 		givenOpWithAccountObtainer(mirrorId, obtainer);
 		given(ledger.exists(obtainer)).willReturn(true);
 		given(ledger.isDeleted(obtainer)).willReturn(true);
+		given(aliasManager.unaliased(mirrorId, null)).willReturn(EntityNum.fromContractId(mirrorId));
+		given(aliasManager.unaliased(obtainer)).willReturn(EntityNum.fromAccountId(obtainer));
 		assertFailsWith(() -> subject.performFor(accessor), OBTAINER_DOES_NOT_EXIST);
 	}
 
 	@Test
 	void rejectsSameObtainerAccount() {
 		givenOpWithAccountObtainer(mirrorId, id.toGrpcAccountId());
+		given(aliasManager.unaliased(mirrorId, null)).willReturn(EntityNum.fromContractId(mirrorId));
+		given(aliasManager.unaliased(id.toGrpcAccountId())).willReturn(id);
 		assertFailsWith(() -> subject.performFor(accessor), OBTAINER_SAME_CONTRACT_ID);
 	}
 
 	@Test
 	void rejectsSameObtainerContractWithAliasTarget() {
 		givenOpWithContractObtainer(aliasId, mirrorId);
+		given(aliasManager.unaliased(aliasId, null)).willReturn(id);
+		given(aliasManager.unaliased(mirrorId, null)).willReturn(EntityNum.fromContractId(mirrorId));
 		assertFailsWith(() -> subject.performFor(accessor), OBTAINER_SAME_CONTRACT_ID);
 	}
 
 	@Test
 	void rejectsSameObtainerContractWithAliasObtainer() {
 		givenOpWithContractObtainer(mirrorId, aliasId);
+		given(aliasManager.unaliased(mirrorId, null)).willReturn(EntityNum.fromContractId(mirrorId));
+		given(aliasManager.unaliased(aliasId, null)).willReturn(id);
 		assertFailsWith(() -> subject.performFor(accessor), OBTAINER_SAME_CONTRACT_ID);
 	}
 
@@ -201,11 +227,20 @@ class DeletionLogicTest {
 	}
 
 	private void setUpAccessor() {
-		contractDeleteTxn = Transaction.newBuilder().setBodyBytes(contractDeleteBody.toByteString()).build();
+		final var txnId = TransactionID.newBuilder()
+				.setAccountID(payer)
+				.setTransactionValidStart(Timestamp.newBuilder().setSeconds(consensusTimestamp.getEpochSecond()));
+		TransactionBody transactionBody = TransactionBody.newBuilder()
+				.setTransactionID(txnId)
+				.setContractDeleteInstance(contractDeleteBody)
+				.build();
 		try {
-			accessor = new ContractDeleteAccessor(new SwirldTransaction(contractDeleteTxn.toByteArray()), aliasManager);
+			accessor = new ContractDeleteAccessor(new SwirldTransaction(Transaction.newBuilder()
+					.setBodyBytes(transactionBody.toByteString()).build().toByteArray()),
+					aliasManager);
 		} catch (InvalidProtocolBufferException e) {
 			e.printStackTrace();
+			return;
 		}
 	}
 

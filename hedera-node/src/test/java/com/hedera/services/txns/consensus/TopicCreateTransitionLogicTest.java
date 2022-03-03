@@ -20,9 +20,11 @@ package com.hedera.services.txns.consensus;
  * ‍
  */
 
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.services.context.TransactionContext;
 import com.hedera.services.exceptions.InvalidTransactionException;
 import com.hedera.services.ledger.SigImpactHistorian;
+import com.hedera.services.ledger.accounts.AliasManager;
 import com.hedera.services.ledger.ids.EntityIdSource;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.state.merkle.MerkleTopic;
@@ -39,8 +41,10 @@ import com.hederahashgraph.api.proto.java.Duration;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TopicID;
+import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionID;
+import com.swirlds.common.SwirldTransaction;
 import com.swirlds.merkle.map.MerkleMap;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -89,8 +93,6 @@ class TopicCreateTransitionLogicTest {
 	@Mock
 	private TransactionContext transactionContext;
 	@Mock
-	private TopicCreateAccessor accessor;
-	@Mock
 	private OptionValidator validator;
 	@Mock
 	private EntityIdSource entityIdSource;
@@ -102,8 +104,12 @@ class TopicCreateTransitionLogicTest {
 	private Account autoRenew;
 	@Mock
 	private SigImpactHistorian sigImpactHistorian;
+	@Mock
+	private AliasManager aliasManager;
 
 	private TopicCreateTransitionLogic subject;
+	private TopicCreateAccessor accessor;
+	private SwirldTransaction topicCreateTxn;
 
 	@BeforeEach
 	private void setup() {
@@ -115,7 +121,7 @@ class TopicCreateTransitionLogicTest {
 	}
 
 	@Test
-	void hasCorrectApplicability() {
+	void hasCorrectApplicability() throws InvalidProtocolBufferException {
 		givenValidTransactionWithAllOptions();
 
 		assertTrue(subject.applicability().test(transactionBody));
@@ -123,33 +129,33 @@ class TopicCreateTransitionLogicTest {
 	}
 
 	@Test
-	void syntaxCheckWithAdminKey() {
+	void syntaxCheckWithAdminKey() throws InvalidProtocolBufferException {
 		givenValidTransactionWithAllOptions();
-		given(validator.hasGoodEncoding(key)).willReturn(true);
 
 		assertEquals(OK, subject.semanticCheck().apply(transactionBody));
 	}
 
 	@Test
-	void syntaxCheckWithInvalidAdminKey() {
+	void syntaxCheckWithInvalidAdminKey() throws InvalidProtocolBufferException {
 		givenValidTransactionWithAllOptions();
 		given(validator.hasGoodEncoding(key)).willReturn(false);
 
-		assertEquals(BAD_ENCODING, subject.semanticCheck().apply(transactionBody));
+		assertEquals(BAD_ENCODING, subject.validateSemantics(accessor));
 	}
 
 	@Test
-	void followsHappyPath() {
+	void followsHappyPath() throws InvalidProtocolBufferException {
 		givenValidTransactionWithAllOptions();
+		given(aliasManager.unaliased(MISC_ACCOUNT)).willReturn(EntityNum.fromAccountId(MISC_ACCOUNT));
 		given(validator.memoCheck(anyString())).willReturn(OK);
 		given(transactionContext.accessor()).willReturn(accessor);
-		given(accessor.getTxn()).willReturn(transactionBody);
 		given(accountStore.loadAccountOrFailWith(any(), any())).willReturn(autoRenew);
 		given(autoRenew.isSmartContract()).willReturn(false);
 		given(validator.isValidAutoRenewPeriod(Duration.newBuilder().setSeconds(VALID_AUTORENEW_PERIOD_SECONDS).build()))
 				.willReturn(true);
 		given(transactionContext.consensusTime()).willReturn(consensusTimestamp);
 		given(entityIdSource.newTopicId(any())).willReturn(NEW_TOPIC_ID);
+		given(aliasManager.unaliased(payer)).willReturn(EntityNum.fromAccountId(payer));
 
 		subject.doStateTransition();
 
@@ -158,11 +164,11 @@ class TopicCreateTransitionLogicTest {
 	}
 
 	@Test
-	void memoTooLong() {
+	void memoTooLong() throws InvalidProtocolBufferException {
 		givenTransactionWithTooLongMemo();
 		given(validator.memoCheck(anyString())).willReturn(MEMO_TOO_LONG);
 		given(transactionContext.accessor()).willReturn(accessor);
-		given(accessor.getTxn()).willReturn(transactionBody);
+		given(aliasManager.unaliased(payer)).willReturn(EntityNum.fromAccountId(payer));
 
 		assertFailsWith(() -> subject.doStateTransition(), MEMO_TOO_LONG);
 
@@ -170,11 +176,11 @@ class TopicCreateTransitionLogicTest {
 	}
 
 	@Test
-	void badSubmitKey() {
+	void badSubmitKey() throws InvalidProtocolBufferException {
 		givenTransactionWithInvalidSubmitKey();
 		given(transactionContext.accessor()).willReturn(accessor);
-		given(accessor.getTxn()).willReturn(transactionBody);
 		given(validator.attemptDecodeOrThrow(any())).willThrow(new InvalidTransactionException(BAD_ENCODING));
+		given(aliasManager.unaliased(payer)).willReturn(EntityNum.fromAccountId(payer));
 
 		assertFailsWith(() -> subject.doStateTransition(), BAD_ENCODING);
 
@@ -182,11 +188,11 @@ class TopicCreateTransitionLogicTest {
 	}
 
 	@Test
-	void missingAutoRenewPeriod() {
+	void missingAutoRenewPeriod() throws InvalidProtocolBufferException {
 		givenTransactionWithMissingAutoRenewPeriod();
 		given(validator.memoCheck(anyString())).willReturn(OK);
 		given(transactionContext.accessor()).willReturn(accessor);
-		given(accessor.getTxn()).willReturn(transactionBody);
+		given(aliasManager.unaliased(payer)).willReturn(EntityNum.fromAccountId(payer));
 
 		assertFailsWith(() -> subject.doStateTransition(), INVALID_RENEWAL_PERIOD);
 
@@ -194,11 +200,11 @@ class TopicCreateTransitionLogicTest {
 	}
 
 	@Test
-	void badAutoRenewPeriod() {
+	void badAutoRenewPeriod() throws InvalidProtocolBufferException {
 		givenTransactionWithInvalidAutoRenewPeriod();
 		given(validator.memoCheck(anyString())).willReturn(OK);
 		given(transactionContext.accessor()).willReturn(accessor);
-		given(accessor.getTxn()).willReturn(transactionBody);
+		given(aliasManager.unaliased(payer)).willReturn(EntityNum.fromAccountId(payer));
 
 		assertFailsWith(() -> subject.doStateTransition(), AUTORENEW_DURATION_NOT_IN_RANGE);
 
@@ -206,11 +212,12 @@ class TopicCreateTransitionLogicTest {
 	}
 
 	@Test
-	void invalidAutoRenewAccountId() {
+	void invalidAutoRenewAccountId() throws InvalidProtocolBufferException {
 		givenTransactionWithInvalidAutoRenewAccountId();
 		given(validator.memoCheck(anyString())).willReturn(OK);
 		given(transactionContext.accessor()).willReturn(accessor);
-		given(accessor.getTxn()).willReturn(transactionBody);
+		given(aliasManager.unaliased(payer)).willReturn(EntityNum.fromAccountId(payer));
+		given(aliasManager.unaliased(MISC_ACCOUNT)).willReturn(EntityNum.fromAccountId(MISC_ACCOUNT));
 		given(accountStore.loadAccountOrFailWith(any(), any())).willThrow(
 				new InvalidTransactionException(INVALID_AUTORENEW_ACCOUNT));
 		given(validator.isValidAutoRenewPeriod(Duration.newBuilder().setSeconds(VALID_AUTORENEW_PERIOD_SECONDS).build()))
@@ -222,15 +229,18 @@ class TopicCreateTransitionLogicTest {
 	}
 
 	@Test
-	void detachedAutoRenewAccountId() {
+	void detachedAutoRenewAccountId() throws InvalidProtocolBufferException {
 		givenTransactionWithDetachedAutoRenewAccountId();
 		given(validator.memoCheck(anyString())).willReturn(OK);
 		given(transactionContext.accessor()).willReturn(accessor);
-		given(accessor.getTxn()).willReturn(transactionBody);
 		given(validator.isValidAutoRenewPeriod(Duration.newBuilder().setSeconds(VALID_AUTORENEW_PERIOD_SECONDS).build()))
 				.willReturn(true);
+		given(validator.memoCheck(anyString())).willReturn(OK);
+
+		given(validator.isValidAutoRenewPeriod(accessor.autoRenewPeriod())).willReturn(true);
 		given(accountStore.loadAccountOrFailWith(any(), any())).willThrow(
 				new InvalidTransactionException(ACCOUNT_EXPIRED_AND_PENDING_REMOVAL));
+		given(aliasManager.unaliased(payer)).willReturn(EntityNum.fromAccountId(payer));
 
 		assertFailsWith(() -> subject.doStateTransition(), ACCOUNT_EXPIRED_AND_PENDING_REMOVAL);
 
@@ -238,22 +248,22 @@ class TopicCreateTransitionLogicTest {
 	}
 
 	@Test
-	void autoRenewAccountNotAllowed() {
+	void autoRenewAccountNotAllowed() throws InvalidProtocolBufferException {
 		givenTransactionWithAutoRenewAccountWithoutAdminKey();
-		given(validator.memoCheck(anyString())).willReturn(OK);
 		given(transactionContext.accessor()).willReturn(accessor);
-		given(accessor.getTxn()).willReturn(transactionBody);
-		given(validator.isValidAutoRenewPeriod(Duration.newBuilder().setSeconds(VALID_AUTORENEW_PERIOD_SECONDS).build()))
-				.willReturn(true);
+		given(validator.isValidAutoRenewPeriod(accessor.autoRenewPeriod())).willReturn(true);
 		given(accountStore.loadAccountOrFailWith(any(), any())).willReturn(autoRenew);
 		given(autoRenew.isSmartContract()).willReturn(false);
+		given(validator.memoCheck(anyString())).willReturn(OK);
+		given(aliasManager.unaliased(payer)).willReturn(EntityNum.fromAccountId(payer));
 
 		assertFailsWith(() -> subject.doStateTransition(), AUTORENEW_ACCOUNT_NOT_ALLOWED);
 
 		assertTrue(topics.isEmpty());
 	}
 
-	private void givenTransaction(final ConsensusCreateTopicTransactionBody.Builder body) {
+	private void givenTransaction(
+			final ConsensusCreateTopicTransactionBody.Builder body) throws InvalidProtocolBufferException {
 		final var txnId = TransactionID.newBuilder()
 				.setAccountID(payer)
 				.setTransactionValidStart(Timestamp.newBuilder().setSeconds(consensusTimestamp.getEpochSecond()));
@@ -261,6 +271,10 @@ class TopicCreateTransitionLogicTest {
 				.setTransactionID(txnId)
 				.setConsensusCreateTopic(body)
 				.build();
+		topicCreateTxn = new SwirldTransaction(Transaction.newBuilder()
+				.setBodyBytes(transactionBody.toByteString())
+				.build().toByteArray());
+		accessor = new TopicCreateAccessor(topicCreateTxn, aliasManager);
 	}
 
 	private ConsensusCreateTopicTransactionBody.Builder getBasicValidTransactionBodyBuilder() {
@@ -269,7 +283,7 @@ class TopicCreateTransitionLogicTest {
 						.setSeconds(VALID_AUTORENEW_PERIOD_SECONDS).build());
 	}
 
-	private void givenValidTransactionWithAllOptions() {
+	private void givenValidTransactionWithAllOptions() throws InvalidProtocolBufferException {
 		givenTransaction(
 				getBasicValidTransactionBodyBuilder()
 						.setMemo(VALID_MEMO)
@@ -279,21 +293,21 @@ class TopicCreateTransitionLogicTest {
 		);
 	}
 
-	private void givenTransactionWithTooLongMemo() {
+	private void givenTransactionWithTooLongMemo() throws InvalidProtocolBufferException {
 		givenTransaction(
 				getBasicValidTransactionBodyBuilder()
 						.setMemo(TOO_LONG_MEMO)
 		);
 	}
 
-	private void givenTransactionWithInvalidSubmitKey() {
+	private void givenTransactionWithInvalidSubmitKey() throws InvalidProtocolBufferException {
 		givenTransaction(
 				getBasicValidTransactionBodyBuilder()
 						.setSubmitKey(Key.getDefaultInstance())
 		);
 	}
 
-	private void givenTransactionWithInvalidAutoRenewPeriod() {
+	private void givenTransactionWithInvalidAutoRenewPeriod() throws InvalidProtocolBufferException {
 		givenTransaction(
 				ConsensusCreateTopicTransactionBody.newBuilder()
 						.setAutoRenewPeriod(Duration.newBuilder()
@@ -301,31 +315,33 @@ class TopicCreateTransitionLogicTest {
 		);
 	}
 
-	private void givenTransactionWithMissingAutoRenewPeriod() {
+	private void givenTransactionWithMissingAutoRenewPeriod() throws InvalidProtocolBufferException {
 		givenTransaction(
 				ConsensusCreateTopicTransactionBody.newBuilder()
 		);
 	}
 
-	private void givenTransactionWithInvalidAutoRenewAccountId() {
+	private void givenTransactionWithInvalidAutoRenewAccountId() throws InvalidProtocolBufferException {
 		givenTransaction(
 				getBasicValidTransactionBodyBuilder()
 						.setAutoRenewAccount(MISC_ACCOUNT)
 		);
 	}
 
-	private void givenTransactionWithDetachedAutoRenewAccountId() {
+	private void givenTransactionWithDetachedAutoRenewAccountId() throws InvalidProtocolBufferException {
 		givenTransaction(
 				getBasicValidTransactionBodyBuilder()
 						.setAutoRenewAccount(MISC_ACCOUNT)
 		);
+		given(aliasManager.unaliased(MISC_ACCOUNT)).willReturn(EntityNum.fromAccountId(MISC_ACCOUNT));
 	}
 
-	private void givenTransactionWithAutoRenewAccountWithoutAdminKey() {
+	private void givenTransactionWithAutoRenewAccountWithoutAdminKey() throws InvalidProtocolBufferException {
 		givenTransaction(
 				getBasicValidTransactionBodyBuilder()
 						.setAutoRenewAccount(MISC_ACCOUNT)
 		);
+		given(aliasManager.unaliased(MISC_ACCOUNT)).willReturn(EntityNum.fromAccountId(MISC_ACCOUNT));
 
 	}
 }
