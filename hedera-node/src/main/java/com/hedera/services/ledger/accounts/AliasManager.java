@@ -22,6 +22,8 @@ package com.hedera.services.ledger.accounts;
 
 import com.google.protobuf.ByteString;
 import com.hedera.services.ledger.SigImpactHistorian;
+import com.hedera.services.legacy.core.jproto.JECDSASecp256k1Key;
+import com.hedera.services.legacy.core.jproto.JKey;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.utils.EntityNum;
 import com.swirlds.merkle.map.MerkleMap;
@@ -111,6 +113,18 @@ public class AliasManager extends AbstractContractAliases implements ContractAli
 		aliases.put(alias, num);
 	}
 
+	public void linkEvmAddress(final JKey key, final EntityNum num) {
+		if (key.hasECDSAsecp256k1Key()) {
+			byte[] rawCompressedKey = fromBytesInternal(key.getECDSASecp256k1Key());
+			if (rawCompressedKey.length == JECDSASecp256k1Key.ECDSASECP256_COMPRESSED_BYTE_LENGTH) {
+				var evmAddress = calculateEthAddress(rawCompressedKey);
+				link(evmAddress, num);
+				//FIXME
+				System.out.printf(" %s <- 0x%s%n", num, Hex.toHexString(evmAddress.toByteArray()));
+			}
+		}
+	}
+
 	public void unlink(final ByteString alias) {
 		aliases.remove(alias);
 	}
@@ -123,26 +137,16 @@ public class AliasManager extends AbstractContractAliases implements ContractAli
 	 */
 	public void rebuildAliasesMap(final MerkleMap<EntityNum, MerkleAccount> accounts) {
 		aliases.clear();
-		forEach(accounts, (k, v) -> {
-			if (!v.getAlias().isEmpty()) {
-				aliases.put(v.getAlias(), k);
-				try {
-					if (v.getAccountKey().hasECDSAsecp256k1Key()) {
-						byte[] rawCompressedKey = fromBytesInternal(v.getAlias().toByteArray());
-						var evmAddress = calculateEthAddress(rawCompressedKey);
-						aliases.put(evmAddress, k);
-						System.out.printf(" %s <- 0x%s%n", k, Hex.toHexString(evmAddress.toByteArray()));
-					}
-				} catch (Exception e) {
-					e.printStackTrace(System.out);
-				}
+		forEach(accounts, (entityNum, account) -> {
+			if (!account.getAlias().isEmpty()) {
+				link(account.getAlias(), entityNum);
+				linkEvmAddress(account.getAccountKey(), entityNum);
 			}
 		});
 		log.info("Rebuild complete : No.of accounts with aliases {} ", aliases.size());
 	}
 
 	static byte[] fromBytesInternal(byte[] publicKey) {
-		System.out.println(Hex.toHexString(publicKey));
 		if (publicKey.length == 33) {
 			// compressed 33 byte raw form
 			return publicKey;

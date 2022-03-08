@@ -39,6 +39,7 @@ import com.hedera.services.utils.EntityNum;
 import com.hedera.services.utils.TxnAccessor;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractCallTransactionBody;
+import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.swirlds.common.CommonUtils;
@@ -208,7 +209,7 @@ public class ContractCallTransitionLogic implements PreFetchableTransition {
 				return FOREIGN_TRANSACTION_INCORRECT_GAS_LIMIT;
 			}
 
-			if (Arrays.compare(rlpList.get(3).data(), EntityIdUtils.asEvmAddress(op.getContractID())) != 0) {
+			if (Arrays.compare(rlpList.get(3).data(), addressOf(op.getContractID())) != 0) {
 				return FOREIGN_TRANSACTION_INCORRECT_RECEIVER_ADDRESS;
 			}
 			var foreignTxAmount = rlpList.get(4).asBigInt();
@@ -226,7 +227,7 @@ public class ContractCallTransitionLogic implements PreFetchableTransition {
 			}
 
 			int v = rlpList.get(6).asInt();
-			int chainId = ((v-1)>>1)-17;
+			int chainId = ((v - 1) >> 1) - 17;
 			if (chainId != properties.getChainId() && chainId != -4) {
 				return FOREIGN_TRANSACTION_INCORRECT_CHAIN_ID;
 			}
@@ -271,14 +272,14 @@ public class ContractCallTransitionLogic implements PreFetchableTransition {
 				return FOREIGN_TRANSACTION_INCORRECT_GAS_LIMIT;
 			}
 
-			if (Arrays.compare(rlpList.get(5).data(), EntityIdUtils.asEvmAddress(op.getContractID())) != 0) {
+			if (Arrays.compare(rlpList.get(5).data(), addressOf(op.getContractID())) != 0) {
 				return FOREIGN_TRANSACTION_INCORRECT_RECEIVER_ADDRESS;
 			}
-			var amount  = rlpList.get(6).asBigInt().divide(BigInteger.valueOf(10_000_000_000L)).longValueExact();
+			var amount = rlpList.get(6).asBigInt().divide(BigInteger.valueOf(10_000_000_000L)).longValueExact();
 			if (amount != op.getAmount()) {
 				return FOREIGN_TRANSACTION_INCORRECT_AMOUNT;
 			}
-			
+
 			var rlpPayload = rlpList.get(7).data();
 			// because of the type byte the offeset is off by one
 			int index = com.google.common.primitives.Bytes.indexOf(foreignTxBytes, rlpPayload);
@@ -316,6 +317,14 @@ public class ContractCallTransitionLogic implements PreFetchableTransition {
 	private EntityNum targetOf(final ContractCallTransactionBody op) {
 		final var idOrAlias = op.getContractID();
 		return EntityIdUtils.unaliased(idOrAlias, aliasManager);
+	}
+	
+	private byte[] addressOf(ContractID contractID) {
+		if (contractID.getContractNum() == 0) {
+			return contractID.getEvmAddress().toByteArray();
+		} else {
+			return EntityIdUtils.asEvmAddress(contractID);
+		}
 	}
 }
 

@@ -33,6 +33,7 @@ import com.hedera.services.ledger.accounts.AliasManager;
 import com.hedera.services.ledger.accounts.HederaAccountCustomizer;
 import com.hedera.services.ledger.ids.EntityIdSource;
 import com.hedera.services.ledger.properties.AccountProperty;
+import com.hedera.services.legacy.core.jproto.JKey;
 import com.hedera.services.records.AccountRecordsHistorian;
 import com.hedera.services.records.InProgressChildRecord;
 import com.hedera.services.state.EntityCreator;
@@ -178,8 +179,9 @@ public class AutoCreationLogic {
 		final var newAccountId = ids.newAccountId(syntheticCreation.getTransactionID().getAccountID());
 		accountsLedger.create(newAccountId);
 		change.replaceAliasWith(newAccountId);
+		JKey jKey = asFcKeyUnchecked(key);
 		final var customizer = new HederaAccountCustomizer()
-				.key(asFcKeyUnchecked(key))
+				.key(jKey)
 				.memo(AUTO_MEMO)
 				.autoRenewPeriod(THREE_MONTHS_IN_SECONDS)
 				.isReceiverSigRequired(false)
@@ -193,6 +195,7 @@ public class AutoCreationLogic {
 		pendingCreations.add(inProgress);
 		/* If the transaction fails, we will get an opportunity to unlink this alias in reclaimPendingAliases() */
 		aliasManager.link(alias, EntityNum.fromAccountId(newAccountId));
+		aliasManager.linkEvmAddress(jKey, EntityNum.fromAccountId(newAccountId));
 
 		return Pair.of(OK, fee);
 	}
