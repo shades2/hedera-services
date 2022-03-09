@@ -118,6 +118,7 @@ import com.hedera.services.bdd.suites.perf.contract.ContractPerformanceSuite;
 import com.hedera.services.bdd.suites.perf.contract.FibonacciPlusLoadProvider;
 import com.hedera.services.bdd.suites.perf.contract.MixedSmartContractOpsLoadTest;
 import com.hedera.services.bdd.suites.perf.contract.opcodes.SStoreOperationLoadTest;
+import com.hedera.services.bdd.suites.perf.crypto.CryptoAllowancePerfSuite;
 import com.hedera.services.bdd.suites.perf.crypto.CryptoCreatePerfSuite;
 import com.hedera.services.bdd.suites.perf.crypto.CryptoTransferLoadTest;
 import com.hedera.services.bdd.suites.perf.crypto.CryptoTransferLoadTestWithAutoAccounts;
@@ -495,6 +496,8 @@ public class SuiteRunner {
 		/* Approval and Allowance */
 		put("CryptoApproveAllowanceSuite", aof(CryptoApproveAllowanceSuite::new));
 		put("CryptoAdjustAllowanceSuite", aof(CryptoAdjustAllowanceSuite::new));
+		put("CryptoAllowancePerfSuite", aof(CryptoAllowancePerfSuite::new));
+
 	}};
 
 	static boolean runAsync;
