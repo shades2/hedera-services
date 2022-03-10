@@ -1309,7 +1309,7 @@ workflows:
       - jrs-regression:
           context: Slack
           regression_path: /swirlds-platform/regression
-          result_path: results/7N_7C/Performance
+          result_path: results/Personal
           config_type: "personal"
           workflow-name: "GCP-Personal-Neeha-4N"
           requires:
