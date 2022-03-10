@@ -1299,7 +1299,7 @@ workflows:
   GCP-Personal-Services:
     triggers:
       - schedule:
-          cron: "4 18 * * *"
+          cron: "44 17 * * *"
           filters:
             branches:
               only:
