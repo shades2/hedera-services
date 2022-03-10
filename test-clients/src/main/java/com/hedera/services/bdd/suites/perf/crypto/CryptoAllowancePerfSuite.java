@@ -27,6 +27,7 @@ package com.hedera.services.bdd.suites.perf.crypto;
 import com.google.protobuf.ByteString;
 import com.hedera.services.bdd.spec.HapiApiSpec;
 import com.hedera.services.bdd.spec.utilops.LoadTest;
+import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TokenSupplyType;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -41,8 +42,10 @@ import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoTransfer;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.mintToken;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.tokenCreate;
 import static com.hedera.services.bdd.spec.transactions.token.TokenMovement.movingUnique;
+import static com.hedera.services.bdd.spec.utilops.UtilVerbs.freezeOnly;
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.inParallel;
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.newKeyNamed;
+import static com.hedera.services.bdd.spec.utilops.UtilVerbs.sleepFor;
 import static com.hederahashgraph.api.proto.java.TokenType.NON_FUNGIBLE_UNIQUE;
 
 public class CryptoAllowancePerfSuite extends LoadTest {
@@ -56,53 +59,35 @@ public class CryptoAllowancePerfSuite extends LoadTest {
 	@Override
 	public List<HapiApiSpec> getSpecsInSuite() {
 		return List.of(
-				runCryptoCreatesAndTokenCreates(),
+				createNeededEntities(),
 				runCryptoAllowances()
 		);
 	}
 
-	private HapiApiSpec runCryptoCreatesAndTokenCreates() {
+	private HapiApiSpec createNeededEntities() {
 		final int NUM_CREATES = 500;
-		final int NUM_NFTS = 100;
-		return defaultHapiSpec("runCryptoCreatesAndTokenCreates")
+		return defaultHapiSpec("createNeededEntities")
 				.given(
 				).when(
 						inParallel(
 								asOpArray(NUM_CREATES, i ->
-										(i == (NUM_CREATES - 1)) ?
-												cryptoCreate("owner" + i)
-														.balance(100_000_000_000L)
-														.key(GENESIS)
-														.withRecharging()
-														.rechargeWindow(30)
-														.payingWith(GENESIS) :
-												cryptoCreate("owner" + i)
-														.balance(100_000_000_000L)
-														.key(GENESIS)
-														.withRecharging()
-														.rechargeWindow(30)
-														.payingWith(GENESIS)
-														.deferStatusResolution()
+										cryptoCreate("spender" + i)
+												.balance(100_000_000_000L)
+												.key(GENESIS)
+												.withRecharging()
+												.rechargeWindow(30)
+												.payingWith(GENESIS)
+												.hasKnownStatus(ResponseCodeEnum.SUCCESS)
 								)
 						),
-						inParallel(
-								asOpArray(NUM_CREATES, i ->
-										(i == (NUM_CREATES - 1)) ?
-												cryptoCreate("spender" + i)
-														.balance(100_000_000_000L)
-														.key(GENESIS)
-														.withRecharging()
-														.rechargeWindow(30)
-														.payingWith(GENESIS) :
-												cryptoCreate("spender" + i)
-														.balance(100_000_000_000L)
-														.key(GENESIS)
-														.withRecharging()
-														.rechargeWindow(30)
-														.payingWith(GENESIS)
-														.deferStatusResolution()
-								)
-						)
+
+						cryptoCreate("owner")
+								.balance(100_000_000_000L)
+								.key(GENESIS)
+								.withRecharging()
+								.rechargeWindow(30)
+								.payingWith(GENESIS),
+						sleepFor(60_000L)
 				).then(
 						newKeyNamed("supplyKey"),
 						tokenCreate("token")
@@ -117,61 +102,48 @@ public class CryptoAllowancePerfSuite extends LoadTest {
 								.supplyKey("supplyKey")
 								.treasury(TOKEN_TREASURY),
 						mintToken("token", 10000L).via("tokenMint"),
-						mintToken("nft", List.of(
-								ByteString.copyFromUtf8("a")
-						)),
+						mintToken("nft", List.of(ByteString.copyFromUtf8("a"))),
 						inParallel(
-								asOpArray(NUM_NFTS, i ->
+								asOpArray(NUM_CREATES, i ->
 										cryptoTransfer(movingUnique("nft", 1L)
-												.between(TOKEN_TREASURY, "owner" + i))))
-
+												.between(TOKEN_TREASURY, "owner")))),
+						sleepFor(60_000L)
 				);
 	}
 
 	private HapiApiSpec runCryptoAllowances() {
-		final int NUM_ALLOWANCES = 5000;
+		final int NUM_ALLOWANCES = 1000;
 		return defaultHapiSpec("runCryptoAllowances")
 				.given(
 				).when(
 						inParallel(
 								asOpArray(NUM_ALLOWANCES, i ->
-										(i == (NUM_ALLOWANCES - 1)) ?
-												cryptoApproveAllowance()
-														.payingWith("owner" + i)
-														.addCryptoAllowance("owner" + i, "spender" + i, 1L)
-														.addTokenAllowance("owner" + i, "token", "spender" + i, 1L)
-														.addNftAllowance("owner" + i, "nft", "spender" + i, false,
-																List.of(1L))
-												:
-												cryptoApproveAllowance()
-														.payingWith("owner" + i)
-														.addCryptoAllowance("owner" + i, "spender" + i, 1L)
-														.addTokenAllowance("owner" + i, "token" + i, "spender" + i,
-																1L)
-														.addNftAllowance("owner" + i, "nft", "spender" + i, false,
-																List.of(1L))
+										cryptoApproveAllowance()
+												.payingWith("owner")
+												.addCryptoAllowance("owner", "spender" + (i % 500), 1L)
+												.addTokenAllowance("owner", "token", "spender" + (i % 500), 1L)
+												.addNftAllowance("owner", "nft", "spender" + (i % 500), false,
+														List.of(1L))
+												.deferStatusResolution()
 								)
 						),
+						sleepFor(60_000L),
 						inParallel(
 								asOpArray(NUM_ALLOWANCES, i ->
-										(i == (NUM_ALLOWANCES - 1)) ?
-												cryptoAdjustAllowance()
-														.payingWith("owner" + i)
-														.addCryptoAllowance("owner" + i, "spender" + i, 2L)
-														.addTokenAllowance("owner" + i, "token" + i, "spender" + i,
-																2L)
-														.addNftAllowance("owner" + i, "nft", "spender" + i, true,
-																List.of(1L)) :
-												cryptoAdjustAllowance()
-														.payingWith("owner" + i)
-														.addCryptoAllowance("owner" + i, "spender" + i, 2L)
-														.addTokenAllowance("owner" + i, "token" + i, "spender" + i,
-																2L)
-														.addNftAllowance("owner" + i, "nft", "spender" + i, true,
-																List.of(1L))
+										cryptoAdjustAllowance()
+												.payingWith("owner")
+												.addCryptoAllowance("owner", "spender" + (i % 500), 2L)
+												.addTokenAllowance("owner", "token" + (i % 500), "spender" + (i % 500),
+														2L)
+												.addNftAllowance("owner", "nft", "spender" + (i % 500), true,
+														List.of(1L))
+												.deferStatusResolution()
 								)
-						)
-				).then();
+						),
+						sleepFor(60_000L)
+				).then(
+						freezeOnly().payingWith(GENESIS).startingIn(60).seconds()
+				);
 	}
 
 	@Override
