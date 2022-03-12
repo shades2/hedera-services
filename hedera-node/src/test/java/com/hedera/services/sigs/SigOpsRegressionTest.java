@@ -380,7 +380,7 @@ class SigOpsRegressionTest {
 	}
 
 	private boolean invokeOtherPartySigActivationScenario(List<TransactionSignature> knownSigs) {
-		platformTxn.getPlatformTxn().clear();
+		platformTxn.getPlatformTxn().clearSignatures();
 		platformTxn.getPlatformTxn().addAll(knownSigs.toArray(new TransactionSignature[0]));
 		final var hfsSigMetaLookup = new HfsSigMetaLookup(hfs, fileNumbers);
 		SigRequirements keysOrder = new SigRequirements(

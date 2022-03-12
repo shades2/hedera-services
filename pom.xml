@@ -104,7 +104,7 @@
 			</snapshots>
 			<id>sdk-staging</id>
 			<name>0.24.0-alpha.4 SDK</name>
-			<url>https://oss.sonatype.org/content/repositories/comswirlds-1263</url>
+			<url>https://oss.sonatype.org/content/repositories/comswirlds-1262</url>
 		</repository>
 		<repository>
 			<snapshots>

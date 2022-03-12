@@ -40,9 +40,9 @@ public class PlatformTxnFactory {
 		}
 
 		@Override
-		public void clear() {
+		public void clearSignatures() {
 			hasClearBeenCalled = true;
-			super.clear();
+			super.clearSignatures();
 		}
 
 		public boolean hasClearBeenCalled() {
