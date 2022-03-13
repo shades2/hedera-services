@@ -33,8 +33,10 @@ import com.hedera.services.store.models.TokenRelationship;
 import com.hedera.services.store.models.UniqueToken;
 import com.hedera.services.utils.EntityNum;
 import com.hedera.test.utils.IdUtils;
+import com.hederahashgraph.api.proto.java.AccountAmount;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.TokenID;
+import com.hederahashgraph.api.proto.java.TransferList;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,6 +44,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.SplittableRandom;
 import java.util.TreeMap;
 
 import static com.hedera.services.state.enums.TokenType.FUNGIBLE_COMMON;
@@ -297,6 +300,68 @@ class SideEffectsTrackerTest {
 		subject.trackTokenOwnershipChanges(new OwnershipTracker());
 
 		assertFalse(subject.hasTrackedNftMints());
+	}
+
+	@Test
+	void checkNewLogic() {
+		final var r = new SplittableRandom(1_234_432L);
+		final var numAccounts = 20;
+		final var numAdjustments = 200;
+		final var maxAdjust = 7;
+		final var numTrials = 1_000_000;
+
+		final long[] accountNums = new long[numAccounts];
+		final AccountID[] accountIds = new AccountID[numAccounts];
+		for (int i = 0; i < numAccounts; i++) {
+			accountNums[i] = r.nextLong(100L);
+			accountIds[i] = AccountID.newBuilder().setAccountNum(accountNums[i]).build();
+		}
+
+
+		for (int i = 0; i < numTrials; i++) {
+			final var legacy = new SideEffectsTracker();
+			final long[] touchedNums = new long[numAccounts];
+			final long[] touchedAdjusts = new long[numAccounts];
+			var touchedSoFar = 0;
+
+			for (int j = 0; j < numAdjustments; j++) {
+				final var targetIndex = r.nextInt(numAccounts);
+				final var targetNum = accountNums[targetIndex];
+				final var newChange = (r.nextBoolean() ? +1 : -1) * (1 + r.nextInt(maxAdjust));
+//				System.out.println("Inserting (" + targetNum + ", " + newChange + ") into: "
+//						+ readable(touchedNums, touchedAdjusts, touchedSoFar));
+				touchedSoFar = SideEffectsTracker.includeOrderedFungibleChange(
+						touchedNums, touchedAdjusts, touchedSoFar, targetNum, newChange);
+				legacy.trackHbarChange(accountIds[targetIndex], newChange);
+			}
+			touchedSoFar = SideEffectsTracker.purgeZeroChanges(touchedNums, touchedAdjusts, touchedSoFar);
+
+			final var actual = asLegacy(touchedNums, touchedAdjusts, touchedSoFar);
+			final var expected = legacy.getNetTrackedHbarChanges();
+			assertEquals(expected, actual);
+		}
+	}
+
+	private String readable(final long[] nums, final long[] changes, int n) {
+		final var sb = new StringBuilder("[");
+		for (int i = 0; i < n; i++)	{
+			sb.append("(").append(nums[i]).append(", ").append(changes[i]).append(")");
+			if (i < n - 1) {
+				sb.append(" ");
+			}
+		}
+		return sb.append("]").toString();
+	}
+
+	private TransferList asLegacy(final long[] touchedNums, final long[] touchedAdjusts, final int n) {
+		final var b = TransferList.newBuilder();
+		for (int i = 0; i < n; i++) {
+			final var adjust = AccountAmount.newBuilder()
+					.setAccountID(AccountID.newBuilder().setAccountNum(touchedNums[i]))
+					.setAmount(touchedAdjusts[i]);
+			b.addAccountAmounts(adjust);
+		}
+		return b.build();
 	}
 
 	@Test
