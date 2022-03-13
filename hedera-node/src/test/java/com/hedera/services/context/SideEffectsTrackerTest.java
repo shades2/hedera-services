@@ -317,11 +317,10 @@ class SideEffectsTrackerTest {
 			accountIds[i] = AccountID.newBuilder().setAccountNum(accountNums[i]).build();
 		}
 
-
+		final long[] touchedNums = new long[numAccounts];
+		final long[] touchedAdjusts = new long[numAccounts];
 		for (int i = 0; i < numTrials; i++) {
 			final var legacy = new SideEffectsTracker();
-			final long[] touchedNums = new long[numAccounts];
-			final long[] touchedAdjusts = new long[numAccounts];
 			var touchedSoFar = 0;
 
 			for (int j = 0; j < numAdjustments; j++) {

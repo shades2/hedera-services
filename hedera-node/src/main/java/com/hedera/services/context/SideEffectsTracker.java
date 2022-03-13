@@ -556,8 +556,9 @@ public class SideEffectsTracker {
 	 *
 	 * Returns the new number of touched accounts after incorporating this change.
 	 *
-	 * <b>IMPORTANT:</b> This method assumes the parallel arrays are large to include a new balance
-	 * change without resizing.
+	 * <b>IMPORTANT:</b> This method assumes the parallel arrays are large enough to include a
+	 * new balance change without resizing. (It takes care of shifting larger-numbered accounts
+	 * to the right if needed.)
 	 *
 	 * @param accountNums an array of account numbers whose balances have changed so far
 	 * @param balanceChanges the parallel array of balance changes
@@ -574,7 +575,7 @@ public class SideEffectsTracker {
 			final long newChange
 	) {
 		var i = touchedSoFar - 1;
-		// Start from the rightmost touched accounts, skip accounts larger than our target
+		// Start from the rightmost touched account, skip accounts larger than our target
 		while (i >= 0 && accountNums[i] > targetNum) {
 			i--;
 		}
