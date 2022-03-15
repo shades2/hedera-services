@@ -1420,7 +1420,7 @@ workflows:
             filters:
               branches:
                 ignore:
-                  - NONE
+                  - presumed-iss-fix
             workflow-name: "Continuous-integration"
         - sonar-check:
             context: SonarCloud
