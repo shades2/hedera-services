@@ -1420,7 +1420,7 @@ workflows:
             filters:
               branches:
                 ignore:
-                  - NONE
+                  - sdk-0240-alpha5-with-iss-fix
             workflow-name: "Continuous-integration"
         - sonar-check:
             context: SonarCloud
