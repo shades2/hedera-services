@@ -21,7 +21,9 @@ package com.hedera.test.forensics;
  */
 
 import com.hedera.services.stream.RecordStreamObject;
+import com.hedera.services.utils.accessors.BaseTxnAccessor;
 import com.hedera.services.utils.accessors.SignedTxnAccessor;
+import com.hedera.services.utils.accessors.UserTxnAccessor;
 import com.hedera.test.forensics.records.RecordParser;
 import com.swirlds.common.constructable.ClassConstructorPair;
 import com.swirlds.common.constructable.ConstructableRegistry;
@@ -92,8 +94,8 @@ import static java.util.stream.Collectors.toList;
 		}
 	}
 
-	private SignedTxnAccessor accessorFor(RecordStreamObject rso) {
-		return SignedTxnAccessor.uncheckedFrom(rso.getTransaction());
+	private UserTxnAccessor accessorFor(RecordStreamObject rso) {
+		return UserTxnAccessor.from(rso.getTransaction());
 	}
 
 	private List<RecordStreamObject> allRsos(List<File> records) {

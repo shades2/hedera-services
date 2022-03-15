@@ -27,13 +27,13 @@ import com.hederahashgraph.api.proto.java.TokenWipeAccountTransactionBody;
 import com.swirlds.common.SwirldTransaction;
 
 import java.util.List;
+import java.util.function.Supplier;
 
-public class TokenWipeAccessor extends PlatformTxnAccessor {
+public class TokenWipeAccessor extends BaseTxnAccessor {
 	final TokenWipeAccountTransactionBody body;
 
-	public TokenWipeAccessor(final SwirldTransaction txn,
-			final AliasManager aliasManager) throws InvalidProtocolBufferException {
-		super(txn, aliasManager);
+	public TokenWipeAccessor(final byte[] signedTxnBytes, final AliasManager aliasManager) throws InvalidProtocolBufferException {
+		super(signedTxnBytes, () -> aliasManager);
 		this.body = getTxn().getTokenWipe();
 	}
 

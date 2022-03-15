@@ -44,8 +44,8 @@ import com.hedera.services.stats.MiscRunningAvgs;
 import com.hedera.services.stats.MiscSpeedometers;
 import com.hedera.services.txns.auth.SystemOpPolicies;
 import com.hedera.services.utils.EntityNum;
-import com.hedera.services.utils.accessors.PlatformTxnAccessor;
 import com.hedera.services.utils.RationalizedSigMeta;
+import com.hedera.services.utils.accessors.UserTxnAccessor;
 import com.hedera.test.factories.scenarios.TxnHandlingScenario;
 import com.hedera.test.factories.txns.CryptoCreateFactory;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
@@ -96,7 +96,7 @@ class SigOpsRegressionTest {
 	private MiscSpeedometers speedometers;
 	private List<TransactionSignature> expectedSigs;
 	private ResponseCodeEnum expectedErrorStatus;
-	private PlatformTxnAccessor platformTxn;
+	private UserTxnAccessor platformTxn;
 	private SigRequirements signingOrder;
 	private MerkleMap<EntityNum, MerkleAccount> accounts;
 
@@ -105,7 +105,7 @@ class SigOpsRegressionTest {
 	private SignatureWaivers mockSignatureWaivers = new PolicyBasedSigWaivers(mockEntityNumbers, mockSystemOpPolicies);
 
 	static boolean otherPartySigsAreActive(
-			PlatformTxnAccessor accessor,
+			UserTxnAccessor accessor,
 			SigRequirements keyOrder,
 			SigningOrderResultFactory<ResponseCodeEnum> summaryFactory
 	) {
@@ -113,7 +113,7 @@ class SigOpsRegressionTest {
 	}
 
 	static boolean otherPartySigsAreActive(
-			PlatformTxnAccessor accessor,
+			UserTxnAccessor accessor,
 			SigRequirements keyOrder,
 			SigningOrderResultFactory<ResponseCodeEnum> summaryFactory,
 			KeyActivationCharacteristics characteristics

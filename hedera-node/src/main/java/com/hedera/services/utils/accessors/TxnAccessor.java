@@ -20,6 +20,7 @@ package com.hedera.services.utils.accessors;
  * ‍
  */
 
+import com.hedera.services.exceptions.UnknownHederaFunctionality;
 import com.hedera.services.ledger.accounts.AliasManager;
 import com.hedera.services.sigs.order.LinkedRefs;
 import com.hedera.services.sigs.sourcing.PubKeyToSigBytes;
@@ -43,81 +44,39 @@ import com.swirlds.common.crypto.TransactionSignature;
 import java.util.Map;
 import java.util.function.Function;
 
+import static com.hedera.services.utils.MiscUtils.functionOf;
+import static com.hederahashgraph.api.proto.java.HederaFunctionality.NONE;
+
 /**
- * Defines a type that gives access to several commonly referenced
- * parts of a Hedera Services gRPC {@link Transaction}.
+ * Provides convenient access to the universal parts of a gRPC transaction---
+ * the memo, the payer...the "source" of the transaction, whether HAPI or
+ * from a MerkleSchedule.
+ *
+ * NOTE: only these methods are needed to handle a transaction
+ * after the point all its signatures have been verified.
+ *
+ * A triggered transaction only needs an implementation of this type.
  */
 public interface TxnAccessor {
-    int sigMapSize();
-    int numSigPairs();
-    SignatureMap getSigMap();
-    void setExpandedSigStatus(ResponseCodeEnum status);
-    ResponseCodeEnum getExpandedSigStatus();
-    default PubKeyToSigBytes getPkToSigsFn() {
-        throw new UnsupportedOperationException();
-    }
-    default void setSigMeta(RationalizedSigMeta sigMeta) {
-        throw new UnsupportedOperationException();
-    }
-    default RationalizedSigMeta getSigMeta() {
-        throw new UnsupportedOperationException();
-    }
-    default Function<byte[], TransactionSignature> getRationalizedPkToCryptoSigFn() {
-    	final var sigMeta = getSigMeta();
-    	if (!sigMeta.couldRationalizeOthers()) {
-    	    throw new IllegalStateException("Public-key-to-crypto-sig mapping is unusable after rationalization failed");
-        }
-    	return sigMeta.pkToVerifiedSigFn();
-    }
-
-    default BaseTransactionMeta baseUsageMeta() {
-        throw new UnsupportedOperationException();
-    }
-    default CryptoTransferMeta availXferUsageMeta() {
-        throw new UnsupportedOperationException();
-    }
-    default SubmitMessageMeta availSubmitUsageMeta() {
-        throw new UnsupportedOperationException();
-    }
+    boolean isTriggeredTxn();
+    ScheduleID getScheduleRef();
+    boolean canTriggerTxn();
+    void setTriggered(boolean b);
+    void setScheduleRef(ScheduleID parent);
 
     long getOfferedFee();
     AccountID getPayer();
     TransactionID getTxnId();
     HederaFunctionality getFunction();
     SubType getSubType();
+    byte[] getHash();
+    byte[] getTxnBytes();
+    TransactionBody getTxn();
+    void setPayer(AccountID payer);
 
     byte[] getMemoUtf8Bytes();
     String getMemo();
     boolean memoHasZeroByte();
-
-    byte[] getHash();
-    byte[] getTxnBytes();
-    byte[] getSignedTxnWrapperBytes();
-    Transaction getSignedTxnWrapper();
-    TransactionBody getTxn();
-
-    boolean canTriggerTxn();
-    boolean isTriggeredTxn();
-    ScheduleID getScheduleRef();
-
-    /**
-     * Extracts the gasLimit value from a {@link HederaFunctionality#ContractCall} or a
-     * {@link HederaFunctionality#ContractCreate} transaction
-     * @return - the gasLimit value of the transaction
-     */
-    long getGasLimitForContractTx();
-
-    default SwirldTransaction getPlatformTxn() {
-        throw new UnsupportedOperationException();
-    }
-
-    default Map<String, Object> getSpanMap() {
-        throw new UnsupportedOperationException();
-    }
-
-    default ExpandHandleSpanMapAccessor getSpanMapAccessor() {
-        throw new UnsupportedOperationException();
-    }
 
     void setNumAutoCreations(int numAutoCreations);
     int getNumAutoCreations();
@@ -126,4 +85,18 @@ public interface TxnAccessor {
 
     void setLinkedRefs(LinkedRefs linkedRefs);
     LinkedRefs getLinkedRefs();
+
+    long getGasLimitForContractTx();
+
+    Map<String, Object> getSpanMap();
+    ExpandHandleSpanMapAccessor getSpanMapAccessor();
+
+    Transaction getSignedTxnWrapper();
+    byte[] getSignedTxnWrapperBytes();
+    BaseTransactionMeta baseUsageMeta();
+
+    int sigMapSize();
+    int numSigPairs();
+    void setSigMapSize(int sigMapSize);
+    void setNumSigPairs(int numPairs);
 }

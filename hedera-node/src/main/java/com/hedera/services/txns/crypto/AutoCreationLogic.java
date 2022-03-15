@@ -9,9 +9,9 @@ package com.hedera.services.txns.crypto;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -40,6 +40,7 @@ import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.state.submerkle.FcAssessedCustomFee;
 import com.hedera.services.store.contracts.precompile.SyntheticTxnFactory;
 import com.hedera.services.utils.EntityNum;
+import com.hedera.services.utils.accessors.BaseTxnAccessor;
 import com.hedera.services.utils.accessors.SignedTxnAccessor;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.Key;
@@ -198,17 +199,21 @@ public class AutoCreationLogic {
 	}
 
 	private long autoCreationFeeFor(final TransactionBody.Builder cryptoCreateTxn) {
-		final var signedTxn = SignedTransaction.newBuilder()
-				.setBodyBytes(cryptoCreateTxn.build().toByteString())
-				.setSigMap(SignatureMap.getDefaultInstance())
-				.build();
-		final var txn = Transaction.newBuilder()
-				.setSignedTransactionBytes(signedTxn.toByteString())
-				.build();
+		try {
+			final var signedTxn = SignedTransaction.newBuilder()
+					.setBodyBytes(cryptoCreateTxn.build().toByteString())
+					.setSigMap(SignatureMap.getDefaultInstance())
+					.build();
+			final var txn = Transaction.newBuilder()
+					.setSignedTransactionBytes(signedTxn.toByteString())
+					.build();
 
-		final var accessor = SignedTxnAccessor.uncheckedFrom(txn);
-		final var fees = feeCalculator.computeFee(accessor, EMPTY_KEY, currentView, txnCtx.consensusTime());
-		return fees.getServiceFee() + fees.getNetworkFee() + fees.getNodeFee();
+			final var accessor = BaseTxnAccessor(txn, aliasManager);
+			final var fees = feeCalculator.computeFee(accessor, EMPTY_KEY, currentView, txnCtx.consensusTime());
+			return fees.getServiceFee() + fees.getNetworkFee() + fees.getNodeFee();
+		} catch (InvalidProtocolBufferException ex) {
+
+		}
 	}
 
 	private Key asPrimitiveKeyUnchecked(final ByteString alias) {

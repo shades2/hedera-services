@@ -56,11 +56,11 @@ class TriggeredTxnAccessorTest {
 					signedTxn.toByteString())
 			.build();
 
-	private TriggeredTxnAccessor subject;
+	private TxnAccessor subject;
 
 	@BeforeEach
 	void setup() throws InvalidProtocolBufferException {
-		subject = new TriggeredTxnAccessor(tx.toByteArray(), payer, scheduleRef);
+		subject = BaseTxnAccessor.triggeredTxn(tx.toByteArray(), payer, scheduleRef);
 	}
 
 	@Test

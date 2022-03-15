@@ -20,10 +20,11 @@ package com.hedera.services.state.logic;
  * ‍
  */
 
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.services.context.NodeInfo;
 import com.hedera.services.ledger.accounts.AliasManager;
 import com.hedera.services.state.merkle.MerkleNetworkContext;
-import com.hedera.services.utils.accessors.PlatformTxnAccessor;
+import com.hedera.services.utils.accessors.UserTxnAccessor;
 import com.hedera.test.extensions.LogCaptor;
 import com.hedera.test.extensions.LogCaptureExtension;
 import com.hedera.test.extensions.LoggingSubject;
@@ -60,7 +61,7 @@ class InvariantChecksTest {
 					.build()
 					.toByteString())
 			.build();
-	private PlatformTxnAccessor accessor;
+	private UserTxnAccessor accessor;
 
 	@Mock
 	private NodeInfo nodeInfo;
@@ -76,9 +77,8 @@ class InvariantChecksTest {
 	private InvariantChecks subject;
 
 	@BeforeEach
-	void setUp() {
-		accessor = PlatformTxnAccessor.uncheckedAccessorFor(
-				new SwirldTransaction(mockTxn.toByteArray()), aliasManager);
+	void setUp() throws InvalidProtocolBufferException {
+		accessor = UserTxnAccessor.from(new SwirldTransaction(mockTxn.toByteArray()), aliasManager);
 		subject = new InvariantChecks(nodeInfo, () -> networkCtx);
 	}
 

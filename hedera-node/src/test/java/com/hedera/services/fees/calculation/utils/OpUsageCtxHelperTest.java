@@ -34,7 +34,7 @@ import com.hedera.services.state.submerkle.FcCustomFee;
 import com.hedera.services.state.submerkle.FixedFeeSpec;
 import com.hedera.services.usage.token.TokenOpsUsage;
 import com.hedera.services.utils.EntityNum;
-import com.hedera.services.utils.accessors.SignedTxnAccessor;
+import com.hedera.services.utils.accessors.BaseTxnAccessor;
 import com.hedera.test.utils.IdUtils;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.CryptoGetInfoResponse.AccountInfo;
@@ -91,7 +91,7 @@ class OpUsageCtxHelperTest {
 	private StateView workingView;
 
 	@Mock(answer = Answers.RETURNS_DEEP_STUBS)
-	private SignedTxnAccessor accessor;
+	private BaseTxnAccessor accessor;
 
 	private OpUsageCtxHelper subject;
 	@Mock

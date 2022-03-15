@@ -21,7 +21,9 @@ package com.hedera.services.queries;
  */
 
 import com.hedera.services.context.primitives.StateView;
+import com.hedera.services.utils.accessors.BaseTxnAccessor;
 import com.hedera.services.utils.accessors.SignedTxnAccessor;
+import com.hedera.services.utils.accessors.UserTxnAccessor;
 import com.hederahashgraph.api.proto.java.HederaFunctionality;
 import com.hederahashgraph.api.proto.java.Query;
 import com.hederahashgraph.api.proto.java.Response;
@@ -54,7 +56,7 @@ public interface AnswerService {
 	ResponseCodeEnum checkValidity(Query query, StateView view);
 	HederaFunctionality canonicalFunction();
 	ResponseCodeEnum extractValidityFrom(Response response);
-	Optional<SignedTxnAccessor> extractPaymentFrom(Query query);
+	Optional<BaseTxnAccessor> extractPaymentFrom(Query query);
 
 	default Response responseGiven(Query query, StateView view, ResponseCodeEnum validity) {
 		return responseGiven(query, view, validity, 0L);

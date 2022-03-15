@@ -22,6 +22,7 @@ package com.hedera.services.txns.submission;
 
 import com.hedera.services.context.domain.process.TxnValidityAndFeeReq;
 import com.hedera.services.utils.accessors.SignedTxnAccessor;
+import com.hedera.services.utils.accessors.UserTxnAccessor;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -49,7 +50,7 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TRANSACTION_TO
  * Error response factory that caches well-known responses by status code.
  */
 public final class PresolvencyFlaws {
-	static final Map<ResponseCodeEnum, Pair<TxnValidityAndFeeReq, SignedTxnAccessor>> WELL_KNOWN_FLAWS =
+	static final Map<ResponseCodeEnum, Pair<TxnValidityAndFeeReq, UserTxnAccessor>> WELL_KNOWN_FLAWS =
 			new EnumMap<>(ResponseCodeEnum.class);
 
 	static {
@@ -73,17 +74,17 @@ public final class PresolvencyFlaws {
 		putTo(WELL_KNOWN_FLAWS, DUPLICATE_TRANSACTION);
 	}
 
-	static Pair<TxnValidityAndFeeReq, SignedTxnAccessor> responseForFlawed(final ResponseCodeEnum status) {
+	static Pair<TxnValidityAndFeeReq, UserTxnAccessor> responseForFlawed(final ResponseCodeEnum status) {
 		final var response = WELL_KNOWN_FLAWS.get(status);
 		return (null != response) ? response : failureWithUnknownFeeReq(status);
 	}
 
-	private static Pair<TxnValidityAndFeeReq, SignedTxnAccessor> failureWithUnknownFeeReq(final ResponseCodeEnum error) {
+	private static Pair<TxnValidityAndFeeReq, UserTxnAccessor> failureWithUnknownFeeReq(final ResponseCodeEnum error) {
 		return Pair.of(new TxnValidityAndFeeReq(error), null);
 	}
 
 	private static void putTo(
-			final Map<ResponseCodeEnum, Pair<TxnValidityAndFeeReq, SignedTxnAccessor>> map,
+			final Map<ResponseCodeEnum, Pair<TxnValidityAndFeeReq, UserTxnAccessor>> map,
 			final ResponseCodeEnum code) {
 		map.put(code, failureWithUnknownFeeReq(code));
 	}

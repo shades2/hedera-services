@@ -31,6 +31,7 @@ import com.hedera.services.sigs.verification.PrecheckVerifier;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.utils.EntityNum;
 import com.hedera.services.txns.validation.OptionValidator;
+import com.hedera.services.utils.accessors.BaseTxnAccessor;
 import com.hedera.services.utils.accessors.SignedTxnAccessor;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.fee.FeeObject;
@@ -93,15 +94,15 @@ public class SolvencyPrecheck {
 		this.dynamicProperties = dynamicProperties;
 	}
 
-	TxnValidityAndFeeReq assessSansSvcFees(SignedTxnAccessor accessor) {
+	TxnValidityAndFeeReq assessSansSvcFees(BaseTxnAccessor accessor) {
 		return assess(accessor, false);
 	}
 
-	TxnValidityAndFeeReq assessWithSvcFees(SignedTxnAccessor accessor) {
+	TxnValidityAndFeeReq assessWithSvcFees(BaseTxnAccessor accessor) {
 		return assess(accessor, true);
 	}
 
-	private TxnValidityAndFeeReq assess(SignedTxnAccessor accessor, boolean includeSvcFee) {
+	private TxnValidityAndFeeReq assess(BaseTxnAccessor accessor, boolean includeSvcFee) {
 		final var payerStatus = queryableAccountStatus(EntityNum.fromAccountId(accessor.getPayer()), accounts.get());
 		if (payerStatus != OK) {
 			return new TxnValidityAndFeeReq(PAYER_ACCOUNT_NOT_FOUND);
@@ -119,7 +120,7 @@ public class SolvencyPrecheck {
 		return solvencyOfVerifiedPayer(accessor, includeSvcFee);
 	}
 
-	private TxnValidityAndFeeReq solvencyOfVerifiedPayer(SignedTxnAccessor accessor, boolean includeSvcFee) {
+	private TxnValidityAndFeeReq solvencyOfVerifiedPayer(BaseTxnAccessor accessor, boolean includeSvcFee) {
 		final var payerId = EntityNum.fromAccountId(accessor.getPayer());
 		final var payerAccount = accounts.get().get(payerId);
 
@@ -155,7 +156,7 @@ public class SolvencyPrecheck {
 		return (includeSvcFee ? fees.getServiceFee() : 0) + fees.getNodeFee() + fees.getNetworkFee();
 	}
 
-	private ResponseCodeEnum checkSigs(SignedTxnAccessor accessor) {
+	private ResponseCodeEnum checkSigs(BaseTxnAccessor accessor) {
 		try {
 			return precheckVerifier.hasNecessarySignatures(accessor) ? OK : INVALID_SIGNATURE;
 		} catch (KeyPrefixMismatchException ignore) {

@@ -23,8 +23,10 @@ package com.hedera.services.txns.submission;
 import com.hedera.services.context.CurrentPlatformStatus;
 import com.hedera.services.context.domain.process.TxnValidityAndFeeReq;
 import com.hedera.services.queries.validation.QueryFeeCheck;
+import com.hedera.services.utils.accessors.BaseTxnAccessor;
 import com.hedera.services.utils.accessors.SignedTxnAccessor;
 import com.hedera.services.utils.accessors.TxnAccessor;
+import com.hedera.services.utils.accessors.UserTxnAccessor;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.Transaction;
 import org.apache.commons.lang3.tuple.Pair;
@@ -71,11 +73,11 @@ public final class TransactionPrecheck {
 		this.currentPlatformStatus = currentPlatformStatus;
 	}
 
-	public Pair<TxnValidityAndFeeReq, SignedTxnAccessor> performForTopLevel(final Transaction signedTxn) {
+	public Pair<TxnValidityAndFeeReq, UserTxnAccessor> performForTopLevel(final Transaction signedTxn) {
 		return performance(signedTxn, TOP_LEVEL_CHARACTERISTICS);
 	}
 
-	public Pair<TxnValidityAndFeeReq, SignedTxnAccessor> performForQueryPayment(final Transaction signedTxn) {
+	public Pair<TxnValidityAndFeeReq, UserTxnAccessor> performForQueryPayment(final Transaction signedTxn) {
 		final var prelim = performance(signedTxn, QUERY_PAYMENT_CHARACTERISTICS);
 		final var accessor = prelim.getRight();
 		if (null == accessor) {
@@ -90,7 +92,7 @@ public final class TransactionPrecheck {
 		return prelim;
 	}
 
-	private Pair<TxnValidityAndFeeReq, SignedTxnAccessor> performance(
+	private Pair<TxnValidityAndFeeReq, UserTxnAccessor> performance(
 			final Transaction signedTxn,
 			final Set<Characteristic> characteristics
 	) {
@@ -133,7 +135,7 @@ public final class TransactionPrecheck {
 		return Pair.of(solvencyStatus, accessor);
 	}
 
-	private Pair<TxnValidityAndFeeReq, SignedTxnAccessor> failureFor(final TxnValidityAndFeeReq feeReqStatus) {
+	private Pair<TxnValidityAndFeeReq, UserTxnAccessor> failureFor(final TxnValidityAndFeeReq feeReqStatus) {
 		return Pair.of(feeReqStatus, null);
 	}
 

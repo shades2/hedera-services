@@ -27,6 +27,7 @@ import com.hedera.services.stats.HapiOpCounters;
 import com.hedera.services.txns.submission.annotations.MaxProtoMsgDepth;
 import com.hedera.services.txns.submission.annotations.MaxSignedTxnSize;
 import com.hedera.services.utils.accessors.SignedTxnAccessor;
+import com.hedera.services.utils.accessors.UserTxnAccessor;
 import com.hederahashgraph.api.proto.java.Transaction;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -69,7 +70,7 @@ public final class StructuralPrecheck {
 		this.opCounters = counters;
 	}
 
-	public Pair<TxnValidityAndFeeReq, SignedTxnAccessor> assess(final Transaction signedTxn) {
+	public Pair<TxnValidityAndFeeReq, UserTxnAccessor> assess(final Transaction signedTxn) {
 		final var hasSignedTxnBytes = !signedTxn.getSignedTransactionBytes().isEmpty();
 		final var hasDeprecatedSigMap = signedTxn.hasSigMap();
 		final var hasDeprecatedBodyBytes = !signedTxn.getBodyBytes().isEmpty();
@@ -93,7 +94,7 @@ public final class StructuralPrecheck {
 		}
 
 		try {
-			final var accessor = new SignedTxnAccessor(signedTxn);
+			final var accessor = new UserTxnAccessor(signedTxn);
 			if (hasTooManyLayers(signedTxn) || hasTooManyLayers(accessor.getTxn())) {
 				return WELL_KNOWN_FLAWS.get(TRANSACTION_TOO_MANY_LAYERS);
 			}

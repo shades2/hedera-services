@@ -23,7 +23,8 @@ package com.hedera.services.txns.schedule;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.services.context.TransactionContext;
 import com.hedera.services.store.schedule.ScheduleStore;
-import com.hedera.services.utils.accessors.TriggeredTxnAccessor;
+import com.hedera.services.utils.accessors.AccessorFactory;
+import com.hedera.services.utils.accessors.BaseTxnAccessor;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.ScheduleID;
 
@@ -40,9 +41,11 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
  */
 @Singleton
 public final class ScheduleExecutor {
+	private final AccessorFactory factory;
+
 	@Inject
-	public ScheduleExecutor() {
-		// Default constructor
+	public ScheduleExecutor(AccessorFactory factory) {
+		this.factory = factory;
 	}
 
 	/**
@@ -77,7 +80,7 @@ public final class ScheduleExecutor {
 		final var schedule = store.get(id);
 		final var transaction = schedule.asSignedTxn();
 		txnCtx.trigger(
-				new TriggeredTxnAccessor(
+				factory.triggeredTxn(
 						transaction.toByteArray(),
 						schedule.effectivePayer().toGrpcAccountId(),
 						id));
