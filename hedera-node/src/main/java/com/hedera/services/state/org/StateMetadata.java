@@ -49,7 +49,7 @@ public class StateMetadata implements FastCopyable, Archivable {
 
 	@Override
 	public void archive() {
-		release();
+		// No-op
 	}
 
 	@Override
