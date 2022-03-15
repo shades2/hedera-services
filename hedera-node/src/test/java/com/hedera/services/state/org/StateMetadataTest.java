@@ -30,9 +30,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -62,15 +62,26 @@ class StateMetadataTest {
 	}
 
 	@Test
-	void releasesAliasesOnRelease() {
+	void releasesUnreleasedAliasesOnRelease() {
 		subject.release();
 
 		verify(aliases).release();
 	}
 
 	@Test
-	void archiveIsNoop() {
-		assertDoesNotThrow(subject::archive);
+	void doesntReleaseAlreadyReleasedAliasesOnRelease() {
+		given(aliases.isReleased()).willReturn(true);
+
+		subject.release();
+
+		verify(aliases, never()).release();
+	}
+
+	@Test
+	void releasesAliasesOnArchive() {
+		subject.archive();
+
+		verify(aliases).release();
 	}
 
 	@Test
