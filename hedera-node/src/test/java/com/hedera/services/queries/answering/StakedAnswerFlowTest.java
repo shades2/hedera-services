@@ -33,7 +33,7 @@ import com.hedera.services.throttling.FunctionalityThrottling;
 import com.hedera.services.txns.submission.PlatformSubmissionManager;
 import com.hedera.services.txns.submission.TransactionPrecheck;
 import com.hedera.services.utils.MiscUtils;
-import com.hedera.services.utils.accessors.SignedTxnAccessor;
+import com.hedera.services.utils.accessors.SwirldTxnAccessor;
 import com.hedera.test.utils.IdUtils;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.FeeData;
@@ -85,8 +85,8 @@ class StakedAnswerFlowTest {
 	private static final AccountID superuser = IdUtils.asAccount("0.0.50");
 	private static final Query query = Query.getDefaultInstance();
 	private static final Response response = Response.getDefaultInstance();
-	private static final SignedTxnAccessor paymentAccessor = accessorWith(payer);
-	private static final SignedTxnAccessor superuserPaymentAccessor = accessorWith(superuser);
+	private static final SwirldTxnAccessor paymentAccessor = accessorWith(payer);
+	private static final SwirldTxnAccessor superuserPaymentAccessor = accessorWith(superuser);
 
 	private static final AccountNumbers accountNumbers = new MockAccountNumbers();
 
@@ -486,8 +486,8 @@ class StakedAnswerFlowTest {
 		given(service.responseGiven(query, stateView, OK, queryCost, Collections.emptyMap())).willReturn(response);
 	}
 
-	private static final SignedTxnAccessor accessorWith(final AccountID txnPayer) {
-		return SignedTxnAccessor.uncheckedFrom(Transaction.newBuilder()
+	private static final SwirldTxnAccessor accessorWith(final AccountID txnPayer) {
+		return SwirldTxnAccessor.from(Transaction.newBuilder()
 				.setBodyBytes(TransactionBody.newBuilder()
 						.setNodeAccountID(node)
 						.setTransactionID(TransactionID.newBuilder()

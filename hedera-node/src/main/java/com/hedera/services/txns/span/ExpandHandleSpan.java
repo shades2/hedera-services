@@ -24,7 +24,7 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.services.utils.accessors.AccessorFactory;
-import com.hedera.services.utils.accessors.UserTxnAccessor;
+import com.hedera.services.utils.accessors.SwirldTxnAccessor;
 import com.swirlds.common.SwirldDualState;
 import com.swirlds.common.SwirldTransaction;
 
@@ -38,7 +38,7 @@ import java.util.concurrent.TimeUnit;
  * SwirldDualState)}
  * Platform callbacks.
  *
- * At first this span only tracks the {@link UserTxnAccessor} parsed from the
+ * At first this span only tracks the {@link SwirldTxnAccessor} parsed from the
  * transaction contents in an expiring cache. Since the parsing is a pure function
  * of the contents, this is a trivial exercise.
  *
@@ -55,7 +55,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class ExpandHandleSpan {
 	private final SpanMapManager spanMapManager;
-	private final Cache<SwirldTransaction, UserTxnAccessor> accessorCache;
+	private final Cache<SwirldTransaction, SwirldTxnAccessor> accessorCache;
 	private final AccessorFactory factory;
 
 	public ExpandHandleSpan(
@@ -71,13 +71,13 @@ public class ExpandHandleSpan {
 		this.factory = factory;
 	}
 
-	public UserTxnAccessor track(SwirldTransaction transaction) throws InvalidProtocolBufferException {
+	public SwirldTxnAccessor track(SwirldTransaction transaction) throws InvalidProtocolBufferException {
 		final var accessor = spanAccessorFor(transaction);
 		accessorCache.put(transaction, accessor);
 		return accessor;
 	}
 
-	public UserTxnAccessor accessorFor(SwirldTransaction transaction) throws InvalidProtocolBufferException {
+	public SwirldTxnAccessor accessorFor(SwirldTransaction transaction) throws InvalidProtocolBufferException {
 		final var cachedAccessor = accessorCache.getIfPresent(transaction);
 		if (cachedAccessor != null) {
 			spanMapManager.rationalizeSpan(cachedAccessor);
@@ -87,9 +87,9 @@ public class ExpandHandleSpan {
 		}
 	}
 
-	private UserTxnAccessor spanAccessorFor(SwirldTransaction transaction) throws InvalidProtocolBufferException {
+	private SwirldTxnAccessor spanAccessorFor(SwirldTransaction transaction) throws InvalidProtocolBufferException {
 		final var accessor = factory.nonTriggeredTxn(transaction.getContentsDirect());
 		spanMapManager.expandSpan(accessor);
-		return new UserTxnAccessor(accessor, transaction);
+		return SwirldTxnAccessor.from(accessor, transaction);
 	}
 }

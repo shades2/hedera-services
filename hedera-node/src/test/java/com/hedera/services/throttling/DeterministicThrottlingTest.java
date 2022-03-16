@@ -29,7 +29,6 @@ import com.hedera.services.throttles.DeterministicThrottle;
 import com.hedera.services.throttles.GasLimitDeterministicThrottle;
 import com.hedera.services.utils.EntityNum;
 import com.hedera.services.utils.MiscUtils;
-import com.hedera.services.utils.accessors.SignedTxnAccessor;
 import com.hedera.services.utils.accessors.TxnAccessor;
 import com.hedera.test.extensions.LogCaptor;
 import com.hedera.test.extensions.LogCaptureExtension;

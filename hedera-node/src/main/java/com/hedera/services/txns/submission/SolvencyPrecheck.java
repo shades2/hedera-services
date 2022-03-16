@@ -32,7 +32,7 @@ import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.utils.EntityNum;
 import com.hedera.services.txns.validation.OptionValidator;
 import com.hedera.services.utils.accessors.BaseTxnAccessor;
-import com.hedera.services.utils.accessors.SignedTxnAccessor;
+import com.hedera.services.utils.accessors.SwirldTxnAccessor;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.fee.FeeObject;
 import com.swirlds.merkle.map.MerkleMap;
@@ -102,7 +102,7 @@ public class SolvencyPrecheck {
 		return assess(accessor, true);
 	}
 
-	private TxnValidityAndFeeReq assess(BaseTxnAccessor accessor, boolean includeSvcFee) {
+	private TxnValidityAndFeeReq assess(SwirldTxnAccessor accessor, boolean includeSvcFee) {
 		final var payerStatus = queryableAccountStatus(EntityNum.fromAccountId(accessor.getPayer()), accounts.get());
 		if (payerStatus != OK) {
 			return new TxnValidityAndFeeReq(PAYER_ACCOUNT_NOT_FOUND);
@@ -120,7 +120,7 @@ public class SolvencyPrecheck {
 		return solvencyOfVerifiedPayer(accessor, includeSvcFee);
 	}
 
-	private TxnValidityAndFeeReq solvencyOfVerifiedPayer(BaseTxnAccessor accessor, boolean includeSvcFee) {
+	private TxnValidityAndFeeReq solvencyOfVerifiedPayer(SwirldTxnAccessor accessor, boolean includeSvcFee) {
 		final var payerId = EntityNum.fromAccountId(accessor.getPayer());
 		final var payerAccount = accounts.get().get(payerId);
 
@@ -156,7 +156,7 @@ public class SolvencyPrecheck {
 		return (includeSvcFee ? fees.getServiceFee() : 0) + fees.getNodeFee() + fees.getNetworkFee();
 	}
 
-	private ResponseCodeEnum checkSigs(BaseTxnAccessor accessor) {
+	private ResponseCodeEnum checkSigs(SwirldTxnAccessor accessor) {
 		try {
 			return precheckVerifier.hasNecessarySignatures(accessor) ? OK : INVALID_SIGNATURE;
 		} catch (KeyPrefixMismatchException ignore) {

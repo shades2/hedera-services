@@ -3,7 +3,6 @@ package com.hedera.services.utils.accessors;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.services.ledger.accounts.AliasManager;
 import com.hedera.services.sigs.order.LinkedRefs;
-import com.hedera.services.sigs.sourcing.PojoSigMapPubKeyToSigBytes;
 import com.hedera.services.sigs.sourcing.PubKeyToSigBytes;
 import com.hedera.services.txns.span.ExpandHandleSpanMapAccessor;
 import com.hedera.services.usage.BaseTransactionMeta;
@@ -31,40 +30,35 @@ import java.util.function.Function;
  * transaction submitted by a user, via HAPI and then reaching consensus
  * in the platform.
  */
-public class UserTxnAccessor implements TxnAccessor {
+public class SwirldTxnAccessor implements TxnAccessor {
 	private TxnAccessor delegate;
 	private final SwirldTransaction swirldTransaction;
-
-	private ResponseCodeEnum expandedSigStatus;
-	private PubKeyToSigBytes pubKeyToSigBytes;
-	private SubmitMessageMeta submitMessageMeta;
-	private CryptoTransferMeta xferUsageMeta;
-	private BaseTransactionMeta txnUsageMeta;
 	private RationalizedSigMeta sigMeta = null;
-	private SignatureMap sigMap;
 
-	public UserTxnAccessor(final TxnAccessor delegate, final SwirldTransaction swirldTransaction)
+	protected SwirldTxnAccessor(final TxnAccessor delegate, final SwirldTransaction swirldTransaction)
 			throws InvalidProtocolBufferException {
 		this.delegate = delegate;
 		this.swirldTransaction = swirldTransaction;
-
-		final var signedTxnWrapper = delegate.getSignedTxnWrapper();
-		final var signedTxnBytes = signedTxnWrapper.getSignedTransactionBytes();
-		if (signedTxnBytes.isEmpty()) {
-			sigMap = signedTxnWrapper.getSigMap();
-		} else {
-			final var signedTxn = SignedTransaction.parseFrom(signedTxnBytes);
-			sigMap = signedTxn.getSigMap();
-		}
-		delegate.setSigMapSize(sigMap.getSerializedSize());
-		delegate.setNumSigPairs(sigMap.getSigPairCount());
-		pubKeyToSigBytes = new PojoSigMapPubKeyToSigBytes(sigMap);
 	}
 
-	public static UserTxnAccessor from(final SwirldTransaction platformTxn, final AliasManager aliasManager)
+	public static SwirldTxnAccessor from(final SwirldTransaction platformTxn, final AliasManager aliasManager)
 			throws InvalidProtocolBufferException {
-		return new UserTxnAccessor(new BaseTxnAccessor(platformTxn.getContentsDirect(), () -> aliasManager),
+		return new SwirldTxnAccessor(new BaseTxnAccessor(platformTxn.getContentsDirect(), aliasManager),
 				platformTxn);
+	}
+
+	public static SwirldTxnAccessor from(final TxnAccessor delegate, final SwirldTransaction platformTxn)
+			throws InvalidProtocolBufferException {
+		return new SwirldTxnAccessor(delegate, platformTxn);
+	}
+
+	public Function<byte[], TransactionSignature> getRationalizedPkToCryptoSigFn() {
+		final var sigMeta = getSigMeta();
+		if (!sigMeta.couldRationalizeOthers()) {
+			throw new IllegalStateException("Public-key-to-crypto-sig mapping is unusable after rationalization " +
+					"failed");
+		}
+		return sigMeta.pkToVerifiedSigFn();
 	}
 
 	@Override
@@ -214,20 +208,17 @@ public class UserTxnAccessor implements TxnAccessor {
 		delegate.setNumSigPairs(numPairs);
 	}
 
-	public SignatureMap getSigMap() {
-		return sigMap;
+	@Override
+	public PubKeyToSigBytes getPkToSigsFn() {
+		return delegate.getPkToSigsFn();
 	}
 
-	public void setExpandedSigStatus(ResponseCodeEnum expandedSigStatus) {
-		this.expandedSigStatus = expandedSigStatus;
+	public SignatureMap getSigMap() {
+		return delegate.getSigMap();
 	}
 
 	public ResponseCodeEnum getExpandedSigStatus() {
-		return expandedSigStatus;
-	}
-
-	public PubKeyToSigBytes getPkToSigsFn() {
-		return pubKeyToSigBytes;
+		return delegate.getExpandedSigStatus();
 	}
 
 	public void setSigMeta(RationalizedSigMeta sigMeta) {
@@ -236,15 +227,6 @@ public class UserTxnAccessor implements TxnAccessor {
 
 	public RationalizedSigMeta getSigMeta() {
 		return sigMeta;
-	}
-
-	public Function<byte[], TransactionSignature> getRationalizedPkToCryptoSigFn() {
-		final var sigMeta = getSigMeta();
-		if (!sigMeta.couldRationalizeOthers()) {
-			throw new IllegalStateException("Public-key-to-crypto-sig mapping is unusable after rationalization " +
-					"failed");
-		}
-		return sigMeta.pkToVerifiedSigFn();
 	}
 
 	public byte[] getSignedTxnWrapperBytes() {

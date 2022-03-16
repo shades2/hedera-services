@@ -5,7 +5,6 @@ import com.hedera.services.ledger.accounts.AliasManager;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ScheduleID;
 import com.hederahashgraph.api.proto.java.Transaction;
-import com.swirlds.common.SwirldTransaction;
 
 import javax.inject.Inject;
 
@@ -52,6 +51,6 @@ public class AccessorFactory {
 		if (function == TokenAccountWipe) {
 			return new TokenWipeAccessor(signedTxnWrapperBytes, aliasManager);
 		}
-		return new BaseTxnAccessor(signedTxnWrapperBytes, () -> aliasManager);
+		return new BaseTxnAccessor(signedTxnWrapperBytes, aliasManager);
 	}
 }

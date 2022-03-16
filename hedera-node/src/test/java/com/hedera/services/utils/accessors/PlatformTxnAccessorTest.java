@@ -95,7 +95,7 @@
 //				new SwirldTransaction(signedTxnWithBody.toByteArray());
 //
 //		// given:
-//		UserTxnAccessor subject = UserTxnAccessor.from(platformTxn, aliasManager);
+//		SwirldTxnAccessor subject = SwirldTxnAccessor.from(platformTxn, aliasManager);
 //
 //		// when:
 //		subject.setSigMeta(RationalizedSigMeta.noneAvailable());
@@ -152,7 +152,7 @@
 //				.build();
 //
 //		given(mockFn.apply(any())).willReturn(ConsensusCreateTopic);
-//		var subject = UserTxnAccessor.uncheckedFrom(signedTxn);
+//		var subject = SwirldTxnAccessor.uncheckedFrom(signedTxn);
 //
 //		// when:
 //		var first = subject.getFunction();

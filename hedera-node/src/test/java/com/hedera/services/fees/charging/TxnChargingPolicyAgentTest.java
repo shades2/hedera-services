@@ -26,7 +26,6 @@ import com.hedera.services.fees.FeeCalculator;
 import com.hedera.services.legacy.core.jproto.JKey;
 import com.hedera.services.records.TxnIdRecentHistory;
 import com.hedera.services.state.logic.AwareNodeDiligenceScreen;
-import com.hedera.services.utils.accessors.SignedTxnAccessor;
 import com.hedera.services.utils.accessors.TxnAccessor;
 import com.hedera.test.factories.scenarios.TxnHandlingScenario;
 import com.hedera.test.utils.IdUtils;

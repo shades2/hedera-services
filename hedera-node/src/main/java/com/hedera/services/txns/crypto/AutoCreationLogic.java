@@ -41,7 +41,6 @@ import com.hedera.services.state.submerkle.FcAssessedCustomFee;
 import com.hedera.services.store.contracts.precompile.SyntheticTxnFactory;
 import com.hedera.services.utils.EntityNum;
 import com.hedera.services.utils.accessors.BaseTxnAccessor;
-import com.hedera.services.utils.accessors.SignedTxnAccessor;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
@@ -50,6 +49,8 @@ import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -67,6 +68,8 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
  */
 @Singleton
 public class AutoCreationLogic {
+	private static final Logger log = LogManager.getLogger(AutoCreationLogic.class);
+
 	private static final List<FcAssessedCustomFee> NO_CUSTOM_FEES = Collections.emptyList();
 
 	private final StateView currentView;
@@ -208,11 +211,11 @@ public class AutoCreationLogic {
 					.setSignedTransactionBytes(signedTxn.toByteString())
 					.build();
 
-			final var accessor = BaseTxnAccessor(txn, aliasManager);
+			final var accessor = BaseTxnAccessor.from(txn, aliasManager);
 			final var fees = feeCalculator.computeFee(accessor, EMPTY_KEY, currentView, txnCtx.consensusTime());
 			return fees.getServiceFee() + fees.getNetworkFee() + fees.getNodeFee();
 		} catch (InvalidProtocolBufferException ex) {
-
+			throw new IllegalArgumentException("Invalid auto create transaction", ex);
 		}
 	}
 

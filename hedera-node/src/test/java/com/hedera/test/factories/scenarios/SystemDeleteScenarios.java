@@ -20,7 +20,7 @@ package com.hedera.test.factories.scenarios;
  * ‍
  */
 
-import com.hedera.services.utils.accessors.UserTxnAccessor;
+import com.hedera.services.utils.accessors.SwirldTxnAccessor;
 import com.hedera.test.factories.sigs.SigMapGenerator;
 
 import java.util.Set;
@@ -30,15 +30,15 @@ import static com.hedera.test.factories.txns.SystemDeleteFactory.newSignedSystem
 
 public enum SystemDeleteScenarios implements TxnHandlingScenario {
 	SYSTEM_DELETE_FILE_SCENARIO {
-		public UserTxnAccessor platformTxn() throws Throwable {
-			return UserTxnAccessor.from(from(
+		public SwirldTxnAccessor platformTxn() throws Throwable {
+			return SwirldTxnAccessor.from(from(
 					newSignedSystemDelete().file(MISC_FILE_ID).get()
 			), aliasManager());
 		}
 	},
 	FULL_PAYER_SIGS_VIA_MAP_SCENARIO {
-		public UserTxnAccessor platformTxn() throws Throwable {
-			return UserTxnAccessor.from(from(
+		public SwirldTxnAccessor platformTxn() throws Throwable {
+			return SwirldTxnAccessor.from(from(
 					newSignedSystemDelete()
 							.payer(DILIGENT_SIGNING_PAYER_ID)
 							.payerKt(DILIGENT_SIGNING_PAYER_KT)
@@ -48,8 +48,8 @@ public enum SystemDeleteScenarios implements TxnHandlingScenario {
 		}
 	},
 	MISSING_PAYER_SIGS_VIA_MAP_SCENARIO {
-		public UserTxnAccessor platformTxn() throws Throwable {
-			return UserTxnAccessor.from(from(
+		public SwirldTxnAccessor platformTxn() throws Throwable {
+			return SwirldTxnAccessor.from(from(
 					newSignedSystemDelete()
 							.payer(TOKEN_TREASURY_ID)
 							.payerKt(TOKEN_TREASURY_KT)
@@ -59,11 +59,11 @@ public enum SystemDeleteScenarios implements TxnHandlingScenario {
 		}
 	},
 	INVALID_PAYER_SIGS_VIA_MAP_SCENARIO {
-		public UserTxnAccessor platformTxn() throws Throwable {
+		public SwirldTxnAccessor platformTxn() throws Throwable {
 			SigMapGenerator buggySigMapGen = SigMapGenerator.withUniquePrefixes();
 			buggySigMapGen.setInvalidEntries(Set.of(1));
 
-			return UserTxnAccessor.from(from(
+			return SwirldTxnAccessor.from(from(
 					newSignedSystemDelete()
 							.fee(1_234L)
 							.sigMapGen(buggySigMapGen)
@@ -75,10 +75,10 @@ public enum SystemDeleteScenarios implements TxnHandlingScenario {
 		}
 	},
 	AMBIGUOUS_SIG_MAP_SCENARIO {
-		public UserTxnAccessor platformTxn() throws Throwable {
+		public SwirldTxnAccessor platformTxn() throws Throwable {
 			SigMapGenerator ambigSigMapGen = SigMapGenerator.withAmbiguousPrefixes();
 
-			return UserTxnAccessor.from(from(
+			return SwirldTxnAccessor.from(from(
 					newSignedSystemDelete()
 							.fee(1_234L)
 							.keyFactory(overlapFactory)

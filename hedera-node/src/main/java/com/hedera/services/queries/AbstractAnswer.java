@@ -21,7 +21,7 @@ package com.hedera.services.queries;
  */
 
 import com.hedera.services.context.primitives.StateView;
-import com.hedera.services.utils.accessors.SignedTxnAccessor;
+import com.hedera.services.utils.accessors.SwirldTxnAccessor;
 import com.hederahashgraph.api.proto.java.HederaFunctionality;
 import com.hederahashgraph.api.proto.java.Query;
 import com.hederahashgraph.api.proto.java.Response;
@@ -83,9 +83,9 @@ public abstract class AbstractAnswer implements AnswerService {
 	}
 
 	@Override
-	public Optional<SignedTxnAccessor> extractPaymentFrom(Query query) {
+	public Optional<SwirldTxnAccessor> extractPaymentFrom(Query query) {
 		var paymentTxn = paymentExtractor.apply(query);
 
-		return Optional.of(SignedTxnAccessor.uncheckedFrom(paymentTxn));
+		return Optional.of(SwirldTxnAccessor.from(paymentTxn));
 	}
 }

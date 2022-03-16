@@ -27,7 +27,7 @@ import com.hedera.services.sigs.order.SigRequirements;
 import com.hedera.services.sigs.order.SigningOrderResult;
 import com.hedera.services.sigs.order.SigningOrderResultFactory;
 import com.hedera.services.sigs.sourcing.PubKeyToSigBytes;
-import com.hedera.services.utils.accessors.UserTxnAccessor;
+import com.hedera.services.utils.accessors.SwirldTxnAccessor;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.swirlds.common.crypto.TransactionSignature;
@@ -45,7 +45,7 @@ class Expansion {
 	private final SigRequirements sigReqs;
 	private final PubKeyToSigBytes pkToSigFn;
 	private final CryptoSigsCreation cryptoSigsCreation;
-	private final UserTxnAccessor txnAccessor;
+	private final SwirldTxnAccessor txnAccessor;
 	private final TxnScopedPlatformSigFactory sigFactory;
 
 	private final LinkedRefs linkedRefs = new LinkedRefs();
@@ -57,7 +57,7 @@ class Expansion {
 	private enum Role {PAYER, OTHER_PARTIES}
 
 	public Expansion(
-			final UserTxnAccessor txnAccessor,
+			final SwirldTxnAccessor txnAccessor,
 			final SigRequirements sigReqs,
 			final PubKeyToSigBytes pkToSigFn,
 			final CryptoSigsCreation cryptoSigsCreation,

@@ -25,7 +25,6 @@ import com.hedera.services.context.TransactionContext;
 import com.hedera.services.ledger.backing.BackingStore;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.txns.validation.OptionValidator;
-import com.hedera.services.utils.accessors.SignedTxnAccessor;
 import com.hedera.services.utils.accessors.TxnAccessor;
 import com.hedera.test.extensions.LogCaptor;
 import com.hedera.test.extensions.LogCaptureExtension;

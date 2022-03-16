@@ -24,8 +24,7 @@ import com.hedera.services.context.domain.security.HapiOpPermissions;
 import com.hedera.services.txns.auth.SystemOpAuthorization;
 import com.hedera.services.txns.auth.SystemOpPolicies;
 import com.hedera.services.throttling.TransactionThrottling;
-import com.hedera.services.utils.accessors.SignedTxnAccessor;
-import com.hedera.services.utils.accessors.UserTxnAccessor;
+import com.hedera.services.utils.accessors.SwirldTxnAccessor;
 import com.hedera.test.utils.IdUtils;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
@@ -50,7 +49,7 @@ import static org.mockito.BDDMockito.given;
 class SystemPrecheckTest {
 	private final AccountID systemPayer = IdUtils.asAccount("0.0.50");
 	private final AccountID civilianPayer = IdUtils.asAccount("0.0.1234");
-	private final UserTxnAccessor civilianXferAccessor = UserTxnAccessor.from(Transaction.newBuilder()
+	private final SwirldTxnAccessor civilianXferAccessor = SwirldTxnAccessor.from(Transaction.newBuilder()
 			.setBodyBytes(TransactionBody.newBuilder()
 					.setTransactionID(TransactionID.newBuilder()
 							.setAccountID(civilianPayer))

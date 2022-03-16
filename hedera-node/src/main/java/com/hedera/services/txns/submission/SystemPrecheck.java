@@ -23,8 +23,7 @@ package com.hedera.services.txns.submission;
 import com.hedera.services.context.domain.security.HapiOpPermissions;
 import com.hedera.services.txns.auth.SystemOpPolicies;
 import com.hedera.services.throttling.TransactionThrottling;
-import com.hedera.services.utils.accessors.SignedTxnAccessor;
-import com.hedera.services.utils.accessors.UserTxnAccessor;
+import com.hedera.services.utils.accessors.SwirldTxnAccessor;
 import com.hederahashgraph.api.proto.java.HederaFunctionality;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 
@@ -64,7 +63,7 @@ public class SystemPrecheck {
 		this.hapiOpPermissions = hapiOpPermissions;
 	}
 
-	ResponseCodeEnum screen(UserTxnAccessor accessor) {
+	ResponseCodeEnum screen(SwirldTxnAccessor accessor) {
 		final var payer = accessor.getPayer();
 
 		final var permissionStatus = hapiOpPermissions.permissibilityOf(accessor.getFunction(), payer);

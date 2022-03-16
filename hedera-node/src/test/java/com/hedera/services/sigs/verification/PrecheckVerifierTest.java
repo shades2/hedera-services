@@ -26,8 +26,6 @@ import com.hedera.services.legacy.exception.KeyPrefixMismatchException;
 import com.hedera.services.sigs.PlatformSigOps;
 import com.hedera.services.sigs.factories.ReusableBodySigningFactory;
 import com.hedera.services.sigs.sourcing.PubKeyToSigBytes;
-import com.hedera.services.utils.accessors.PlatformTxnAccessor;
-import com.hedera.services.utils.accessors.SignedTxnAccessor;
 import com.hedera.test.factories.keys.KeyTree;
 import com.hedera.test.factories.txns.PlatformTxnFactory;
 import com.hedera.test.utils.IdUtils;

@@ -39,7 +39,7 @@ import com.hedera.services.state.submerkle.RichInstant;
 import com.hedera.services.state.submerkle.TxnId;
 import com.hedera.services.utils.EntityNum;
 import com.hedera.services.utils.accessors.TxnAccessor;
-import com.hedera.services.utils.accessors.UserTxnAccessor;
+import com.hedera.services.utils.accessors.SwirldTxnAccessor;
 import com.hedera.test.extensions.LogCaptor;
 import com.hedera.test.extensions.LogCaptureExtension;
 import com.hedera.test.extensions.LoggingSubject;
@@ -145,7 +145,7 @@ class BasicTransactionContextTest {
 	@Mock
 	private NarratedCharging narratedCharging;
 	@Mock
-	private UserTxnAccessor accessor;
+	private SwirldTxnAccessor accessor;
 	@Mock
 	private TransactionBody txn;
 	@Mock

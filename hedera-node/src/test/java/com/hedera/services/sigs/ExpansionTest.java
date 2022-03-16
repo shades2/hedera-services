@@ -29,7 +29,7 @@ import com.hedera.services.sigs.order.SigningOrderResult;
 import com.hedera.services.sigs.sourcing.KeyType;
 import com.hedera.services.sigs.sourcing.PubKeyToSigBytes;
 import com.hedera.services.sigs.sourcing.SigObserver;
-import com.hedera.services.utils.accessors.UserTxnAccessor;
+import com.hedera.services.utils.accessors.SwirldTxnAccessor;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.swirlds.common.SwirldTransaction;
@@ -60,7 +60,7 @@ class ExpansionTest {
 	@Mock
 	private SigRequirements sigReqs;
 	@Mock
-	private UserTxnAccessor txnAccessor;
+	private SwirldTxnAccessor txnAccessor;
 	@Mock
 	private TxnScopedPlatformSigFactory sigFactory;
 	@Mock

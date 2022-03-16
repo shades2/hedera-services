@@ -21,7 +21,6 @@ package com.hedera.services.throttling;
  */
 
 import com.hedera.services.sysfiles.domain.throttling.ThrottleDefinitions;
-import com.hedera.services.utils.accessors.SignedTxnAccessor;
 import com.hederahashgraph.api.proto.java.Query;
 import com.hederahashgraph.api.proto.java.Transaction;
 import org.junit.jupiter.api.BeforeEach;

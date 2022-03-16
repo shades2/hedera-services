@@ -32,7 +32,7 @@ import com.hedera.services.sigs.sourcing.PubKeyToSigBytes;
 import com.hedera.services.sigs.sourcing.SigObserver;
 import com.hedera.services.sigs.verification.SyncVerifier;
 import com.hedera.services.utils.RationalizedSigMeta;
-import com.hedera.services.utils.accessors.UserTxnAccessor;
+import com.hedera.services.utils.accessors.SwirldTxnAccessor;
 import com.hedera.test.factories.keys.KeyTree;
 import com.hedera.test.factories.txns.PlatformTxnFactory;
 import com.swirlds.common.crypto.TransactionSignature;
@@ -70,7 +70,7 @@ class HederaToPlatformSigOpsTest {
 	private static List<JKey> otherKeys;
 	private static List<JKey> fullPrefixKeys;
 	private PubKeyToSigBytes allSigBytes;
-	private UserTxnAccessor userTxnAccessor;
+	private SwirldTxnAccessor userTxnAccessor;
 	private SigRequirements keyOrdering;
 	private AliasManager aliasManager;
 
@@ -88,7 +88,7 @@ class HederaToPlatformSigOpsTest {
 		allSigBytes = mock(PubKeyToSigBytes.class);
 		keyOrdering = mock(SigRequirements.class);
 		aliasManager = mock(AliasManager.class);
-		userTxnAccessor = UserTxnAccessor.from(PlatformTxnFactory.from(newSignedSystemDelete().get()), aliasManager);
+		userTxnAccessor = SwirldTxnAccessor.from(PlatformTxnFactory.from(newSignedSystemDelete().get()), aliasManager);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -154,7 +154,7 @@ class HederaToPlatformSigOpsTest {
 	void rationalizesMissingSigs() throws Exception {
 		final var rationalization = new Rationalization(ALWAYS_VALID, keyOrdering, new ReusableBodySigningFactory());
 		final var captor = ArgumentCaptor.forClass(RationalizedSigMeta.class);
-		final var mockAccessor = mock(UserTxnAccessor.class);
+		final var mockAccessor = mock(SwirldTxnAccessor.class);
 
 		wellBehavedOrdersAndSigSources();
 		givenMirrorMock(mockAccessor, userTxnAccessor);
@@ -197,7 +197,7 @@ class HederaToPlatformSigOpsTest {
 
 	@Test
 	void stopImmediatelyOnOtherPartiesSigCreationFailure() throws Exception {
-		final var mockAccessor = mock(UserTxnAccessor.class);
+		final var mockAccessor = mock(SwirldTxnAccessor.class);
 		given(keyOrdering.keysForPayer(userTxnAccessor.getTxn(), CODE_ORDER_RESULT_FACTORY))
 				.willReturn(new SigningOrderResult<>(payerKey));
 		given(keyOrdering.keysForOtherParties(userTxnAccessor.getTxn(), CODE_ORDER_RESULT_FACTORY))
@@ -226,7 +226,7 @@ class HederaToPlatformSigOpsTest {
 				ALWAYS_VALID.verifySync(l);
 			}
 		};
-		final var mockAccessor = mock(UserTxnAccessor.class);
+		final var mockAccessor = mock(SwirldTxnAccessor.class);
 		final var captor = ArgumentCaptor.forClass(RationalizedSigMeta.class);
 		givenMirrorMock(mockAccessor, userTxnAccessor);
 		final var rationalization = new Rationalization(syncVerifier, keyOrdering, new ReusableBodySigningFactory());
@@ -246,7 +246,7 @@ class HederaToPlatformSigOpsTest {
 	@Test
 	void doesNothingToTxnIfAllSigsAreRational() throws Exception {
 		wellBehavedOrdersAndSigSources();
-		userTxnAccessor = UserTxnAccessor.from(PlatformTxnFactory.withClearFlag(userTxnAccessor.getPlatformTxn()),
+		userTxnAccessor = SwirldTxnAccessor.from(PlatformTxnFactory.withClearFlag(userTxnAccessor.getPlatformTxn()),
 				aliasManager);
 		userTxnAccessor.getPlatformTxn().addAll(
 				asValid(expectedSigsWithNoErrors()).toArray(new TransactionSignature[0]));
@@ -289,7 +289,7 @@ class HederaToPlatformSigOpsTest {
 				userTxnAccessor.getTxnBytes());
 	}
 
-	private void givenMirrorMock(UserTxnAccessor mock, UserTxnAccessor real) {
+	private void givenMirrorMock(SwirldTxnAccessor mock, SwirldTxnAccessor real) {
 		given(mock.getPkToSigsFn()).willReturn(allSigBytes);
 		given(mock.getPlatformTxn()).willReturn(real.getPlatformTxn());
 		given(mock.getTxn()).willReturn(real.getTxn());

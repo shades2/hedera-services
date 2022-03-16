@@ -21,9 +21,10 @@ package com.hedera.services.sigs.sourcing;
  */
 
 import com.google.protobuf.ByteString;
+import com.hedera.services.ledger.accounts.AliasManager;
 import com.hedera.services.legacy.exception.KeyPrefixMismatchException;
 import com.hedera.services.legacy.proto.utils.CommonUtils;
-import com.hedera.services.utils.accessors.SignedTxnAccessor;
+import com.hedera.services.utils.accessors.BaseTxnAccessor;
 import com.hedera.test.factories.keys.KeyFactory;
 import com.hedera.test.factories.keys.KeyTree;
 import com.hedera.test.factories.keys.KeyTreeLeaf;
@@ -56,6 +57,7 @@ import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.mock;
 
 class PojoSigMapPubKeyToSigBytesTest {
+	private final AliasManager aliasManager = mock(AliasManager.class);
 	private final byte[] EMPTY_SIG = { };
 	private final KeyTree payerKt =
 			KeyTree.withRoot(list(ed25519(true), ecdsa384Secp256k1(true), ed25519(true), ed25519(true), ed25519(true)));
@@ -81,7 +83,7 @@ class PojoSigMapPubKeyToSigBytesTest {
 				.nonPayerKts(otherKt)
 				.sigMapGen(withAlternatingUniqueAndFullPrefixes())
 				.get();
-		final var subject = new PojoSigMapPubKeyToSigBytes(SignedTxnAccessor.uncheckedFrom(signedTxn).getSigMap());
+		final var subject = new PojoSigMapPubKeyToSigBytes(U.from(signedTxn, aliasManager).getSigMap());
 		lookupsMatch(payerKt, defaultFactory, CommonUtils.extractTransactionBodyBytes(signedTxn), subject);
 
 		final var numUnusedFullPrefixSigs = new AtomicInteger(0);
@@ -99,7 +101,7 @@ class PojoSigMapPubKeyToSigBytesTest {
 				.nonPayerKts(otherKt)
 				.sigMapGen(withAlternatingUniqueAndFullPrefixes())
 				.get();
-		final var subject = new PojoSigMapPubKeyToSigBytes(SignedTxnAccessor.uncheckedFrom(signedTxn).getSigMap());
+		final var subject = new PojoSigMapPubKeyToSigBytes(BaseTxnAccessor.from(signedTxn).getSigMap());
 		lookupsMatch(payerKt, defaultFactory, CommonUtils.extractTransactionBodyBytes(signedTxn), subject);
 		lookupsMatch(otherKt, defaultFactory, CommonUtils.extractTransactionBodyBytes(signedTxn), subject);
 

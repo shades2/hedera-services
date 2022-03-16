@@ -26,7 +26,6 @@ import com.hedera.services.ledger.accounts.AliasManager;
 import com.hedera.services.queries.AnswerService;
 import com.hedera.services.txns.validation.OptionValidator;
 import com.hedera.services.utils.EntityIdUtils;
-import com.hedera.services.utils.accessors.SignedTxnAccessor;
 import com.hederahashgraph.api.proto.java.ContractGetBytecodeResponse;
 import com.hederahashgraph.api.proto.java.HederaFunctionality;
 import com.hederahashgraph.api.proto.java.Query;

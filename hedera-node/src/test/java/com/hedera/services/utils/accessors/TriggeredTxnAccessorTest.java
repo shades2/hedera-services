@@ -35,6 +35,7 @@ import static com.hedera.test.utils.IdUtils.asAccount;
 import static com.hedera.test.utils.IdUtils.asSchedule;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
 
 class TriggeredTxnAccessorTest {
 	AccountID id = asAccount("0.0.1001");
@@ -57,10 +58,12 @@ class TriggeredTxnAccessorTest {
 			.build();
 
 	private TxnAccessor subject;
+	private AccessorFactory factory;
 
 	@BeforeEach
 	void setup() throws InvalidProtocolBufferException {
-		subject = BaseTxnAccessor.triggeredTxn(tx.toByteArray(), payer, scheduleRef);
+		factory = mock(AccessorFactory.class);
+		subject = factory.triggeredTxn(tx.toByteArray(), payer, scheduleRef);
 	}
 
 	@Test

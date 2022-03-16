@@ -20,15 +20,11 @@ package com.hedera.services.utils.accessors;
  * ‍
  */
 
-import com.hedera.services.exceptions.UnknownHederaFunctionality;
 import com.hedera.services.ledger.accounts.AliasManager;
 import com.hedera.services.sigs.order.LinkedRefs;
 import com.hedera.services.sigs.sourcing.PubKeyToSigBytes;
 import com.hedera.services.txns.span.ExpandHandleSpanMapAccessor;
 import com.hedera.services.usage.BaseTransactionMeta;
-import com.hedera.services.usage.consensus.SubmitMessageMeta;
-import com.hedera.services.usage.crypto.CryptoTransferMeta;
-import com.hedera.services.utils.RationalizedSigMeta;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.HederaFunctionality;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
@@ -38,14 +34,10 @@ import com.hederahashgraph.api.proto.java.SubType;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionID;
-import com.swirlds.common.SwirldTransaction;
 import com.swirlds.common.crypto.TransactionSignature;
 
 import java.util.Map;
 import java.util.function.Function;
-
-import static com.hedera.services.utils.MiscUtils.functionOf;
-import static com.hederahashgraph.api.proto.java.HederaFunctionality.NONE;
 
 /**
  * Provides convenient access to the universal parts of a gRPC transaction---
@@ -58,45 +50,79 @@ import static com.hederahashgraph.api.proto.java.HederaFunctionality.NONE;
  * A triggered transaction only needs an implementation of this type.
  */
 public interface TxnAccessor {
-    boolean isTriggeredTxn();
-    ScheduleID getScheduleRef();
-    boolean canTriggerTxn();
-    void setTriggered(boolean b);
-    void setScheduleRef(ScheduleID parent);
+	boolean isTriggeredTxn();
 
-    long getOfferedFee();
-    AccountID getPayer();
-    TransactionID getTxnId();
-    HederaFunctionality getFunction();
-    SubType getSubType();
-    byte[] getHash();
-    byte[] getTxnBytes();
-    TransactionBody getTxn();
-    void setPayer(AccountID payer);
+	ScheduleID getScheduleRef();
 
-    byte[] getMemoUtf8Bytes();
-    String getMemo();
-    boolean memoHasZeroByte();
+	boolean canTriggerTxn();
 
-    void setNumAutoCreations(int numAutoCreations);
-    int getNumAutoCreations();
-    boolean areAutoCreationsCounted();
-    void countAutoCreationsWith(AliasManager aliasManager);
+	void setTriggered(boolean b);
 
-    void setLinkedRefs(LinkedRefs linkedRefs);
-    LinkedRefs getLinkedRefs();
+	void setScheduleRef(ScheduleID parent);
 
-    long getGasLimitForContractTx();
+	long getOfferedFee();
 
-    Map<String, Object> getSpanMap();
-    ExpandHandleSpanMapAccessor getSpanMapAccessor();
+	AccountID getPayer();
 
-    Transaction getSignedTxnWrapper();
-    byte[] getSignedTxnWrapperBytes();
-    BaseTransactionMeta baseUsageMeta();
+	TransactionID getTxnId();
 
-    int sigMapSize();
-    int numSigPairs();
-    void setSigMapSize(int sigMapSize);
-    void setNumSigPairs(int numPairs);
+	HederaFunctionality getFunction();
+
+	SubType getSubType();
+
+	byte[] getHash();
+
+	byte[] getTxnBytes();
+
+	TransactionBody getTxn();
+
+	void setPayer(AccountID payer);
+
+	byte[] getMemoUtf8Bytes();
+
+	String getMemo();
+
+	boolean memoHasZeroByte();
+
+	void setNumAutoCreations(int numAutoCreations);
+
+	int getNumAutoCreations();
+
+	boolean areAutoCreationsCounted();
+
+	void countAutoCreationsWith(AliasManager aliasManager);
+
+	void setLinkedRefs(LinkedRefs linkedRefs);
+
+	LinkedRefs getLinkedRefs();
+
+	long getGasLimitForContractTx();
+
+	Map<String, Object> getSpanMap();
+
+	ExpandHandleSpanMapAccessor getSpanMapAccessor();
+
+	Transaction getSignedTxnWrapper();
+
+	byte[] getSignedTxnWrapperBytes();
+
+	BaseTransactionMeta baseUsageMeta();
+
+	int sigMapSize();
+
+	int numSigPairs();
+
+	void setSigMapSize(int sigMapSize);
+
+	void setNumSigPairs(int numPairs);
+
+	PubKeyToSigBytes getPkToSigsFn();
+
+	Function<byte[], TransactionSignature> getRationalizedPkToCryptoSigFn();
+
+	void setExpandedSigStatus(ResponseCodeEnum status);
+
+	ResponseCodeEnum getExpandedSigStatus();
+
+    SignatureMap getSigMap();
 }

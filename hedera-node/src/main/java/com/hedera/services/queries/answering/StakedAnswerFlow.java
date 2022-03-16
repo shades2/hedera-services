@@ -31,9 +31,7 @@ import com.hedera.services.queries.validation.QueryFeeCheck;
 import com.hedera.services.throttling.FunctionalityThrottling;
 import com.hedera.services.txns.submission.PlatformSubmissionManager;
 import com.hedera.services.txns.submission.TransactionPrecheck;
-import com.hedera.services.utils.accessors.BaseTxnAccessor;
-import com.hedera.services.utils.accessors.SignedTxnAccessor;
-import com.hedera.services.utils.accessors.UserTxnAccessor;
+import com.hedera.services.utils.accessors.SwirldTxnAccessor;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.HederaFunctionality;
 import com.hederahashgraph.api.proto.java.Query;
@@ -101,7 +99,7 @@ public final class StakedAnswerFlow implements AnswerFlow {
 			return service.responseGiven(query, view, headerStatus);
 		}
 
-		BaseTxnAccessor optionalPayment = null;
+		SwirldTxnAccessor optionalPayment = null;
 		final var allegedPayment = service.extractPaymentFrom(query);
 		final var isPaymentRequired = service.requiresNodePayment(query);
 		if (isPaymentRequired && allegedPayment.isPresent()) {
@@ -142,7 +140,7 @@ public final class StakedAnswerFlow implements AnswerFlow {
 		return service.responseGiven(query, view, OK, fee, queryCtx);
 	}
 
-	private ResponseCodeEnum tryToPay(@Nonnull final UserTxnAccessor payment, final long fee) {
+	private ResponseCodeEnum tryToPay(@Nonnull final SwirldTxnAccessor payment, final long fee) {
 		if (accountNums.isSuperuser(payment.getPayer().getAccountNum())) {
 			return OK;
 		}
@@ -158,7 +156,7 @@ public final class StakedAnswerFlow implements AnswerFlow {
 			final Query query,
 			final StateView view,
 			final AnswerService service,
-			@Nullable final UserTxnAccessor optionalPayment
+			@Nullable final SwirldTxnAccessor optionalPayment
 	) {
 		final var isPaymentRequired = service.requiresNodePayment(query);
 		if (isPaymentRequired && null == optionalPayment) {
@@ -175,7 +173,7 @@ public final class StakedAnswerFlow implements AnswerFlow {
 
 	private ResponseCodeEnum systemScreen(
 			final HederaFunctionality function,
-			@Nullable final UserTxnAccessor payment,
+			@Nullable final SwirldTxnAccessor payment,
 			final Query query
 	) {
 		AccountID payer = null;

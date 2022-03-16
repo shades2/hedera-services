@@ -29,7 +29,7 @@ import com.hedera.services.state.expiry.ExpiryManager;
 import com.hedera.services.stats.ExecutionTimeTracker;
 import com.hedera.services.txns.span.ExpandHandleSpan;
 import com.hedera.services.utils.accessors.TxnAccessor;
-import com.hedera.services.utils.accessors.UserTxnAccessor;
+import com.hedera.services.utils.accessors.SwirldTxnAccessor;
 import com.hedera.test.extensions.LogCaptor;
 import com.hedera.test.extensions.LogCaptureExtension;
 import com.hedera.test.extensions.LoggingSubject;
@@ -73,7 +73,7 @@ class StandardProcessLogicTest {
 	@Mock
 	private TransactionContext txnCtx;
 	@Mock
-	private UserTxnAccessor accessor;
+	private SwirldTxnAccessor accessor;
 	@Mock
 	private TxnAccessor triggeredAccessor;
 	@Mock

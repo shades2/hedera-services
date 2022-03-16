@@ -22,7 +22,7 @@ package com.hedera.services.state.logic;
 
 import com.hedera.services.context.NodeInfo;
 import com.hedera.services.state.merkle.MerkleNetworkContext;
-import com.hedera.services.utils.accessors.UserTxnAccessor;
+import com.hedera.services.utils.accessors.SwirldTxnAccessor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -51,7 +51,7 @@ public class InvariantChecks {
 		this.networkCtx = networkCtx;
 	}
 
-	public boolean holdFor(UserTxnAccessor accessor, Instant consensusTime, long submittingMember) {
+	public boolean holdFor(SwirldTxnAccessor accessor, Instant consensusTime, long submittingMember) {
 		final var currentNetworkCtx = networkCtx.get();
 		final var lastConsensusTime = currentNetworkCtx.consensusTimeOfLastHandledTxn();
 		if (lastConsensusTime != null && !consensusTime.isAfter(lastConsensusTime)) {

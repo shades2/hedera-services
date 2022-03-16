@@ -22,7 +22,6 @@ package com.hedera.services.queries.token;
 
 import com.hedera.services.context.primitives.StateView;
 import com.hedera.services.queries.AbstractAnswer;
-import com.hedera.services.utils.accessors.SignedTxnAccessor;
 import com.hederahashgraph.api.proto.java.HederaFunctionality;
 import com.hederahashgraph.api.proto.java.Query;
 import com.hederahashgraph.api.proto.java.Response;

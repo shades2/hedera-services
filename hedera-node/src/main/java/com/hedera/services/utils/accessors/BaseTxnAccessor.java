@@ -4,6 +4,8 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.services.grpc.marshalling.AliasResolver;
 import com.hedera.services.ledger.accounts.AliasManager;
 import com.hedera.services.sigs.order.LinkedRefs;
+import com.hedera.services.sigs.sourcing.PojoSigMapPubKeyToSigBytes;
+import com.hedera.services.sigs.sourcing.PubKeyToSigBytes;
 import com.hedera.services.txns.span.ExpandHandleSpanMapAccessor;
 import com.hedera.services.usage.BaseTransactionMeta;
 import com.hedera.services.usage.consensus.SubmitMessageMeta;
@@ -19,21 +21,22 @@ import com.hedera.services.utils.EntityNum;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.HederaFunctionality;
+import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.ScheduleID;
+import com.hederahashgraph.api.proto.java.SignatureMap;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.SubType;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionID;
-import com.swirlds.common.SwirldTransaction;
+import com.swirlds.common.crypto.TransactionSignature;
 import org.apache.commons.codec.binary.StringUtils;
 import org.bouncycastle.util.Arrays;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Supplier;
+import java.util.function.Function;
 
-import static com.hedera.services.legacy.proto.utils.CommonUtils.extractTransactionBody;
 import static com.hedera.services.legacy.proto.utils.CommonUtils.noThrowSha384HashOf;
 import static com.hedera.services.usage.token.TokenOpsUsageUtils.TOKEN_OPS_USAGE_UTILS;
 import static com.hedera.services.utils.MiscUtils.functionExtractor;
@@ -63,7 +66,7 @@ import static com.hederahashgraph.api.proto.java.SubType.TOKEN_NON_FUNGIBLE_UNIQ
 public class BaseTxnAccessor implements TxnAccessor {
 	private boolean isTriggered;
 	private ScheduleID scheduleRef;
-	private static Supplier<AliasManager> aliasManager;
+	private AliasManager aliasManager;
 
 	private static final int UNKNOWN_NUM_AUTO_CREATIONS = -1;
 	private static final String ACCESSOR_LITERAL = " accessor";
@@ -89,26 +92,32 @@ public class BaseTxnAccessor implements TxnAccessor {
 	private BaseTransactionMeta txnUsageMeta;
 	private int sigMapSize;
 	private int numSigPairs;
+	private PubKeyToSigBytes pubKeyToSigBytes;
+	private ResponseCodeEnum expandedSigStatus;
+	private SignatureMap sigMap;
 
 	private SubmitMessageMeta submitMessageMeta;
 	private CryptoTransferMeta xferUsageMeta;
 
-	protected BaseTxnAccessor(final byte[] signedTxnWrapperBytes,
-			final Supplier<AliasManager> aliasManager) throws InvalidProtocolBufferException {
+	protected BaseTxnAccessor(final byte[] signedTxnWrapperBytes, final AliasManager aliasManager)
+			throws InvalidProtocolBufferException {
 		this.aliasManager = aliasManager;
 		this.signedTxnWrapperBytes = signedTxnWrapperBytes;
 		signedTxnWrapper = Transaction.parseFrom(signedTxnWrapperBytes);
 
 		final var signedTxnBytes = signedTxnWrapper.getSignedTransactionBytes();
+
 		if (signedTxnBytes.isEmpty()) {
 			txnBytes = signedTxnWrapper.getBodyBytes().toByteArray();
 			hash = noThrowSha384HashOf(signedTxnWrapperBytes);
+			sigMap = signedTxnWrapper.getSigMap();
 		} else {
 			final var signedTxn = SignedTransaction.parseFrom(signedTxnBytes);
 			txnBytes = signedTxn.getBodyBytes().toByteArray();
 			hash = noThrowSha384HashOf(signedTxnBytes.toByteArray());
+			sigMap = signedTxn.getSigMap();
 		}
-
+		pubKeyToSigBytes = new PojoSigMapPubKeyToSigBytes(sigMap);
 		txn = TransactionBody.parseFrom(txnBytes);
 		memo = txn.getMemo();
 		txnId = txn.getTransactionID();
@@ -116,6 +125,26 @@ public class BaseTxnAccessor implements TxnAccessor {
 		utf8MemoBytes = StringUtils.getBytesUtf8(memo);
 		memoHasZeroByte = Arrays.contains(utf8MemoBytes, (byte) 0);
 		setBaseUsageMeta();
+	}
+
+	public static BaseTxnAccessor from(Transaction txn,
+			AliasManager aliasManager) throws InvalidProtocolBufferException {
+		return new BaseTxnAccessor(txn.getSignedTransactionBytes().toByteArray(), aliasManager);
+	}
+
+	public static BaseTxnAccessor from(final byte[] signedTxnWrapperBytes,
+			final AliasManager aliasManager) throws InvalidProtocolBufferException {
+		return new BaseTxnAccessor(signedTxnWrapperBytes, aliasManager);
+	}
+
+	@Override
+	public PubKeyToSigBytes getPkToSigsFn() {
+		return pubKeyToSigBytes;
+	}
+
+	@Override
+	public Function<byte[], TransactionSignature> getRationalizedPkToCryptoSigFn() {
+		throw new UnsupportedOperationException();
 	}
 
 	public boolean isTriggered() {
@@ -131,11 +160,11 @@ public class BaseTxnAccessor implements TxnAccessor {
 	}
 
 	protected EntityNum unaliased(AccountID grpcId) {
-		return aliasManager.get().unaliased(grpcId);
+		return aliasManager.unaliased(grpcId);
 	}
 
 	protected EntityNum unaliased(ContractID grpcId) {
-		return EntityIdUtils.unaliased(grpcId, aliasManager.get());
+		return EntityIdUtils.unaliased(grpcId, aliasManager);
 	}
 
 	@Override
@@ -298,9 +327,25 @@ public class BaseTxnAccessor implements TxnAccessor {
 	public void setSigMapSize(final int sigMapSize) {
 		this.sigMapSize = sigMapSize;
 	}
+
 	@Override
 	public void setNumSigPairs(final int numSigPairs) {
 		this.numSigPairs = numSigPairs;
+	}
+
+	@Override
+	public void setExpandedSigStatus(final ResponseCodeEnum expandedSigStatus) {
+		this.expandedSigStatus = expandedSigStatus;
+	}
+
+	@Override
+	public ResponseCodeEnum getExpandedSigStatus() {
+		return expandedSigStatus;
+	}
+
+	@Override
+	public SignatureMap getSigMap() {
+		return sigMap;
 	}
 
 	// TODO : All the below functions will be removed and moved to their respective accessor types

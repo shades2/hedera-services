@@ -25,7 +25,7 @@ import com.hedera.services.queries.AnswerService;
 import com.hedera.services.state.merkle.MerkleTopic;
 import com.hedera.services.txns.validation.OptionValidator;
 import com.hedera.services.utils.EntityNum;
-import com.hedera.services.utils.accessors.SignedTxnAccessor;
+import com.hedera.services.utils.accessors.SwirldTxnAccessor;
 import com.hederahashgraph.api.proto.java.ConsensusGetTopicInfoQuery;
 import com.hederahashgraph.api.proto.java.ConsensusGetTopicInfoResponse;
 import com.hederahashgraph.api.proto.java.HederaFunctionality;
@@ -73,9 +73,9 @@ public class GetTopicInfoAnswer implements AnswerService {
 	}
 
 	@Override
-	public Optional<SignedTxnAccessor> extractPaymentFrom(Query query) {
+	public Optional<SwirldTxnAccessor> extractPaymentFrom(Query query) {
 		Transaction paymentTxn = query.getConsensusGetTopicInfo().getHeader().getPayment();
-		return Optional.ofNullable(SignedTxnAccessor.uncheckedFrom(paymentTxn));
+		return Optional.ofNullable(use.uncheckedFrom(paymentTxn));
 	}
 
 	@Override
