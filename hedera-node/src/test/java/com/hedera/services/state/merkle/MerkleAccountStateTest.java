@@ -460,6 +460,52 @@ class MerkleAccountStateTest {
 	}
 
 	@Test
+	void deserializeV0260Works() throws IOException {
+		final var in = mock(SerializableDataInputStream.class);
+		subject.setNftsOwned(nftsOwned);
+		final var newSubject = new MerkleAccountState();
+		given(serdes.readNullable(argThat(in::equals), any(IoReadingFunction.class))).willReturn(key);
+		given(in.readLong())
+				.willReturn(expiry)
+				.willReturn(balance)
+				.willReturn(autoRenewSecs)
+				.willReturn(nftsOwned)
+				.willReturn(spenderNum1.longValue())
+				.willReturn(cryptoAllowance)
+				.willReturn(tokenAllowanceVal)
+				.willReturn(associationKey.value())
+				.willReturn(transactionCounter);
+		given(in.readNormalisedString(anyInt())).willReturn(memo);
+		given(in.readBoolean())
+				.willReturn(deleted)
+				.willReturn(smartContract)
+				.willReturn(receiverSigRequired)
+				.willReturn(approvedForAll);
+		given(in.readInt())
+				.willReturn(autoAssociationMetadata)
+				.willReturn(number)
+				.willReturn(kvPairs)
+				.willReturn(cryptoAllowances.size())
+				.willReturn(fungibleTokenAllowances.size())
+				.willReturn(approveForAllNfts.size())
+				.willReturn(associatedTokensCount)
+				.willReturn(numZeroBalances);
+		given(serdes.readNullableSerializable(in)).willReturn(proxy);
+		given(in.readByteArray(Integer.MAX_VALUE)).willReturn(alias.toByteArray());
+		given(in.readSerializable())
+				.willReturn(tokenAllowanceKey1)
+				.willReturn(tokenAllowanceKey2)
+				.willReturn(tokenAllowanceValue);
+		given(in.readLongList(Integer.MAX_VALUE))
+				.willReturn(serialNumbers);
+
+		newSubject.deserialize(in, MerkleAccountState.RELEASE_0260_VERSION);
+
+		// then:
+		assertEquals(subject, newSubject);
+	}
+
+	@Test
 	void serializeWorks() throws IOException {
 		final var out = mock(SerializableDataOutputStream.class);
 		final var inOrder = inOrder(serdes, out);
@@ -850,7 +896,7 @@ class MerkleAccountStateTest {
 
 	@Test
 	void merkleMethodsWork() {
-		assertEquals(MerkleAccountState.RELEASE_0250_VERSION, subject.getVersion());
+		assertEquals(MerkleAccountState.RELEASE_0260_VERSION, subject.getVersion());
 		assertEquals(MerkleAccountState.RUNTIME_CONSTRUCTABLE_ID, subject.getClassId());
 		assertTrue(subject.isLeaf());
 	}
