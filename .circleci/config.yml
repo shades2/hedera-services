@@ -601,7 +601,7 @@ executors:
         type: string
         default: ""
     docker:
-      - image: gcr.io/swirlds-registry/cci-openjdk-infer:17-b20211206
+      - image: gcr.io/swirlds-registry/cci-openjdk-regression:17
       - image: postgres:10.17-alpine
         environment:
           POSTGRES_USER: swirlds
@@ -1111,13 +1111,6 @@ workflows:
                 at: /
 
   GCP-Daily-Services-Account-Balances-client-validation-6N-1C:
-    triggers:
-      - schedule:
-          cron: "30 6 * * *"
-          filters:
-            branches:
-              only:
-                - master
     jobs:
       - build-platform-and-services
       - jrs-regression:
@@ -1674,10 +1667,10 @@ jobs:
         default: true
       slack_results_channel:
         type: string
-        default: "hedera-regression"
+        default: "hedera-regression-test"
       slack_summary_channel:
         type: string
-        default: "hedera-regression-summary"
+        default: "hedera-regression-test"
       workflow-name:
         type: string
         default: ""
