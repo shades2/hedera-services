@@ -21,6 +21,7 @@ package com.hedera.services.bdd.suites.contract.hapi;
  */
 
 import com.hedera.services.bdd.spec.HapiApiSpec;
+import com.hedera.services.bdd.spec.transactions.token.TokenMovement;
 import com.hedera.services.bdd.suites.HapiApiSuite;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -35,13 +36,17 @@ import static com.hedera.services.bdd.spec.queries.QueryVerbs.getContractInfo;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.contractCreate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.contractDelete;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoCreate;
+import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoTransfer;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.fileCreate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.systemContractDelete;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.systemContractUndelete;
+import static com.hedera.services.bdd.spec.transactions.TxnVerbs.tokenAssociate;
+import static com.hedera.services.bdd.spec.transactions.TxnVerbs.tokenCreate;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_SIGNATURE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.MODIFYING_IMMUTABLE_CONTRACT;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.NOT_SUPPORTED;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TRANSACTION_REQUIRES_ZERO_TOKEN_BALANCES;
 
 public class ContractDeleteSuite extends HapiApiSuite {
 	private static final Logger log = LogManager.getLogger(ContractDeleteSuite.class);
@@ -62,6 +67,8 @@ public class ContractDeleteSuite extends HapiApiSuite {
 						systemCannotDeleteOrUndeleteContracts(),
 						deleteWorksWithMutableContract(),
 						deleteFailsWithImmutableContract(),
+						deleteFailsWhenContractIsTreasury(),
+						deleteFailsWhenContractHasNonZeroBalance(),
 						deleteTransfersToAccount(),
 						deleteTransfersToContract()
 				}
@@ -124,6 +131,37 @@ public class ContractDeleteSuite extends HapiApiSuite {
 						contractDelete("toBeDeleted").transferAccount("receiver")
 				).then(
 						getAccountBalance("receiver").hasTinyBars(1L)
+				);
+	}
+
+	private HapiApiSpec deleteFailsWhenContractIsTreasury() {
+		return defaultHapiSpec("DeleteFailsWhenContractIsTreasury")
+				.given(
+						fileCreate("contractBytecode").path(PAYABLE_CONSTRUCTOR),
+						cryptoCreate("receiver").balance(0L),
+						contractCreate("toBeDeleted").bytecode("contractBytecode").balance(1L),
+						tokenCreate("tokenA").treasury("toBeDeleted").initialSupply(10)
+				).when(
+						// TODO: Modify this, when the new ResponseCode is introduced
+						contractDelete("toBeDeleted").transferAccount("receiver").hasKnownStatus(TRANSACTION_REQUIRES_ZERO_TOKEN_BALANCES)
+				).then(
+						getAccountBalance("receiver").hasTinyBars(0L)
+				);
+	}
+
+	private HapiApiSpec deleteFailsWhenContractHasNonZeroBalance() {
+		return defaultHapiSpec("DeleteFailsWhenContractHasNonZeroBalance")
+				.given(
+						fileCreate("contractBytecode").path(PAYABLE_CONSTRUCTOR),
+						cryptoCreate("receiver").balance(0L),
+						contractCreate("toBeDeleted").bytecode("contractBytecode").balance(1L),
+						tokenCreate("tokenA").treasury("receiver").initialSupply(10),
+						tokenAssociate("toBeDeleted", "tokenA"),
+						cryptoTransfer(TokenMovement.moving(5, "tokenA").between("receiver", "toBeDeleted"))
+				).when(
+						contractDelete("toBeDeleted").transferAccount("receiver").hasKnownStatus(TRANSACTION_REQUIRES_ZERO_TOKEN_BALANCES)
+				).then(
+						getAccountBalance("receiver").hasTinyBars(0L)
 				);
 	}
 
