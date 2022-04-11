@@ -41,6 +41,11 @@ public class HederaExceptionalHaltReason {
 	 */
 	public static final ExceptionalHaltReason SELF_DESTRUCT_TO_SELF = HederaExceptionalHalt.SELF_DESTRUCT_TO_SELF;
 	/**
+	 * Used when {@link HederaSelfDestructOperation} is used and the beneficiary is specified to be the same as the
+	 * destructed account
+	 */
+	public static final ExceptionalHaltReason TRANSACTION_REQUIRES_ZERO_TOKEN_BALANCES = HederaExceptionalHalt.TRANSACTION_REQUIRES_ZERO_TOKEN_BALANCES;
+	/**
 	 * Used when there is no active signature for a given {@link com.hedera.services.state.merkle.MerkleAccount} that
 	 * has {@link MerkleAccount#isReceiverSigRequired()} enabled and the account receives HBars
 	 */
@@ -49,6 +54,7 @@ public class HederaExceptionalHaltReason {
 	enum HederaExceptionalHalt implements ExceptionalHaltReason {
 		INVALID_SOLIDITY_ADDRESS("Invalid account reference"),
 		SELF_DESTRUCT_TO_SELF("Self destruct to the same address"),
+		TRANSACTION_REQUIRES_ZERO_TOKEN_BALANCES("Self destruct to address which still holds tokens"),
 		INVALID_SIGNATURE("Invalid signature");
 
 		String description;
