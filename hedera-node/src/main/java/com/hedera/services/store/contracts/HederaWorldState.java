@@ -28,9 +28,11 @@ import com.hedera.services.ledger.accounts.ContractCustomizer;
 import com.hedera.services.ledger.ids.EntityIdSource;
 import com.hedera.services.legacy.core.jproto.JKey;
 import com.hedera.services.state.submerkle.EntityId;
+import com.hedera.services.store.tokens.HederaTokenStore;
 import com.hedera.services.utils.BytesComparator;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
+import com.hederahashgraph.api.proto.java.TokenID;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tuweni.bytes.Bytes;
@@ -50,10 +52,12 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Stream;
 
@@ -78,6 +82,7 @@ public class HederaWorldState implements HederaMutableWorldState {
 	private final List<ContractID> provisionalContractCreations = new LinkedList<>();
 	private final CodeCache codeCache;
 	private final GlobalDynamicProperties dynamicProperties;
+	private final HederaTokenStore tokenStore;
 
 	// If non-null, the new contract customizations requested by the HAPI contractCreate sender
 	private ContractCustomizer hapiSenderCustomizer;
@@ -88,13 +93,14 @@ public class HederaWorldState implements HederaMutableWorldState {
 			final EntityAccess entityAccess,
 			final CodeCache codeCache,
 			final SigImpactHistorian sigImpactHistorian,
-			final GlobalDynamicProperties dynamicProperties
-	) {
+			final GlobalDynamicProperties dynamicProperties,
+			final HederaTokenStore tokenStore) {
 		this.ids = ids;
 		this.entityAccess = entityAccess;
 		this.codeCache = codeCache;
 		this.sigImpactHistorian = sigImpactHistorian;
 		this.dynamicProperties = dynamicProperties;
+		this.tokenStore = tokenStore;
 	}
 
 	/* Used to manage static calls. */
@@ -102,12 +108,12 @@ public class HederaWorldState implements HederaMutableWorldState {
 			final EntityIdSource ids,
 			final EntityAccess entityAccess,
 			final CodeCache codeCache,
-			final GlobalDynamicProperties dynamicProperties
-	) {
+			final GlobalDynamicProperties dynamicProperties) {
 		this.ids = ids;
 		this.entityAccess = entityAccess;
 		this.codeCache = codeCache;
 		this.sigImpactHistorian = null;
+		this.tokenStore = null;
 		this.dynamicProperties = dynamicProperties;
 	}
 
@@ -362,6 +368,7 @@ public class HederaWorldState implements HederaMutableWorldState {
 			implements HederaWorldUpdater {
 
 		Map<Address, Map<Bytes, Pair<Bytes, Bytes>>> stateChanges = new TreeMap<>(BytesComparator.INSTANCE);
+		Map<AccountID, Set<TokenID>> knownTreasuries = new HashMap<>();
 
 		private int numAllocatedIds = 0;
 		private Gas sbhRefund = Gas.ZERO;
@@ -431,6 +438,11 @@ public class HederaWorldState implements HederaMutableWorldState {
 		}
 
 		@Override
+		public void addKnownTreasuries(Map<AccountID, Set<TokenID>> treasuries) {
+			knownTreasuries.putAll(treasuries);
+		}
+
+		@Override
 		public void revert() {
 			super.revert();
 			final var wrapped = wrappedWorldView();
@@ -449,8 +461,11 @@ public class HederaWorldState implements HederaMutableWorldState {
 		@Override
 		public void commit() {
 			final HederaWorldState wrapped = (HederaWorldState) wrappedWorldView();
+			final var tokenStore = wrapped.tokenStore;
 			final var entityAccess = wrapped.entityAccess;
 			final var impactHistorian = wrapped.sigImpactHistorian;
+
+			knownTreasuries.keySet().forEach(account -> knownTreasuries.get(account).forEach(token -> tokenStore.addKnownTreasury(account, token)));
 
 			commitSizeLimitedStorageTo(entityAccess);
 

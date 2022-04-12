@@ -29,10 +29,15 @@ import com.hedera.services.ledger.properties.AccountProperty;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
+import com.hederahashgraph.api.proto.java.TokenID;
 import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.Gas;
 import org.hyperledger.besu.evm.worldstate.WorldUpdater;
+
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 import static com.hedera.services.utils.EntityIdUtils.accountIdFromEvmAddress;
 import static com.hedera.services.utils.EntityIdUtils.contractIdFromEvmAddress;
@@ -138,6 +143,15 @@ public class HederaStackedWorldStateUpdater
 	}
 
 	@Override
+	public void addKnownTreasuries(Map<AccountID, Set<TokenID>> treasuries) {
+		knownTreasuries.putAll(treasuries);
+	}
+
+	public boolean isTreasury(AccountID treasury) {
+		return knownTreasuries.containsKey(treasury);
+	}
+
+	@Override
 	public void revert() {
 		super.revert();
 		// Note that reclaiming entity ids here is only on a best-effort basis, since
@@ -154,6 +168,7 @@ public class HederaStackedWorldStateUpdater
 	public void commit() {
 		super.commit();
 		final var wrappedUpdater = ((HederaWorldUpdater) wrappedWorldView());
+		wrappedUpdater.addKnownTreasuries(knownTreasuries);
 		wrappedUpdater.addSbhRefund(sbhRefund);
 		wrappedUpdater.countIdsAllocatedByStacked(numAllocatedIds);
 		sbhRefund = Gas.ZERO;
@@ -180,6 +195,9 @@ public class HederaStackedWorldStateUpdater
 		return !trackingAccounts().exists(accountIdFromEvmAddress(target));
 	}
 
+	public void addKnownTreasury(AccountID treasury, TokenID asGrpcToken) {
+		knownTreasuries.computeIfAbsent(treasury, ignore -> new HashSet<>()).add(asGrpcToken);
+	}
 
 	@FunctionalInterface
 	interface CustomizerFactory {

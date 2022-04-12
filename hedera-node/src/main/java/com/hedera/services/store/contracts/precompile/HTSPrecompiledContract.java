@@ -925,10 +925,12 @@ public class HTSPrecompiledContract extends AbstractPrecompiledContract {
 			validateTrue(result == OK, result);
 
 			/* --- Check required signatures --- */
-			final var treasuryId = Id.fromGrpcAccount(tokenCreateOp.getTreasury());
+			final var treasury = tokenCreateOp.getTreasury();
+			final var treasuryId = Id.fromGrpcAccount(treasury);
 			final var treasuryHasSigned = validateKey(frame, treasuryId.asEvmAddress(), sigsVerifier::hasActiveKey);
 			validateTrue(treasuryHasSigned, INVALID_SIGNATURE);
 			tokenCreateOp.getAdminKey().ifPresent(key -> validateTrue(validateAdminKey(frame, key), INVALID_SIGNATURE));
+			final var worldUpdater = (HederaStackedWorldStateUpdater) frame.getWorldUpdater();
 
 			/* --- Build the necessary infrastructure to execute the transaction --- */
 			final var scopedAccountStore = createAccountStore();
@@ -937,8 +939,11 @@ public class HTSPrecompiledContract extends AbstractPrecompiledContract {
 					dynamicProperties, sigImpactHistorian, sideEffectsTracker, entityIdSource, validator);
 
 			/* --- Execute the transaction and capture its results --- */
-			tokenCreateLogic.create(creationTime.getEpochSecond(), EntityIdUtils.accountIdFromEvmAddress(senderAddress),
+			final var createdTokenId = tokenCreateLogic.create(creationTime.getEpochSecond(),
+					EntityIdUtils.accountIdFromEvmAddress(senderAddress),
 					transactionBody.getTokenCreation());
+
+			worldUpdater.addKnownTreasury(treasury, createdTokenId.asGrpcToken());
 		}
 
 		@Override

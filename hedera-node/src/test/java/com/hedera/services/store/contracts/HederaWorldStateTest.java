@@ -27,6 +27,7 @@ import com.hedera.services.ledger.accounts.ContractCustomizer;
 import com.hedera.services.ledger.ids.EntityIdSource;
 import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.store.models.Id;
+import com.hedera.services.store.tokens.HederaTokenStore;
 import com.hedera.services.utils.EntityIdUtils;
 import com.hedera.services.utils.EntityNum;
 import com.hedera.test.factories.scenarios.TxnHandlingScenario;
@@ -83,6 +84,8 @@ class HederaWorldStateTest {
 	private GlobalDynamicProperties dynamicProperties;
 	@Mock
 	private ContractCustomizer customizer;
+	@Mock
+	private HederaTokenStore tokenStore;
 
 	final long balance = 1_234L;
 	final Id sponsor = new Id(0, 0, 1);
@@ -97,7 +100,7 @@ class HederaWorldStateTest {
 	@BeforeEach
 	void setUp() {
 		CodeCache codeCache = new CodeCache(0, entityAccess);
-	 	subject = new HederaWorldState(ids, entityAccess, codeCache, sigImpactHistorian, dynamicProperties);
+	 	subject = new HederaWorldState(ids, entityAccess, codeCache, sigImpactHistorian, dynamicProperties, tokenStore);
 	}
 
 	@Test

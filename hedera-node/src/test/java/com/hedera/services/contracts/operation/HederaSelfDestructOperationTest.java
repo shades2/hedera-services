@@ -20,8 +20,8 @@ package com.hedera.services.contracts.operation;
  * ‍
  */
 
-import com.hedera.services.ledger.HederaLedger;
 import com.hedera.services.store.contracts.HederaStackedWorldStateUpdater;
+import com.hedera.services.store.tokens.HederaTokenStore;
 import com.hedera.services.utils.EntityNum;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Wei;
@@ -62,7 +62,7 @@ class HederaSelfDestructOperationTest {
 	@Mock
 	private Account account;
 	@Mock
-	private HederaLedger ledger;
+	private HederaTokenStore tokenStore;
 	@Mock
 	private BiPredicate<Address, MessageFrame> addressValidator;
 
@@ -70,7 +70,7 @@ class HederaSelfDestructOperationTest {
 
 	@BeforeEach
 	void setUp() {
-		subject = new HederaSelfDestructOperation(gasCalculator, ledger, addressValidator);
+		subject = new HederaSelfDestructOperation(gasCalculator, tokenStore, addressValidator);
 
 		given(frame.getWorldUpdater()).willReturn(worldUpdater);
 		given(gasCalculator.selfDestructOperationGasCost(any(), eq(Wei.ONE))).willReturn(Gas.of(2L));

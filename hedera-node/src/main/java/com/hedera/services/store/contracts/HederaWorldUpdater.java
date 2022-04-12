@@ -22,9 +22,14 @@ package com.hedera.services.store.contracts;
  *
  */
 
+import com.hederahashgraph.api.proto.java.AccountID;
+import com.hederahashgraph.api.proto.java.TokenID;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.Gas;
 import org.hyperledger.besu.evm.worldstate.WorldUpdater;
+
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Provides a stacked Hedera adapted world view. Utilised by {@link org.hyperledger.besu.evm.frame.MessageFrame} in
@@ -67,6 +72,8 @@ public interface HederaWorldUpdater extends WorldUpdater {
 	 * 	the amount of Gas to refund;
 	 */
 	void addSbhRefund(Gas refund);
+
+	void addKnownTreasuries(Map<AccountID, Set<TokenID>> treasuries);
 
 	void countIdsAllocatedByStacked(int n);
 }

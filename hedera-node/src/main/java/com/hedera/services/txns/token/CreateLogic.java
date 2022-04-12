@@ -26,6 +26,7 @@ import com.hedera.services.ledger.SigImpactHistorian;
 import com.hedera.services.ledger.ids.EntityIdSource;
 import com.hedera.services.store.AccountStore;
 import com.hedera.services.store.TypedTokenStore;
+import com.hedera.services.store.models.Id;
 import com.hedera.services.store.models.Token;
 import com.hedera.services.txns.token.process.Creation;
 import com.hedera.services.txns.token.process.NewRels;
@@ -69,7 +70,7 @@ public class CreateLogic {
 		this.validator = validator;
 	}
 
-	public void create(final long now, final AccountID activePayer, final TokenCreateTransactionBody op) {
+	public Id create(final long now, final AccountID activePayer, final TokenCreateTransactionBody op) {
 		final var creation = creationFactory.processFrom(accountStore, tokenStore, dynamicProperties, op);
 
 		/* --- Create the model objects --- */
@@ -82,7 +83,12 @@ public class CreateLogic {
 		creation.persist();
 
 		creation.newAssociations().forEach(sideEffectsTracker::trackExplicitAutoAssociation);
-		sigImpactHistorian.markEntityChanged(creation.newTokenId().num());
+
+		final var createdTokenId = creation.newTokenId();
+
+		sigImpactHistorian.markEntityChanged(createdTokenId.num());
+
+		return createdTokenId;
 	}
 
 	// Only used in unit-tests

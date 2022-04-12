@@ -22,9 +22,10 @@ package com.hedera.services.contracts.operation;
  *
  */
 
-import com.hedera.services.ledger.HederaLedger;
 import com.hedera.services.store.contracts.HederaStackedWorldStateUpdater;
+import com.hedera.services.store.tokens.HederaTokenStore;
 import com.hedera.services.utils.EntityIdUtils;
+import com.hederahashgraph.api.proto.java.AccountID;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.evm.EVM;
@@ -40,6 +41,8 @@ import javax.inject.Inject;
 import java.util.Optional;
 import java.util.function.BiPredicate;
 
+import static com.hedera.services.ledger.properties.AccountProperty.NUM_POSITIVE_BALANCES;
+
 /**
  * Hedera adapted version of the {@link SelfDestructOperation}.
  * <p>
@@ -52,15 +55,15 @@ import java.util.function.BiPredicate;
  */
 public class HederaSelfDestructOperation extends SelfDestructOperation {
 
-	private HederaLedger ledger;
+	private HederaTokenStore globalTokenStore;
 	private final BiPredicate<Address, MessageFrame> addressValidator;
 
 	@Inject
 	public HederaSelfDestructOperation(final GasCalculator gasCalculator,
-									   final HederaLedger ledger,
+									   final HederaTokenStore globalTokenStore,
 									   final BiPredicate<Address, MessageFrame> addressValidator) {
 		super(gasCalculator);
-		this.ledger = ledger;
+		this.globalTokenStore = globalTokenStore;
 		this.addressValidator = addressValidator;
 	}
 
@@ -77,22 +80,41 @@ public class HederaSelfDestructOperation extends SelfDestructOperation {
 		// This address is already the EIP-1014 address if applicable; so we can compare it directly to
 		// the "priority" address we computed above for the beneficiary
 		final var address = frame.getRecipientAddress();
-		final var destroyingAccount = updater.getHederaAccount(address);
-		final var destroyingAccountId = EntityIdUtils.asAccount(destroyingAccount.getProxyAccount());
+		final var accountId = EntityIdUtils.accountIdFromEvmAddress(address);
+
+		// TODO: fix this null errorGasCost with contract/account in place
 		if (address.equals(beneficiaryAddress)) {
 			final var account = frame.getWorldUpdater().get(beneficiaryAddress);
 			return new OperationResult(errorGasCost(account),
 					Optional.of(HederaExceptionalHaltReason.SELF_DESTRUCT_TO_SELF));
-		} else if (ledger.isKnownTreasury(destroyingAccountId)) {
-			return new OperationResult(errorGasCost(destroyingAccount),
-					// TODO: Introduce new exceptional reason CONTRACT_IS_TOKEN_TREASURY to fit the usecase
-					Optional.of(HederaExceptionalHaltReason.SELF_DESTRUCT_TO_SELF));
-		} else if (!ledger.allTokenBalancesVanish(destroyingAccountId)) {
-			return new OperationResult(errorGasCost(destroyingAccount),
+		} else if (isKnownTreasury(accountId, updater)) {
+			return new OperationResult(errorGasCost(null),
+					Optional.of(HederaExceptionalHaltReason.ACCOUNT_IS_TOKEN_TREASURY));
+		} else if (hasNonEmptyBalances(accountId, updater)) {
+			return new OperationResult(errorGasCost(null),
 					Optional.of(HederaExceptionalHaltReason.TRANSACTION_REQUIRES_ZERO_TOKEN_BALANCES));
 		} else {
 			return super.execute(frame, evm);
 		}
+	}
+
+	private boolean hasNonEmptyBalances(AccountID accountID, HederaStackedWorldStateUpdater updater) {
+		return (int) updater.trackingLedgers().accounts().get(accountID, NUM_POSITIVE_BALANCES) == 0;
+	}
+
+	private boolean isKnownTreasury(AccountID accountId, HederaStackedWorldStateUpdater updater) {
+		// iterate through all stacked updaters to check whether an account has become treasury in the meantime
+		var parent = updater.parentUpdater();
+		while(parent.isPresent()) {
+			final var stackedParentUpdater = (HederaStackedWorldStateUpdater) parent.get();
+			if (stackedParentUpdater.isTreasury(accountId)) {
+				return true;
+			}
+			parent = stackedParentUpdater.parentUpdater();
+		}
+
+		// check the singleton knownTreasuries collection for the specified account id
+		return globalTokenStore.isKnownTreasury(accountId);
 	}
 
 	@NotNull

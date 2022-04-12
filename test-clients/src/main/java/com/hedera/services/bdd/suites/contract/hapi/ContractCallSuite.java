@@ -106,8 +106,10 @@ import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoCreate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoTransfer;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.fileCreate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.mintToken;
+import static com.hedera.services.bdd.spec.transactions.TxnVerbs.tokenAssociate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.tokenCreate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.tokenUpdate;
+import static com.hedera.services.bdd.spec.transactions.token.TokenMovement.moving;
 import static com.hedera.services.bdd.spec.utilops.CustomSpecAssert.allRunFor;
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.assertionsHold;
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.balanceSnapshot;
@@ -153,46 +155,48 @@ public class ContractCallSuite extends HapiApiSuite {
 	@Override
 	public List<HapiApiSpec> getSpecsInSuite() {
 		return List.of(new HapiApiSpec[] {
-				resultSizeAffectsFees(),
-				payableSuccess(),
-				depositSuccess(),
-				depositDeleteSuccess(),
-				multipleDepositSuccess(),
-				payTestSelfDestructCall(),
-				multipleSelfDestructsAreSafe(),
-				smartContractInlineAssemblyCheck(),
-				ocToken(),
-				contractTransferToSigReqAccountWithKeySucceeds(),
-				maxRefundIsMaxGasRefundConfiguredWhenTXGasPriceIsSmaller(),
-				minChargeIsTXGasUsedByContractCall(),
-				HSCS_EVM_005_TransferOfHBarsWorksBetweenContracts(),
-				HSCS_EVM_006_ContractHBarTransferToAccount(),
-				HSCS_EVM_005_TransfersWithSubLevelCallsBetweenContracts(),
-				HSCS_EVM_010_MultiSignatureAccounts(),
-				HSCS_EVM_010_ReceiverMustSignContractTx(),
-				insufficientGas(),
-				insufficientFee(),
-				nonPayable(),
-				invalidContract(),
-				smartContractFailFirst(),
-				contractTransferToSigReqAccountWithoutKeyFails(),
-				callingDestructedContractReturnsStatusDeleted(),
-				gasLimitOverMaxGasLimitFailsPrecheck(),
-				imapUserExercise(),
-				workingHoursDemo(),
-				deletedContractsCannotBeUpdated(),
-				sendHbarsToAddressesMultipleTimes(),
-				sendHbarsToDifferentAddresses(),
-				sendHbarsFromDifferentAddressessToAddress(),
-				sendHbarsFromAndToDifferentAddressess(),
-				transferNegativeAmountOfHbars(),
-				transferToCaller(),
-				transferZeroHbarsToCaller(),
-				transferZeroHbars(),
-				sendHbarsToOuterContractFromDifferentAddresses(),
-				sendHbarsToCallerFromDifferentAddresses(),
-				bitcarbonTestStillPasses(),
-				contractCreationStoragePriceMatchesFinalExpiry(),
+				callingSelfDestructOnANonZeroTokenBalanceContract(),
+				callingSelfDestructOnATreasuryContract(),
+//				resultSizeAffectsFees(),
+//				payableSuccess(),
+//				depositSuccess(),
+//				depositDeleteSuccess(),
+//				multipleDepositSuccess(),
+//				payTestSelfDestructCall(),
+//				multipleSelfDestructsAreSafe(),
+//				smartContractInlineAssemblyCheck(),
+//				ocToken(),
+//				contractTransferToSigReqAccountWithKeySucceeds(),
+//				maxRefundIsMaxGasRefundConfiguredWhenTXGasPriceIsSmaller(),
+//				minChargeIsTXGasUsedByContractCall(),
+//				HSCS_EVM_005_TransferOfHBarsWorksBetweenContracts(),
+//				HSCS_EVM_006_ContractHBarTransferToAccount(),
+//				HSCS_EVM_005_TransfersWithSubLevelCallsBetweenContracts(),
+//				HSCS_EVM_010_MultiSignatureAccounts(),
+//				HSCS_EVM_010_ReceiverMustSignContractTx(),
+//				insufficientGas(),
+//				insufficientFee(),
+//				nonPayable(),
+//				invalidContract(),
+//				smartContractFailFirst(),
+//				contractTransferToSigReqAccountWithoutKeyFails(),
+//				callingDestructedContractReturnsStatusDeleted(),
+//				gasLimitOverMaxGasLimitFailsPrecheck(),
+//				imapUserExercise(),
+//				workingHoursDemo(),
+//				deletedContractsCannotBeUpdated(),
+//				sendHbarsToAddressesMultipleTimes(),
+//				sendHbarsToDifferentAddresses(),
+//				sendHbarsFromDifferentAddressessToAddress(),
+//				sendHbarsFromAndToDifferentAddressess(),
+//				transferNegativeAmountOfHbars(),
+//				transferToCaller(),
+//				transferZeroHbarsToCaller(),
+//				transferZeroHbars(),
+//				sendHbarsToOuterContractFromDifferentAddresses(),
+//				sendHbarsToCallerFromDifferentAddresses(),
+//				bitcarbonTestStillPasses(),
+//				contractCreationStoragePriceMatchesFinalExpiry(),
 		});
 	}
 
@@ -883,6 +887,54 @@ public class ContractCallSuite extends HapiApiSuite {
 						fileCreate("simpleUpdateBytecode").path(ContractResources.SIMPLE_UPDATE)
 				).when(
 						contractCreate("simpleUpdateContract").bytecode("simpleUpdateBytecode").gas(300_000L),
+						contractCall("simpleUpdateContract",
+								ContractResources.SIMPLE_UPDATE_ABI, 5, 42).gas(300_000L),
+						contractCall("simpleUpdateContract",
+								ContractResources.SIMPLE_SELFDESTRUCT_UPDATE_ABI,
+								"0x0000000000000000000000000000000000000002")
+								.gas(1_000_000L)
+				).then(
+						contractCall("simpleUpdateContract",
+								ContractResources.SIMPLE_UPDATE_ABI, 15, 434).gas(350_000L)
+								.hasKnownStatus(CONTRACT_DELETED),
+						UtilVerbs.resetAppPropertiesTo("src/main/resource/bootstrap.properties")
+				);
+	}
+
+	HapiApiSpec callingSelfDestructOnATreasuryContract() {
+		return defaultHapiSpec("CallingSelfDestructOnATreasuryContract")
+				.given(
+						UtilVerbs.overriding("contracts.maxGas", "1000000"),
+						fileCreate("simpleUpdateBytecode").path(ContractResources.SIMPLE_UPDATE)
+				).when(
+						contractCreate("simpleUpdateContract").bytecode("simpleUpdateBytecode").gas(300_000L),
+						tokenCreate("tokenA").treasury("simpleUpdateContract").initialSupply(10),
+						contractCall("simpleUpdateContract",
+								ContractResources.SIMPLE_UPDATE_ABI, 5, 42).gas(300_000L),
+						contractCall("simpleUpdateContract",
+								ContractResources.SIMPLE_SELFDESTRUCT_UPDATE_ABI,
+								"0x0000000000000000000000000000000000000002")
+								.gas(1_000_000L)
+				).then(
+						contractCall("simpleUpdateContract",
+								ContractResources.SIMPLE_UPDATE_ABI, 15, 434).gas(350_000L)
+								.hasKnownStatus(CONTRACT_DELETED),
+						UtilVerbs.resetAppPropertiesTo("src/main/resource/bootstrap.properties")
+				);
+	}
+
+	HapiApiSpec callingSelfDestructOnANonZeroTokenBalanceContract() {
+		return defaultHapiSpec("CallingSelfDestructOnANonZeroTokenBalanceContract")
+				.given(
+						UtilVerbs.overriding("contracts.maxGas", "1000000"),
+						cryptoCreate("accountA"),
+						fileCreate("simpleUpdateBytecode").path(ContractResources.SIMPLE_UPDATE)
+				).when(
+						contractCreate("simpleUpdateContract").bytecode("simpleUpdateBytecode").gas(300_000L),
+						tokenCreate("tokenA").treasury("accountA").initialSupply(10),
+						tokenAssociate("simpleUpdateContract", "tokenA"),
+						cryptoTransfer(moving(10, "tokenA")
+								.between("accountA", "simpleUpdateContract")),
 						contractCall("simpleUpdateContract",
 								ContractResources.SIMPLE_UPDATE_ABI, 5, 42).gas(300_000L),
 						contractCall("simpleUpdateContract",

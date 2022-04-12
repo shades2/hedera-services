@@ -31,6 +31,7 @@ import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.state.submerkle.ExpirableTxnRecord;
 import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.AccountID;
+import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.datatypes.Address;
@@ -94,6 +95,7 @@ public abstract class AbstractLedgerWorldUpdater<W extends WorldView, A extends 
 	private RecordsHistorian recordsHistorian = null;
 
 	protected Set<Address> deletedAccounts = new HashSet<>();
+	protected Map<AccountID, Set<TokenID>> knownTreasuries = new HashMap<>();
 	protected Map<Address, UpdateTrackingLedgerAccount<A>> updatedAccounts = new HashMap<>();
 
 	protected AbstractLedgerWorldUpdater(
