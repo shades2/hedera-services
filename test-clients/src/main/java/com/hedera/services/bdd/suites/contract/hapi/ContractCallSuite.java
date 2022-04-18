@@ -119,6 +119,8 @@ public class ContractCallSuite extends HapiApiSuite {
 	public static final String SIMPLE_UPDATE_CONTRACT = "SimpleUpdate";
 	public static final String TRANSFERRING_CONTRACT = "Transferring";
 	public static final String SIMPLE_STORAGE_CONTRACT = "SimpleStorage";
+	public static final String DELEGATE_VALUE_TEST = "DelegateValueTest";
+	public static final String DELEGATE_VALUE_TEST_PARENT = "DelegateValueTestParent";
 
 	public static void main(String... args) {
 		new ContractCallSuite().runSuiteSync();
@@ -132,46 +134,48 @@ public class ContractCallSuite extends HapiApiSuite {
 	@Override
 	public List<HapiApiSpec> getSpecsInSuite() {
 		return List.of(
-				resultSizeAffectsFees(),
-				payableSuccess(),
-				depositSuccess(),
-				depositDeleteSuccess(),
-				multipleDepositSuccess(),
-				payTestSelfDestructCall(),
-				multipleSelfDestructsAreSafe(),
-				smartContractInlineAssemblyCheck(),
-				ocToken(),
-				contractTransferToSigReqAccountWithKeySucceeds(),
-				maxRefundIsMaxGasRefundConfiguredWhenTXGasPriceIsSmaller(),
-				minChargeIsTXGasUsedByContractCall(),
-				HSCS_EVM_005_TransferOfHBarsWorksBetweenContracts(),
-				HSCS_EVM_006_ContractHBarTransferToAccount(),
-				HSCS_EVM_005_TransfersWithSubLevelCallsBetweenContracts(),
-				HSCS_EVM_010_MultiSignatureAccounts(),
-				HSCS_EVM_010_ReceiverMustSignContractTx(),
-				insufficientGas(),
-				insufficientFee(),
-				nonPayable(),
-				invalidContract(),
-				smartContractFailFirst(),
-				contractTransferToSigReqAccountWithoutKeyFails(),
-				callingDestructedContractReturnsStatusDeleted(),
-				gasLimitOverMaxGasLimitFailsPrecheck(),
-				imapUserExercise(),
-				workingHoursDemo(),
-				deletedContractsCannotBeUpdated(),
-				sendHbarsToAddressesMultipleTimes(),
-				sendHbarsToDifferentAddresses(),
-				sendHbarsFromDifferentAddressessToAddress(),
-				sendHbarsFromAndToDifferentAddressess(),
-				transferNegativeAmountOfHbars(),
-				transferToCaller(),
-				transferZeroHbarsToCaller(),
-				transferZeroHbars(),
-				sendHbarsToOuterContractFromDifferentAddresses(),
-				sendHbarsToCallerFromDifferentAddresses(),
-				bitcarbonTestStillPasses(),
-				contractCreationStoragePriceMatchesFinalExpiry()
+//				resultSizeAffectsFees(),
+//				payableSuccess(),
+//				depositSuccess(),
+//				depositDeleteSuccess(),
+//				multipleDepositSuccess(),
+//				payTestSelfDestructCall(),
+//				multipleSelfDestructsAreSafe(),
+//				smartContractInlineAssemblyCheck(),
+//				ocToken(),
+//				contractTransferToSigReqAccountWithKeySucceeds(),
+//				maxRefundIsMaxGasRefundConfiguredWhenTXGasPriceIsSmaller(),
+//				minChargeIsTXGasUsedByContractCall(),
+//				HSCS_EVM_005_TransferOfHBarsWorksBetweenContracts(),
+//				HSCS_EVM_006_ContractHBarTransferToAccount(),
+//				HSCS_EVM_005_TransfersWithSubLevelCallsBetweenContracts(),
+//				HSCS_EVM_010_MultiSignatureAccounts(),
+//				HSCS_EVM_010_ReceiverMustSignContractTx(),
+//				insufficientGas(),
+//				insufficientFee(),
+//				nonPayable(),
+//				invalidContract(),
+//				smartContractFailFirst(),
+//				contractTransferToSigReqAccountWithoutKeyFails(),
+//				callingDestructedContractReturnsStatusDeleted(),
+//				gasLimitOverMaxGasLimitFailsPrecheck(),
+//				imapUserExercise(),
+//				workingHoursDemo(),
+//				deletedContractsCannotBeUpdated(),
+//				sendHbarsToAddressesMultipleTimes(),
+//				sendHbarsToDifferentAddresses(),
+//				sendHbarsFromDifferentAddressessToAddress(),
+//				sendHbarsFromAndToDifferentAddressess(),
+//				transferNegativeAmountOfHbars(),
+//				transferToCaller(),
+//				transferZeroHbarsToCaller(),
+//				transferZeroHbars(),
+//				sendHbarsToOuterContractFromDifferentAddresses(),
+//				sendHbarsToCallerFromDifferentAddresses(),
+//				bitcarbonTestStillPasses(),
+//				contractCreationStoragePriceMatchesFinalExpiry()
+				delegateCallValueTest()
+//				delegateCallValueTestParent()
 		);
 	}
 
@@ -1860,6 +1864,35 @@ public class ContractCallSuite extends HapiApiSuite {
 									10_000L);
 						}),
 						getAccountBalance("receiver").hasTinyBars(10_000L)
+				);
+	}
+
+	private HapiApiSpec delegateCallValueTest() {
+		final AtomicLong contractNum = new AtomicLong();
+
+		return defaultHapiSpec("delegateCallValueTest")
+				.given(
+						uploadInitCode(DELEGATE_VALUE_TEST),
+						contractCustomCreate(DELEGATE_VALUE_TEST, "1"),
+						contractCustomCreate(DELEGATE_VALUE_TEST, "2").exposingNumTo(contractNum::set)
+				).when(
+						sourcing(() -> contractCall(DELEGATE_VALUE_TEST + "1", "makeDelegateCall",
+								asHexedSolidityAddress(0, 0, contractNum.get())).sending(1000)
+								.via("delegateCallTxn"))
+				).then(
+						getTxnRecord("delegateCallTxn").logged()
+				);
+	}
+
+	private HapiApiSpec delegateCallValueTestParent() {
+
+		return defaultHapiSpec("delegateCallValueTest")
+				.given(
+						uploadInitCode(DELEGATE_VALUE_TEST_PARENT)
+				).when(
+						contractCreate(DELEGATE_VALUE_TEST_PARENT).balance(1000000L).gas(4_000_000L).via("test")
+				).then(
+						getTxnRecord("test").logged()
 				);
 	}
 

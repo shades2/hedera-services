@@ -36,6 +36,7 @@ public class HederaTracer implements OperationTracer {
 
 	@Override
 	public void traceExecution(MessageFrame frame, ExecuteOperation executeOperation) {
+		System.out.println(frame.getCurrentOperation() + " " + frame.getRemainingGas());
 		executeOperation.execute();
 	}
 
