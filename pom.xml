@@ -101,7 +101,7 @@
 	<repositories>
 		<repository>
 			<id>local-maven-repo</id>
-			<url>file:///${project.basedir}/localSwirldsSDK</url>
+			<url>file://${project.basedir}/localSwirldsSDK</url>
 			<releases>
 				<enabled>false</enabled>
 			</releases>
