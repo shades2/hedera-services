@@ -61,6 +61,7 @@ import org.apache.commons.codec.DecoderException;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.atomic.AtomicLong;
@@ -162,6 +163,7 @@ class HederaTokenStoreE2ETest {
 	}
 
 	@Test
+	@Disabled
 	void doOwnershipTransfer() throws DecoderException {
 		// Create 10 accounts 0.0.100 - 0.0.109
 		final int numNftTypes = 10;
