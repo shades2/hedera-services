@@ -117,6 +117,10 @@
 				<enabled>true</enabled>
 			</snapshots>
 		</repository>
+		 <repository>
+			 <id>local-maven-repo</id>
+			 <url>file:///${project.basedir}/localSwirldsSDK</url>
+		 </repository>
 	</repositories>
 	<distributionManagement>
 		<snapshotRepository>
