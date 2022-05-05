@@ -27,8 +27,8 @@ import com.hedera.services.sigs.sourcing.PubKeyToSigBytes;
 import com.hedera.services.utils.accessors.SwirldsTxnAccessor;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.Transaction;
-import com.swirlds.common.SwirldDualState;
-import com.swirlds.common.SwirldTransaction;
+import com.swirlds.common.system.SwirldDualState;
+import com.swirlds.common.system.transaction.SwirldTransaction;
 import com.swirlds.common.crypto.Signature;
 
 import java.time.Instant;

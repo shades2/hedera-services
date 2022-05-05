@@ -22,7 +22,7 @@ package com.hedera.services.state.submerkle;
 
 import com.hedera.test.serde.SelfSerializableDataTest;
 import com.hedera.test.utils.SeededPropertySource;
-import com.swirlds.common.io.SerializableDataInputStream;
+import com.swirlds.common.io.streams.SerializableDataInputStream;
 import org.bouncycastle.util.Arrays;
 import org.junit.jupiter.api.Test;
 

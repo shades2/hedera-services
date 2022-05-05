@@ -21,6 +21,7 @@ package com.hedera.services.legacy.core.jproto;
  */
 
 import com.hedera.services.state.serdes.IoUtils;
+import com.swirlds.common.io.streams.SerializableDataInputStream;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -96,6 +97,22 @@ public class JKeySerializer {
 		return unpack(stream, type, length);
 	}
 
+	public static <T> T deserialize(SerializableDataInputStream stream) throws IOException {
+		final var version = stream.readLong();
+		if (version == LEGACY_VERSION) {
+			throw new IllegalArgumentException("Pre-OA serialization format no longer supported");
+		}
+
+		final var objectType = stream.readLong();
+		final var type = JObjectType.valueOf(objectType);
+		if (type == null) {
+			throw new IllegalStateException("Value " + objectType + " from stream is not a valid object type");
+		}
+
+		final var length = stream.readLong();
+		return unpack(stream, type, length);
+	}
+
 	static void pack(final DataOutputStream stream, final JObjectType type, final Object object) throws IOException {
 		if (JObjectType.FC_ED25519_KEY.equals(type)) {
 			JKey jKey = (JKey) object;
@@ -156,6 +173,64 @@ public class JKeySerializer {
 
 	@SuppressWarnings("unchecked")
 	static <T> T unpack(DataInputStream stream, JObjectType type, long length) throws IOException {
+		if (JObjectType.FC_ED25519_KEY.equals(type)) {
+			byte[] key = new byte[(int) length];
+			stream.readFully(key);
+			return (T) new JEd25519Key(key);
+		} else if (JObjectType.FC_ECDSA384_KEY.equals(type)) {
+			byte[] key = new byte[(int) length];
+			stream.readFully(key);
+			return (T) new JECDSA_384Key(key);
+		} else if (JObjectType.FC_ECDSA_SECP256K1_KEY.equals(type)) {
+			byte[] key = new byte[(int) length];
+			stream.readFully(key);
+			return (T) new JECDSASecp256k1Key(key);
+		} else if (JObjectType.FC_THRESHOLD_KEY.equals(type)) {
+			int threshold = stream.readInt();
+			JKeyList keyList = deserialize(stream);
+			return (T) new JThresholdKey(keyList, threshold);
+		} else if (JObjectType.FC_KEY_LIST.equals(type)) {
+			List<JKey> elements = new LinkedList<>();
+			int size = stream.readInt();
+			if (size > 0) {
+				for (int i = 0; i < size; i++) {
+					elements.add(deserialize(stream));
+				}
+			}
+			return (T) new JKeyList(elements);
+		} else if (JObjectType.FC_RSA3072_KEY.equals(type)) {
+			byte[] key = new byte[(int) length];
+			stream.readFully(key);
+			return (T) new JRSA_3072Key(key);
+		} else if (JObjectType.FC_CONTRACT_ID_KEY.equals(type)) {
+			long shard = stream.readLong();
+			long realm = stream.readLong();
+			long contract = stream.readLong();
+			return (T) new JContractIDKey(shard, realm, contract);
+		} else if (JObjectType.FC_DELEGATE_CONTRACT_ID_KEY.equals(type)) {
+			long shard = stream.readLong();
+			long realm = stream.readLong();
+			long contract = stream.readLong();
+			return (T) new JDelegatableContractIDKey(shard, realm, contract);
+		} else if (JObjectType.FC_CONTRACT_ALIAS_KEY.equals(type)) {
+			long shard = stream.readLong();
+			long realm = stream.readLong();
+			byte[] evmAddress = new byte[20];
+			stream.readFully(evmAddress);
+			return (T) new JContractAliasKey(shard, realm, evmAddress);
+		} else if (JObjectType.FC_DELEGATE_CONTRACT_ALIAS_KEY.equals(type)) {
+			long shard = stream.readLong();
+			long realm = stream.readLong();
+			byte[] evmAddress = new byte[20];
+			stream.readFully(evmAddress);
+			return (T) new JDelegatableContractAliasKey(shard, realm, evmAddress);
+		} else {
+			throw new IllegalStateException(
+					"Unknown type was encountered while reading from the input stream");
+		}
+	}
+
+	static <T> T unpack(SerializableDataInputStream stream, JObjectType type, long length) throws IOException {
 		if (JObjectType.FC_ED25519_KEY.equals(type)) {
 			byte[] key = new byte[(int) length];
 			stream.readFully(key);

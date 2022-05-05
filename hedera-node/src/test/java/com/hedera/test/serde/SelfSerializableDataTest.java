@@ -24,7 +24,7 @@ import com.hedera.test.utils.ClassLoaderHelper;
 import com.hedera.test.utils.SeededPropertySource;
 import com.swirlds.common.constructable.ConstructableRegistryException;
 import com.swirlds.common.io.SelfSerializable;
-import com.swirlds.common.io.SerializableDataInputStream;
+import com.swirlds.common.io.streams.SerializableDataInputStream;
 import com.swirlds.common.io.SerializableDet;
 import com.swirlds.common.io.Versioned;
 import org.junit.jupiter.api.BeforeAll;

@@ -23,8 +23,8 @@ package com.hedera.services.state.virtual;
 import com.google.common.base.MoreObjects;
 import com.hedera.services.store.models.NftId;
 import com.hedera.services.utils.EntityNumPair;
-import com.swirlds.common.io.SerializableDataInputStream;
-import com.swirlds.common.io.SerializableDataOutputStream;
+import com.swirlds.common.io.streams.SerializableDataInputStream;
+import com.swirlds.common.io.streams.SerializableDataOutputStream;
 import com.swirlds.virtualmap.VirtualKey;
 import org.jetbrains.annotations.NotNull;
 

@@ -41,7 +41,7 @@ import com.hederahashgraph.api.proto.java.TimestampSeconds;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionID;
-import com.swirlds.common.SwirldTransaction;
+import com.swirlds.common.system.transaction.SwirldTransaction;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -266,7 +266,7 @@ class RecordCacheTest {
 		final var platformTxn = new SwirldTransaction(signedTxn.toByteArray());
 		final var effectivePayer = IdUtils.asAccount("0.0.3");
 		given(histories.computeIfAbsent(argThat(txnId::equals), any())).willReturn(recentHistory);
-		final var accessor = PlatformTxnAccessor.from(SignedTxnAccessor.from(platformTxn.getContentsDirect()),
+		final var accessor = PlatformTxnAccessor.from(SignedTxnAccessor.from(platformTxn.getContents()),
 				platformTxn);
 
 		final var expirableTxnRecordBuilder = ExpirableTxnRecord.newBuilder()

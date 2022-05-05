@@ -31,8 +31,8 @@ import com.hederahashgraph.api.proto.java.TransactionReceipt;
 import com.hederahashgraph.builder.RequestBuilder;
 import com.swirlds.common.CommonUtils;
 import com.swirlds.common.io.SelfSerializable;
-import com.swirlds.common.io.SerializableDataInputStream;
-import com.swirlds.common.io.SerializableDataOutputStream;
+import com.swirlds.common.io.streams.SerializableDataInputStream;
+import com.swirlds.common.io.streams.SerializableDataOutputStream;
 
 import java.io.IOException;
 import java.util.Arrays;

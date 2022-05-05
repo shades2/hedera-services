@@ -38,7 +38,7 @@ import com.hederahashgraph.api.proto.java.SubType;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionID;
-import com.swirlds.common.SwirldTransaction;
+import com.swirlds.common.system.transaction.SwirldTransaction;
 import org.apache.commons.codec.binary.StringUtils;
 import org.junit.jupiter.api.Test;
 
@@ -84,7 +84,7 @@ class PlatformTxnAccessorTest {
 				new SwirldTransaction(signedTxnWithBody.toByteArray());
 
 		// given:
-		PlatformTxnAccessor subject = new PlatformTxnAccessor(SignedTxnAccessor.from(platformTxn.getContentsDirect()),
+		PlatformTxnAccessor subject = new PlatformTxnAccessor(SignedTxnAccessor.from(platformTxn.getContents()),
 				platformTxn);
 
 		// expect:
@@ -101,7 +101,7 @@ class PlatformTxnAccessorTest {
 				new SwirldTransaction(signedTxnWithBody.toByteArray());
 
 		// given:
-		PlatformTxnAccessor subject = new PlatformTxnAccessor(SignedTxnAccessor.from(platformTxn.getContentsDirect()),
+		PlatformTxnAccessor subject = new PlatformTxnAccessor(SignedTxnAccessor.from(platformTxn.getContents()),
 				platformTxn);
 
 		// when:
@@ -188,7 +188,7 @@ class PlatformTxnAccessorTest {
 		final var txn = new SwirldTransaction(NONSENSE);
 		// expect:
 		assertThrows(InvalidProtocolBufferException.class,
-				() -> PlatformTxnAccessor.from(SignedTxnAccessor.from(txn.getContentsDirect()),
+				() -> PlatformTxnAccessor.from(SignedTxnAccessor.from(txn.getContents()),
 						txn));
 	}
 
@@ -199,7 +199,7 @@ class PlatformTxnAccessorTest {
 
 		// expect:
 		assertThrows(InvalidProtocolBufferException.class,
-				() -> new PlatformTxnAccessor(SignedTxnAccessor.from(platformTxn.getContentsDirect()), platformTxn));
+				() -> new PlatformTxnAccessor(SignedTxnAccessor.from(platformTxn.getContents()), platformTxn));
 	}
 
 	@Test
@@ -213,7 +213,7 @@ class PlatformTxnAccessorTest {
 				new SwirldTransaction(signedNonsenseTxn.toByteArray());
 
 		// then:
-		assertThrows(InvalidProtocolBufferException.class,() -> PlatformTxnAccessor.from(SignedTxnAccessor.from(platformTxn.getContentsDirect()), platformTxn));
+		assertThrows(InvalidProtocolBufferException.class,() -> PlatformTxnAccessor.from(SignedTxnAccessor.from(platformTxn.getContents()), platformTxn));
 	}
 
 	@Test
@@ -226,7 +226,7 @@ class PlatformTxnAccessorTest {
 				new SwirldTransaction(signedTxnWithBody.toByteArray());
 
 		// when:
-		PlatformTxnAccessor subject = new PlatformTxnAccessor(SignedTxnAccessor.from(platformTxn.getContentsDirect()),
+		PlatformTxnAccessor subject = new PlatformTxnAccessor(SignedTxnAccessor.from(platformTxn.getContents()),
 				platformTxn);
 
 		// then:
@@ -247,7 +247,7 @@ class PlatformTxnAccessorTest {
 				new SwirldTransaction(signedTxnWithBody.toByteArray());
 
 		// when:
-		PlatformTxnAccessor subject = new PlatformTxnAccessor(SignedTxnAccessor.from(platformTxn.getContentsDirect()),
+		PlatformTxnAccessor subject = new PlatformTxnAccessor(SignedTxnAccessor.from(platformTxn.getContents()),
 				platformTxn);
 		Transaction signedTxn4Log = subject.getSignedTxnWrapper();
 		Transaction asBodyBytes = signedTxn4Log
@@ -275,7 +275,7 @@ class PlatformTxnAccessorTest {
 				new SwirldTransaction(txn.toByteArray());
 
 		// when:
-		PlatformTxnAccessor subject = new PlatformTxnAccessor(SignedTxnAccessor.from(platformTxn.getContentsDirect()),
+		PlatformTxnAccessor subject = new PlatformTxnAccessor(SignedTxnAccessor.from(platformTxn.getContents()),
 				platformTxn);
 		Transaction signedTxn4Log = subject.getSignedTxnWrapper();
 
@@ -301,7 +301,7 @@ class PlatformTxnAccessorTest {
 				new SwirldTransaction(signedTxnWithBody.toByteArray());
 
 		// when:
-		PlatformTxnAccessor subject = new PlatformTxnAccessor(SignedTxnAccessor.from(platformTxn.getContentsDirect()),
+		PlatformTxnAccessor subject = new PlatformTxnAccessor(SignedTxnAccessor.from(platformTxn.getContents()),
 				platformTxn);
 
 		// then:
@@ -332,7 +332,7 @@ class PlatformTxnAccessorTest {
 		final var aliasManager = mock(AliasManager.class);
 
 		// when:
-		PlatformTxnAccessor subject = new PlatformTxnAccessor(SignedTxnAccessor.from(platformTxn.getContentsDirect()), platformTxn);
+		PlatformTxnAccessor subject = new PlatformTxnAccessor(SignedTxnAccessor.from(platformTxn.getContents()), platformTxn);
 		final var delegate = subject.getDelegate();
 
 		// then:
@@ -424,7 +424,7 @@ class PlatformTxnAccessorTest {
 		SwirldTransaction platformTxn = new SwirldTransaction(signedTxnWithBody.toByteArray());
 
 		// when:
-		PlatformTxnAccessor subject = new PlatformTxnAccessor(SignedTxnAccessor.from(platformTxn.getContentsDirect()), platformTxn);
+		PlatformTxnAccessor subject = new PlatformTxnAccessor(SignedTxnAccessor.from(platformTxn.getContents()), platformTxn);
 
 		final var expectedString = "PlatformTxnAccessor{delegate=SignedTxnAccessor{sigMapSize=71, numSigPairs=1, " +
 				"numAutoCreations=-1, hash=[111, -123, -70, 79, 75, -80, -114, -49, 88, -76, -82, -23, 43, 103, -21, " +

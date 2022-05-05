@@ -5,7 +5,7 @@ import com.hedera.services.state.virtual.ContractKeySerializer;
 import com.hedera.services.state.virtual.ContractKeySupplier;
 import com.hedera.services.state.virtual.ContractValue;
 import com.hedera.services.state.virtual.ContractValueSupplier;
-import com.swirlds.common.Units;
+import com.swirlds.common.utility.Units;
 import com.swirlds.common.crypto.DigestType;
 import com.swirlds.jasperdb.VirtualLeafRecordSerializer;
 import com.swirlds.jasperdb.files.DataFileCommon;

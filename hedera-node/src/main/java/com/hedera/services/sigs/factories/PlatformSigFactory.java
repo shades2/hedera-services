@@ -94,8 +94,8 @@ public final class PlatformSigFactory {
 		final var bOffset = b.getSignatureOffset();
 		final var bLen = b.getSignatureLength();
 		return Arrays.equals(
-				a.getContentsDirect(), aOffset, aOffset + aLen,
-				b.getContentsDirect(), bOffset, bOffset + bLen);
+				a.getContents(), aOffset, aOffset + aLen,
+				b.getContents(), bOffset, bOffset + bLen);
 	}
 
 	public static boolean allVaryingMaterialEquals(
@@ -120,7 +120,7 @@ public final class PlatformSigFactory {
 				"(PK = %s | SIG = %s | %s)",
 				CommonUtils.hex(sig.getExpandedPublicKeyDirect()),
 				CommonUtils.hex(Arrays.copyOfRange(
-						sig.getContentsDirect(),
+						sig.getContents(),
 						sig.getSignatureOffset(),
 						sig.getSignatureOffset() + sig.getSignatureLength())),
 				sig.getSignatureStatus())
