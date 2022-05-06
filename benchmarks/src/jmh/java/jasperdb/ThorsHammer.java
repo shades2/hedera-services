@@ -26,7 +26,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
 
-import static com.swirlds.common.CommonUtils.hardLinkTree;
+import static com.swirlds.common.utility.CommonUtils.hardLinkTree;
 import static utils.CommonTestUtils.deleteDirectoryAndContents;
 import static utils.CommonTestUtils.hash;
 

@@ -786,7 +786,7 @@ class MiscUtilsTest {
 	@Test
 	void hashCorrectly() throws IllegalArgumentException {
 		final var testBytes = "test bytes".getBytes();
-		final var expectedHash = com.swirlds.common.CommonUtils.unhex(
+		final var expectedHash = com.swirlds.common.utility.CommonUtils.unhex(
 				"2ddb907ecf9a8c086521063d6d310d46259437770587b3dbe2814ab17962a4e124a825fdd02cb167ac9fffdd4a5e8120"
 		);
 
@@ -897,7 +897,7 @@ class MiscUtilsTest {
 	}
 
 	private static void writeB64EncodedKeyPair(final File file, final KeyPair keyPair) throws IOException {
-		final var hexPublicKey = com.swirlds.common.CommonUtils.hex(keyPair.getPublic().getEncoded());
+		final var hexPublicKey = com.swirlds.common.utility.CommonUtils.hex(keyPair.getPublic().getEncoded());
 		final var keyPairObj = new KeyPairObj(hexPublicKey);
 		final var keys = new AccountKeyListObj(asAccount("0.0.2"), List.of(keyPairObj));
 

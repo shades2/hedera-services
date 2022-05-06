@@ -23,7 +23,7 @@ package com.hedera.services.state.submerkle;
 import com.google.common.base.MoreObjects;
 import com.google.protobuf.ByteString;
 import com.hederahashgraph.api.proto.java.ContractLoginfo;
-import com.swirlds.common.CommonUtils;
+import com.swirlds.common.utility.CommonUtils;
 import com.swirlds.common.io.SelfSerializable;
 import com.swirlds.common.io.streams.SerializableDataInputStream;
 import com.swirlds.common.io.streams.SerializableDataOutputStream;

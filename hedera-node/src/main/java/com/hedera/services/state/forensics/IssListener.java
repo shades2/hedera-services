@@ -24,7 +24,7 @@ import com.hedera.services.ServicesState;
 import com.hedera.services.context.domain.trackers.IssEventInfo;
 import com.hedera.services.context.properties.NodeLocalProperties;
 import com.swirlds.common.system.AddressBook;
-import com.swirlds.common.CommonUtils;
+import com.swirlds.common.utility.CommonUtils;
 import com.swirlds.common.InvalidSignedStateListener;
 import com.swirlds.common.system.NodeId;
 import com.swirlds.common.system.Platform;

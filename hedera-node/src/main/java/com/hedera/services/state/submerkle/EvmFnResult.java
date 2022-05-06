@@ -51,7 +51,7 @@ import static com.hedera.services.state.serdes.IoUtils.readNullableSerializable;
 import static com.hedera.services.state.serdes.IoUtils.readNullableString;
 import static com.hedera.services.state.serdes.IoUtils.writeNullableSerializable;
 import static com.hedera.services.state.serdes.IoUtils.writeNullableString;
-import static com.swirlds.common.CommonUtils.hex;
+import static com.swirlds.common.utility.CommonUtils.hex;
 import static org.apache.commons.collections4.CollectionUtils.isNotEmpty;
 
 public class EvmFnResult implements SelfSerializable {

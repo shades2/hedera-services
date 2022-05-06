@@ -100,16 +100,6 @@
 
 	<repositories>
 		<repository>
-			<id>local-maven-repo</id>
-			<url>file://${project.basedir}/localSwirldsSDK/repository</url>
-			<releases>
-				<enabled>false</enabled>
-			</releases>
-			<snapshots>
-				<enabled>true</enabled>
-			</snapshots>
-		</repository>
-		<repository>
 			<snapshots>
 				<enabled>false</enabled>
 			</snapshots>
@@ -435,43 +425,31 @@
 				<groupId>com.swirlds</groupId>
 				<artifactId>swirlds-virtualmap</artifactId>
 				<version>${swirlds.version}</version>
-				<scope>system</scope>
-				<systemPath>${project.basedir}/localSwirldsSDK/swirlds-virtualmap-${swirlds.version}.jar</systemPath>
 			</dependency>
 			<dependency>
 				<groupId>com.swirlds</groupId>
 				<artifactId>swirlds-jasperdb</artifactId>
 				<version>${swirlds.version}</version>
-				<scope>system</scope>
-				<systemPath>${project.basedir}/localSwirldsSDK/swirlds-jasperdb-${swirlds.version}.jar</systemPath>
 			</dependency>
 			<dependency>
 				<groupId>com.swirlds</groupId>
 				<artifactId>swirlds-platform-core</artifactId>
 				<version>${swirlds.version}</version>
-				<scope>system</scope>
-				<systemPath>${project.basedir}/localSwirldsSDK/swirlds-platform-core-${swirlds.version}.jar</systemPath>
 			</dependency>
 			<dependency>
 				<groupId>com.swirlds</groupId>
 				<artifactId>swirlds-fchashmap</artifactId>
 				<version>${swirlds.version}</version>
-				<scope>system</scope>
-				<systemPath>${project.basedir}/localSwirldsSDK/swirlds-fchashmap-${swirlds.version}.jar</systemPath>
 			</dependency>
 			<dependency>
 				<groupId>com.swirlds</groupId>
 				<artifactId>swirlds-fcqueue</artifactId>
 				<version>${swirlds.version}</version>
-				<scope>system</scope>
-				<systemPath>${project.basedir}/localSwirldsSDK/swirlds-fcqueue-${swirlds.version}.jar</systemPath>
 			</dependency>
 			<dependency>
 				<groupId>com.swirlds</groupId>
 				<artifactId>swirlds-merkle</artifactId>
 				<version>${swirlds.version}</version>
-				<scope>system</scope>
-				<systemPath>${project.basedir}/localSwirldsSDK/swirlds-merkle-${swirlds.version}.jar</systemPath>
 			</dependency>
 			<dependency>
 				<groupId>org.junit</groupId>

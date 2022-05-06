@@ -56,7 +56,7 @@ import com.hedera.services.state.submerkle.TxnIdSerdeTest;
 import com.hedera.services.stream.RecordsRunningHashLeaf;
 import com.hedera.test.utils.SeededPropertySource;
 import com.hedera.test.utils.SerdeUtils;
-import com.swirlds.common.CommonUtils;
+import com.swirlds.common.utility.CommonUtils;
 import com.swirlds.common.io.SelfSerializable;
 
 import java.io.IOException;
