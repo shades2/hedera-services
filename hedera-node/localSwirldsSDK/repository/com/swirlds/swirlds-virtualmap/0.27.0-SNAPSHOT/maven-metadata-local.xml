@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata modelVersion="1.1.0">
+  <groupId>com.swirlds</groupId>
+  <artifactId>swirlds-virtualmap</artifactId>
+  <versioning>
+    <lastUpdated>20220506223244</lastUpdated>
+    <snapshot>
+      <localCopy>true</localCopy>
+    </snapshot>
+    <snapshotVersions>
+      <snapshotVersion>
+        <extension>jar</extension>
+        <value>0.27.0-SNAPSHOT</value>
+        <updated>20220506223244</updated>
+      </snapshotVersion>
+      <snapshotVersion>
+        <extension>pom</extension>
+        <value>0.27.0-SNAPSHOT</value>
+        <updated>20220506223244</updated>
+      </snapshotVersion>
+    </snapshotVersions>
+  </versioning>
+  <version>0.27.0-SNAPSHOT</version>
+</metadata>

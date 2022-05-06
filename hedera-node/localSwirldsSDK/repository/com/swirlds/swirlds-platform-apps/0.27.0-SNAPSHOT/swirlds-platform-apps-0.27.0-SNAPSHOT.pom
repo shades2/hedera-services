@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright 2016-2022 Hedera Hashgraph, LLC
+  ~
+  ~ This software is the confidential and proprietary information of
+  ~ Hedera Hashgraph, LLC. ("Confidential Information"). You shall not
+  ~ disclose such Confidential Information and shall use it only in
+  ~ accordance with the terms of the license agreement you entered into
+  ~ with Hedera Hashgraph.
+  ~
+  ~ HEDERA HASHGRAPH MAKES NO REPRESENTATIONS OR WARRANTIES ABOUT THE SUITABILITY OF
+  ~ THE SOFTWARE, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+  ~ TO THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+  ~ PARTICULAR PURPOSE, OR NON-INFRINGEMENT. HEDERA HASHGRAPH SHALL NOT BE LIABLE FOR
+  ~ ANY DAMAGES SUFFERED BY LICENSEE AS A RESULT OF USING, MODIFYING OR
+  ~ DISTRIBUTING THIS SOFTWARE OR ITS DERIVATIVES.
+  -->
+
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+	<!-- Required Maven Version -->
+	<modelVersion>4.0.0</modelVersion>
+
+	<!-- $$BEGIN_PARENT_REMOVE$$ -->
+	<!-- Parent Configuration -->
+	<parent>
+		<groupId>com.swirlds</groupId>
+		<artifactId>swirlds-platform</artifactId>
+		<version>0.27.0-SNAPSHOT</version>
+	</parent>
+	<!-- $$END_PARENT_REMOVE$$ -->
+
+	<!-- Project Configuration -->
+	<groupId>com.swirlds</groupId>
+	<artifactId>swirlds-platform-apps</artifactId>
+	<version>0.27.0-SNAPSHOT</version>
+	<packaging>pom</packaging>
+
+	<!-- Project Properties -->
+	<properties>
+		<!-- Maven and Java Configuration -->
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<maven.compiler.source>17</maven.compiler.source>
+		<maven.compiler.target>17</maven.compiler.target>
+
+		<maven.javadoc.skip>true</maven.javadoc.skip>
+
+		<mdep.skip>true</mdep.skip>
+
+		<sdk.production>true</sdk.production>
+
+		<sdk.dir>${project.basedir}/../sdk</sdk.dir>
+		<app.name></app.name>
+		<app.prefix></app.prefix>
+	</properties>
+
+	<!-- Sub Modules -->
+	<modules>
+		<!-- Swirlds Apps Released in SDK -->
+		<module>demos/StatsDemo</module>
+		<module>demos/CryptocurrencyDemo</module>
+		<module>demos/HelloSwirldDemo</module>
+		<module>demos/HashgraphDemo</module>
+		<module>demos/GameDemo</module>
+
+		<!-- $$BEGIN_SUBMODULE_REMOVE$$ -->
+		<!-- Swirlds Apps for Internal Use Only -->
+		<module>tests/StatsSigningTestingTool</module>
+		<module>tests/PlatformTestingTool</module>
+		<module>tests/MigrationTestingTool</module>
+		<module>tests/InvalidStateTestingTool</module>
+		<!-- $$END_SUBMODULE_REMOVE$$ -->
+	</modules>
+
+	<!-- Dependencies -->
+	<dependencies>
+		<dependency>
+			<groupId>com.swirlds</groupId>
+			<artifactId>swirlds</artifactId>
+			<version>0.27.0-SNAPSHOT</version>
+		</dependency>
+	</dependencies>
+
+	<!-- Repository Configuration -->
+	<repositories>
+	</repositories>
+
+	<!-- Profiles -->
+	<profiles>
+		<profile>
+			<id>production</id>
+			<activation>
+				<!-- $$BEGIN_PROFILE_REMOVE$$
+				<activeByDefault>true</activeByDefault>
+				$$END_PROFILE_REMOVE$$ -->
+			</activation>
+			<properties>
+				<sdk.dir>${project.basedir}/..</sdk.dir>
+			</properties>
+		</profile>
+	</profiles>
+
+	<!-- Build Configuration -->
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>copy</id>
+						<phase>package</phase>
+						<goals>
+							<goal>copy</goal>
+						</goals>
+						<configuration>
+							<stripVersion>true</stripVersion>
+							<artifactItems>
+								<artifactItem>
+									<groupId>com.swirlds</groupId>
+									<artifactId>swirlds</artifactId>
+									<version>${project.version}</version>
+									<outputDirectory>${sdk.dir}</outputDirectory>
+								</artifactItem>
+								<artifactItem>
+									<groupId>${project.groupId}</groupId>
+									<artifactId>${project.artifactId}</artifactId>
+									<version>${project.version}</version>
+									<type>${project.packaging}</type>
+									<destFileName>${project.artifactId}.${project.packaging}</destFileName>
+									<outputDirectory>${sdk.dir}/data/apps/</outputDirectory>
+								</artifactItem>
+							</artifactItems>
+						</configuration>
+					</execution>
+					<execution>
+						<id>copy-dependencies</id>
+						<phase>package</phase>
+						<goals>
+							<goal>copy-dependencies</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${sdk.dir}/data/lib</outputDirectory>
+							<excludeArtifactIds>swirlds</excludeArtifactIds>
+							<includeScope>runtime</includeScope>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<configuration>
+					<archive>
+						<manifest>
+							<mainClass>${app.prefix}${app.name}Main</mainClass>
+							<addClasspath>true</addClasspath>
+							<classpathPrefix>../lib/</classpathPrefix>
+							<useUniqueVersions>false</useUniqueVersions>
+						</manifest>
+					</archive>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+
+</project>
