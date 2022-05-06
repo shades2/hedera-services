@@ -103,6 +103,9 @@
 			<snapshots>
 				<enabled>false</enabled>
 			</snapshots>
+			<releases>
+				<enabled>true</enabled>
+			</releases>
 			<id>local-repo-for-swirlds-sdk</id>
 			<url>file://${project.basedir}/localSwirldsSDK/swirlds.jar</url>
 		</repository>
