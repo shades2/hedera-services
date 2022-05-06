@@ -341,7 +341,7 @@
 				<enabled>true</enabled>
 			</snapshots>
 			<id>local-repo-for-swirlds-sdk</id>
-			<url>file:${project.basedir}/localSwirldsSDK/swirlds.jar</url>
+			<url>file://${project.basedir}/localSwirldsSDK/swirlds.jar</url>
 		</repository>
 		<repository>
 			<snapshots>
