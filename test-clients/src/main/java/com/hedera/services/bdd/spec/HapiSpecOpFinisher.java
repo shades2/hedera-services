@@ -25,7 +25,7 @@ public interface HapiSpecOpFinisher extends Comparable<HapiSpecOpFinisher> {
 	void finishFor(HapiApiSpec spec) throws Throwable;
 
 	@Override
-	default int compareTo(HapiSpecOpFinisher o) {
+	default int compareTo(final HapiSpecOpFinisher o) {
 		return Long.compare(submitTime(), o.submitTime());
 	}
 }

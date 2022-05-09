@@ -33,7 +33,7 @@ public class DelegatingOpFinisher implements HapiSpecOpFinisher {
 
 	@Override
 	public long submitTime() {
-		return delegate.getSubmitTime();
+		return delegate.getSubmitTimeNanos();
 	}
 
 	@Override

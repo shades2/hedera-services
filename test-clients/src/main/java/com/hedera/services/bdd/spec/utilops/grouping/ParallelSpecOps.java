@@ -52,7 +52,7 @@ public class ParallelSpecOps extends UtilOp {
 				Stream.of(subs)
 						.map(op -> CompletableFuture.runAsync(
 								() -> op.execFor(spec).map(t -> subErrors.put(op.toString(), t))))
-						.toArray(n -> new CompletableFuture[n])
+						.toArray(CompletableFuture[]::new)
 		);
 		future.join();
 

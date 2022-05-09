@@ -66,6 +66,7 @@ import static com.hedera.services.bdd.suites.HapiApiSuite.GENESIS;
 import static com.hedera.services.bdd.suites.HapiApiSuite.RELAYER;
 import static com.hedera.services.bdd.suites.HapiApiSuite.SECP_256K1_SOURCE_KEY;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.SUCCESS;
 
 public class HapiEthereumCall extends HapiBaseCall<HapiEthereumCall> {
     public static final String ETH_HASH_KEY = "EthHash";
@@ -91,6 +92,7 @@ public class HapiEthereumCall extends HapiBaseCall<HapiEthereumCall> {
     private Optional<BigInteger> valueSent = Optional.of(BigInteger.ZERO);
     private String privateKeyRef = SECP_256K1_SOURCE_KEY;
     private Consumer<Object[]> resultObserver = null;
+    private Runnable callback = null;
 
     public HapiEthereumCall withExplicitParams(final Supplier<String> supplier) {
         explicitHexedParams = Optional.of(supplier);
@@ -170,6 +172,11 @@ public class HapiEthereumCall extends HapiBaseCall<HapiEthereumCall> {
     public HapiEthereumCall alsoSigningWithFullPrefix(String... keys) {
         otherSigs = List.of(keys);
         return sigMapPrefixes(uniqueWithFullPrefixesFor(keys));
+    }
+
+    public HapiEthereumCall onSuccess(final Runnable doSomething) {
+        callback = doSomething;
+        return this;
     }
 
     public HapiEthereumCall sending(long amount) {
@@ -301,6 +308,9 @@ public class HapiEthereumCall extends HapiBaseCall<HapiEthereumCall> {
     protected void updateStateOf(final HapiApiSpec spec) throws Throwable {
         if (actualPrecheck == OK) {
             spec.incrementNonce();
+        }
+        if (actualStatus == SUCCESS && callback != null) {
+            callback.run();
         }
         if (gasObserver.isPresent()) {
             doGasLookup(gas -> gasObserver.get().accept(actualStatus, gas), spec, txnSubmitted, false);

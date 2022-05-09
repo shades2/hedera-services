@@ -87,6 +87,7 @@ public abstract class HapiTxnOp<T extends HapiTxnOp<T>> extends HapiSpecOperatio
 			.build();
 
 	private long submitTime = 0L;
+	private long submitTimeNanos;
 	private TxnObs stats;
 	private boolean deferStatusResolution = false;
 	private boolean ensureResolvedStatusIsntFromDuplicate = false;
@@ -107,6 +108,10 @@ public abstract class HapiTxnOp<T extends HapiTxnOp<T>> extends HapiSpecOperatio
 	protected Optional<EnumSet<ResponseCodeEnum>> permissiblePrechecks = Optional.empty();
 	/** if response code in the set then allow to resubmit transaction */
 	protected Optional<EnumSet<ResponseCodeEnum>> retryPrechecks = Optional.empty();
+
+	public long getSubmitTimeNanos() {
+		return submitTimeNanos;
+	}
 
 	public long getSubmitTime() {
 		return submitTime;
@@ -136,6 +141,7 @@ public abstract class HapiTxnOp<T extends HapiTxnOp<T>> extends HapiSpecOperatio
 
 	@Override
 	protected boolean submitOp(HapiApiSpec spec) throws Throwable {
+		submitTimeNanos = System.nanoTime();
 		stats = new TxnObs(type());
 		fixNodeFor(spec);
 		configureTlsFor(spec);
@@ -199,19 +205,12 @@ public abstract class HapiTxnOp<T extends HapiTxnOp<T>> extends HapiSpecOperatio
 				if (permissiblePrechecks.get().contains(actualPrecheck)) {
 					expectedPrecheck = Optional.of(actualPrecheck);
 				} else {
-//					log.error(
-//							"{} {} Wrong actual precheck status {}, not one of {}!",spec.logPrefix(), this,
-//							actualPrecheck,
-//							permissiblePrechecks.get());
 					throw new HapiTxnPrecheckStateException(String.format(
 							"Wrong precheck status! Expected one of %s, actual %s",
 							permissiblePrechecks.get(), actualPrecheck));
 				}
 			} else {
 				if (getExpectedPrecheck() != actualPrecheck) {
-					// Change to an info until HapiClientValidator can be modified and can understand new errors
-					log.info("{} {} Wrong actual precheck status {}, expecting {}", spec.logPrefix(), this,
-							actualPrecheck, getExpectedPrecheck());
 					throw new HapiTxnPrecheckStateException(String.format(
 							"Wrong precheck status! Expected %s, actual %s",
 							getExpectedPrecheck(), actualPrecheck));

@@ -36,7 +36,9 @@ import org.apache.tuweni.units.bigints.UInt256;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -122,8 +124,22 @@ public class SizeLimitedStorage {
 	public void validateAndCommit() {
 		validatePendingSizeChanges();
 
+		final Set<Long> touchedNumbers = new HashSet<>();
+		touchedNumbers.addAll(updatedKeys.keySet());
+		touchedNumbers.addAll(removedKeys.keySet());
+//		System.out.println("=============================================");
+//		for (final var num : touchedNumbers) {
+//			System.out.println("\n--- 0.0." + num + " ---");
+//			System.out.println("  - UPDATED: " + updatedKeys.get(num));
+//			System.out.println("  - REMOVED: " + removedKeys.get(num));
+//		}
 		commitPendingRemovals();
 		commitPendingUpdates();
+//		System.out.println("=============================================");
+//		for (final var num : touchedNumbers) {
+//			System.out.println("\n--- 0.0." + num + " ---");
+//			System.out.println("  - STORAGE: " + joinedStorageMappings(newFirstKeys.get(num), storage.get()));
+//		}
 	}
 
 	/**
