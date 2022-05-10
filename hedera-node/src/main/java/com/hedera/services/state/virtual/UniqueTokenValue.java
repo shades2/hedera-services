@@ -21,6 +21,7 @@ package com.hedera.services.state.virtual;
  */
 
 import com.google.common.base.MoreObjects;
+import com.hedera.services.Debug;
 import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.state.submerkle.RichInstant;
 import com.swirlds.common.io.streams.SerializableDataInputStream;
@@ -255,6 +256,8 @@ public class UniqueTokenValue implements VirtualValue {
 	}
 
 	public void setOwner(EntityId entityId) {
+		Debug.rotateN("uniqueTokenValue-setOwner", 50, String.format("%d -> %d",
+				ownerAccountNum, entityId.num()));
 		throwIfImmutable();
 		ownerAccountNum = entityId.num();
 	}

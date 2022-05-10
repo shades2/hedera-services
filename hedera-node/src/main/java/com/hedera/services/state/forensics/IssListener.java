@@ -20,6 +20,7 @@ package com.hedera.services.state.forensics;
  * ‍
  */
 
+import com.hedera.services.Debug;
 import com.hedera.services.ServicesState;
 import com.hedera.services.context.domain.trackers.IssEventInfo;
 import com.hedera.services.context.properties.NodeLocalProperties;
@@ -69,6 +70,7 @@ public class IssListener implements InvalidSignedStateListener {
 			byte[] sig, byte[] hash
 	) {
 		try {
+			Debug.dumpStats();
 			ServicesState issState = (ServicesState) swirldsState;
 			issEventInfo.alert(consensusTime);
 			if (issEventInfo.shouldDumpThisRound()) {

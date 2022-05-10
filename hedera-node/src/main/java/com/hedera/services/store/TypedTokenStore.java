@@ -20,6 +20,7 @@ package com.hedera.services.store;
  * ‍
  */
 
+import com.hedera.services.Debug;
 import com.hedera.services.context.SideEffectsTracker;
 import com.hedera.services.exceptions.InvalidTransactionException;
 import com.hedera.services.ledger.backing.BackingStore;
@@ -37,6 +38,7 @@ import com.hedera.services.utils.EntityNum;
 import com.hedera.services.utils.EntityNumPair;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.TokenID;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.tuple.Pair;
 
 import javax.inject.Inject;
@@ -193,6 +195,8 @@ public class TypedTokenStore extends ReadOnlyTokenStore {
 	}
 
 	private void destroyRemoved(List<UniqueToken> nfts) {
+		Debug.incrementValue("destroyCnt", 1);
+		Debug.setValue("lastDestroyed", ExceptionUtils.getStackTrace(new Throwable()));
 		for (final var nft : nfts) {
 			uniqueTokens.remove(nft.getNftId());
 		}

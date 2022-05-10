@@ -20,6 +20,7 @@ package com.hedera.services.txns;
  * ‍
  */
 
+import com.hedera.services.Debug;
 import com.hedera.services.context.TransactionContext;
 import com.hedera.services.exceptions.InvalidTransactionException;
 import com.hedera.services.ledger.ids.EntityIdSource;
@@ -109,30 +110,40 @@ public class TransitionRunner {
 		final var txn = accessor.getTxn();
 		final var function = accessor.getFunction();
 		final var logic = lookup.lookupFor(function, txn);
-		if (logic.isEmpty()) {
-			log.warn("Transaction w/o applicable transition logic at consensus :: {}", accessor::getSignedTxnWrapper);
-			txnCtx.setStatus(FAIL_INVALID);
-			return false;
-		} else {
-			final var transition = logic.get();
-			final var validity = transition.validateSemantics(accessor);
-			if (validity != OK) {
-				txnCtx.setStatus(validity);
+		boolean success = false;
+		try {
+			if (logic.isEmpty()) {
+				log.warn("Transaction w/o applicable transition logic at consensus :: {}",
+						accessor::getSignedTxnWrapper);
+				txnCtx.setStatus(FAIL_INVALID);
 				return false;
-			}
-
-			try {
-				transition.doStateTransition();
-				if (opsWithDefaultSuccessStatus.contains(function)) {
-					txnCtx.setStatus(SUCCESS);
+			} else {
+				final var transition = logic.get();
+				final var validity = transition.validateSemantics(accessor);
+				if (validity != OK) {
+					txnCtx.setStatus(validity);
+					return false;
 				}
-			} catch (InvalidTransactionException e) {
-				resolveFailure(e, accessor);
-			} catch (Exception processFailure) {
-				ids.reclaimProvisionalIds();
-				throw processFailure;
+
+				try {
+					transition.doStateTransition();
+					if (opsWithDefaultSuccessStatus.contains(function)) {
+						txnCtx.setStatus(SUCCESS);
+					}
+				} catch (InvalidTransactionException e) {
+					resolveFailure(e, accessor);
+				} catch (Exception processFailure) {
+					ids.reclaimProvisionalIds();
+					throw processFailure;
+				}
+				success = true;
+				return true;
 			}
-			return true;
+		} finally {
+			Debug.rotateN("lastTx", 10, String.format("%s - %s - %s",
+					function.toString(),
+					success,
+					txnCtx.status()));
 		}
 	}
 

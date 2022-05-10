@@ -20,6 +20,7 @@ package com.hedera.services.ledger.backing;
  * ‍
  */
 
+import com.hedera.services.Debug;
 import com.hedera.services.state.virtual.UniqueTokenKey;
 import com.hedera.services.state.virtual.UniqueTokenValue;
 import com.hedera.services.store.models.NftId;
@@ -52,11 +53,19 @@ public class BackingNfts implements BackingStore<NftId, UniqueTokenValue> {
 		// Note: for any mutations that occur on the returned value, the caller is responsible for calling
 		// backingNfts.put(id, token) to store the mutations. Otherwise, the mutations will be discarded.
 		// VirtualMap's getForModify() cannot be used here as it can lead to race conditions.
+		Debug.rotateN("BackingNftsOp", 10, String.format("getRef(num=%s, token=%s, serial=%s)",
+				id.num(),
+				id.tokenId(),
+				id.serialNo()));
 		return new UniqueTokenValue(delegate.get().get(UniqueTokenKey.fromNftId(id)));
 	}
 
 	@Override
 	public UniqueTokenValue getImmutableRef(NftId id) {
+		Debug.rotateN("BackingNftsOp", 10, String.format("getImmutableRef(num=%s, token=%s, serial=%s)",
+				id.num(),
+				id.tokenId(),
+				id.serialNo()));
 		return delegate.get().get(fromNftId(id));
 	}
 
@@ -64,11 +73,21 @@ public class BackingNfts implements BackingStore<NftId, UniqueTokenValue> {
 	public void put(NftId id, UniqueTokenValue nft) {
 		UniqueTokenKey key = fromNftId(id);
 		delegate.get().put(key, nft);
+		Debug.rotateN("BackingNftsOp", 10, String.format("put({num=%s, token=%s, serial=%s}, {nft=%s})",
+				id.num(),
+				id.tokenId(),
+				id.serialNo(),
+				nft.toString()));
 	}
 
 	@Override
 	public void remove(NftId id) {
 		delegate.get().remove(fromNftId(id));
+		Debug.rotateN("BackingNftsOp", 10, String.format("remove({num=%s, token=%s, serial=%s})",
+				id.num(),
+				id.tokenId(),
+				id.serialNo()));
+		Debug.incrementValue("BackingNftsOpRemove", 1);
 	}
 
 	@Override
