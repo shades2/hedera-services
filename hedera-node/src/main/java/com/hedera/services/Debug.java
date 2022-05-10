@@ -14,6 +14,9 @@ public class Debug {
 	public static final ConcurrentHashMap<String, Object> trackedStats = new ConcurrentHashMap<>();
 
 	public static void setValue(String key, Object value) {
+		if (key == null  || value == null) {
+			return;
+		}
 		trackedStats.put(key, value);
 	}
 
@@ -29,10 +32,13 @@ public class Debug {
 	}
 
 	public static void rotateN(String keyName, int n, Object newestValue) {
+		if (keyName == null || newestValue == null) {
+			return;
+		}
 		for (int i = 0; i < n - 1; i++) {
 			String newKey = keyName + "-" + (i+1);
 			String prevKey = keyName + "-" + i;
-			trackedStats.put(newKey, trackedStats.get(prevKey));
+			trackedStats.put(newKey, trackedStats.getOrDefault(prevKey, ""));
 		}
 		trackedStats.put(keyName + "-" + 0, newestValue);
 	}
