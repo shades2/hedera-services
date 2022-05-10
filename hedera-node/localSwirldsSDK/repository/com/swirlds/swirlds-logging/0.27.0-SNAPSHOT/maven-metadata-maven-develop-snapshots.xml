@@ -3,27 +3,27 @@
   <groupId>com.swirlds</groupId>
   <artifactId>swirlds-logging</artifactId>
   <versioning>
-    <lastUpdated>20220430180226</lastUpdated>
+    <lastUpdated>20220509233930</lastUpdated>
     <snapshot>
-      <timestamp>20220430.180226</timestamp>
-      <buildNumber>7</buildNumber>
+      <timestamp>20220509.233930</timestamp>
+      <buildNumber>6</buildNumber>
     </snapshot>
     <snapshotVersions>
       <snapshotVersion>
         <extension>jar</extension>
-        <value>0.27.0-20220430.180226-7</value>
-        <updated>20220430180226</updated>
+        <value>0.27.0-20220509.233930-6</value>
+        <updated>20220509233930</updated>
       </snapshotVersion>
       <snapshotVersion>
         <extension>pom</extension>
-        <value>0.27.0-20220430.180226-7</value>
-        <updated>20220430180226</updated>
+        <value>0.27.0-20220509.233930-6</value>
+        <updated>20220509233930</updated>
       </snapshotVersion>
       <snapshotVersion>
         <classifier>javadoc</classifier>
         <extension>jar</extension>
-        <value>0.27.0-20220430.180226-7</value>
-        <updated>20220430180226</updated>
+        <value>0.27.0-20220509.233930-6</value>
+        <updated>20220509233930</updated>
       </snapshotVersion>
     </snapshotVersions>
   </versioning>

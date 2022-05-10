@@ -1,4 +1,6 @@
 #NOTE: This is a Maven Resolver internal implementation file, its format can be changed without prior notice.
-#Fri May 06 15:32:54 PDT 2022
+#Tue May 10 09:43:48 PDT 2022
 swirlds-platform-core-0.27.0-SNAPSHOT.pom>=
+swirlds-platform-core-0.27.0-20220509.155609-2.jar>maven-develop-snapshots=
+swirlds-platform-core-0.27.0-20220509.233930-6.jar>maven-develop-snapshots=
 swirlds-platform-core-0.27.0-SNAPSHOT.jar>=

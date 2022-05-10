@@ -3,7 +3,7 @@
   <groupId>com.swirlds</groupId>
   <artifactId>swirlds-merkle</artifactId>
   <versioning>
-    <lastUpdated>20220506223244</lastUpdated>
+    <lastUpdated>20220510164334</lastUpdated>
     <snapshot>
       <localCopy>true</localCopy>
     </snapshot>
@@ -11,12 +11,12 @@
       <snapshotVersion>
         <extension>jar</extension>
         <value>0.27.0-SNAPSHOT</value>
-        <updated>20220506223244</updated>
+        <updated>20220510164334</updated>
       </snapshotVersion>
       <snapshotVersion>
         <extension>pom</extension>
         <value>0.27.0-SNAPSHOT</value>
-        <updated>20220506223244</updated>
+        <updated>20220510164334</updated>
       </snapshotVersion>
     </snapshotVersions>
   </versioning>
