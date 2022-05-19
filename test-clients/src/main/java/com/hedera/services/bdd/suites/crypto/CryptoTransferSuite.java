@@ -189,7 +189,8 @@ public class CryptoTransferSuite extends HapiApiSuite {
 //						canUseEip1014AliasesForXfers(),
 //						cannotTransferFromImmutableAccounts(),
 						// This will pass once we stop using OwnershipTracker
-						nftTransfersHaveTransitiveClosure(),
+//						nftTransfersHaveTransitiveClosure(),
+						endOfStakingPeriodRecTest()
 				}
 		);
 	}
@@ -197,6 +198,31 @@ public class CryptoTransferSuite extends HapiApiSuite {
 	@Override
 	public boolean canRunAsync() {
 		return true;
+	}
+
+
+
+	private HapiApiSpec endOfStakingPeriodRecTest() {
+		return defaultHapiSpec("EndOfStakingPeriodRecTest")
+				.given(
+						cryptoCreate("a1")
+								.balance(ONE_HUNDRED_HBARS)
+								.stakedNodeId(0),
+						cryptoCreate("a2")
+								.balance(ONE_HUNDRED_HBARS)
+								.stakedNodeId(0),
+						cryptoTransfer(tinyBarsFromTo(GENESIS, "0.0.800", ONE_MILLION_HBARS))
+				)
+				.when(
+						sleepFor(300_000)
+				)
+				.then(
+						cryptoTransfer(tinyBarsFromTo("a1", "a2", ONE_HBAR))
+								.via("trigger"),
+						getTxnRecord("trigger")
+								.logged()
+								.hasChildRecordCount(1)
+				);
 	}
 
 	// https://github.com/hashgraph/hedera-services/issues/2875

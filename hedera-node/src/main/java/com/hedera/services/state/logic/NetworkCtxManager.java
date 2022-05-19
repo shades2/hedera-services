@@ -71,6 +71,7 @@ public class NetworkCtxManager {
 	private final TransactionContext txnCtx;
 
 	private BiPredicate<Instant, Instant> isNextDay = (now, then) -> !inSameUtcDay(now, then);
+	private BiPredicate<Instant, Instant> isAfter2Mins = (now, then) -> !isAfter2Mins(now, then);
 
 	@Inject
 	public NetworkCtxManager(
@@ -131,7 +132,7 @@ public class NetworkCtxManager {
 			if (elapsedInterval >= intervalSecs) {
 				/* If the lastMidnightBoundaryCheck was in a different UTC day, we update the midnight rates
 				* and perform end of staking period calculations */
-				if (isNextDay.test(lastMidnightBoundaryCheck, consensusTime)) {
+				if (isAfter2Mins.test(lastMidnightBoundaryCheck, consensusTime)) {
 					networkCtxNow.midnightRates().replaceWith(exchange.activeRates());
 					endOfStakingPeriodCalculator.updateNodes(consensusTime);
 				}
@@ -199,6 +200,10 @@ public class NetworkCtxManager {
 		var networkCtxNow = networkCtx.get();
 		networkCtxNow.syncThrottling(handleThrottling);
 		networkCtxNow.syncMultiplierSource(feeMultiplierSource);
+	}
+
+	public static boolean isAfter2Mins(Instant now, Instant then) {
+		return now.getEpochSecond() > then.getEpochSecond() + 120;
 	}
 
 	public static boolean inSameUtcDay(Instant now, Instant then) {
