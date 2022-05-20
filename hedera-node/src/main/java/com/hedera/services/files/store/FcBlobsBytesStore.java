@@ -98,8 +98,14 @@ public class FcBlobsBytesStore extends AbstractMap<String, byte[]> {
 	 */
 	@Override
 	public byte[] put(String path, byte[] value) {
-		final VirtualBlobValue blob = new VirtualBlobValue(value);
-		blobSupplier.get().put(at(path), blob);
+		var meta = at(path);
+		if (blobSupplier.get().containsKey(meta)) {
+			final var blob = blobSupplier.get().getForModify(meta);
+			blob.setData(value);
+		} else {
+			final VirtualBlobValue blob = new VirtualBlobValue(value);
+			blobSupplier.get().put(at(path), blob);
+		}
 		return null;
 	}
 
