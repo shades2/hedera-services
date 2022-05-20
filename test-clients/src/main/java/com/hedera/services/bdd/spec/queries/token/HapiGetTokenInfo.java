@@ -419,6 +419,7 @@ public class HapiGetTokenInfo extends HapiQueryOp<HapiGetTokenInfo> {
 				.setHeader(costOnly ? answerCostHeader(payment) : answerHeader(payment))
 				.setToken(id)
 				.build();
+		log.info("Using tokenGetInfo: {}", getTokenQuery);
 		return Query.newBuilder().setTokenGetInfo(getTokenQuery).build();
 	}
 
