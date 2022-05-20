@@ -36,7 +36,8 @@ import com.hedera.services.ledger.properties.BeanProperty;
 @FunctionalInterface
 public interface CommitInterceptor<K, A, P extends Enum<P> & BeanProperty<A>> {
 	/**
-	 * Accepts a pending change set to preview before it is committed to the ledger.
+	 * Accepts a pending change set to preview before it is committed to the ledger. Builds list of first order
+	 * reward situations if staking is enabled.
 	 *
 	 * @param pendingChanges
 	 * 		the pending change set
@@ -54,4 +55,9 @@ public interface CommitInterceptor<K, A, P extends Enum<P> & BeanProperty<A>> {
 	default boolean completesPendingRemovals() {
 		return false;
 	}
+
+	/**
+	 * Resolves second-order reward situations and commit aggregate changes to affected stakedAccounts.
+	 */
+	default void finalizeSideEffects(){ }
 }

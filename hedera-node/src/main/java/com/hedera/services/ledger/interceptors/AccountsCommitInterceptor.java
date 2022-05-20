@@ -24,7 +24,6 @@ import com.hedera.services.context.SideEffectsTracker;
 import com.hedera.services.context.properties.GlobalDynamicProperties;
 import com.hedera.services.ledger.CommitInterceptor;
 import com.hedera.services.ledger.EntityChangeSet;
-import com.hedera.services.ledger.accounts.staking.RewardCalculator;
 import com.hedera.services.ledger.properties.AccountProperty;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.state.merkle.MerkleNetworkContext;
@@ -41,7 +40,6 @@ import java.time.LocalDate;
 import java.util.Map;
 import java.util.function.Supplier;
 
-import static com.hedera.services.ledger.accounts.staking.RewardCalculator.stakingFundAccount;
 import static com.hedera.services.ledger.accounts.staking.RewardCalculator.zoneUTC;
 
 /**
@@ -58,10 +56,10 @@ public class AccountsCommitInterceptor implements CommitInterceptor<AccountID, M
 	private final Supplier<MerkleMap<EntityNum, MerkleStakingInfo>> stakingInfo;
 	private final GlobalDynamicProperties dynamicProperties;
 	private final Supplier<MerkleMap<EntityNum, MerkleAccount>> accounts;
-	private final RewardCalculator rewardCalculator;
-	private boolean rewardsActivated;
-	private boolean rewardBalanceChanged;
-	private long newRewardBalance;
+
+	protected boolean rewardsActivated;
+	protected boolean rewardBalanceChanged;
+	protected long newRewardBalance;
 
 	private static final long STAKING_FUNDING_ACCOUNT_NUMBER = 800L;
 
@@ -71,15 +69,13 @@ public class AccountsCommitInterceptor implements CommitInterceptor<AccountID, M
 			final Supplier<MerkleNetworkContext> networkCtx,
 			final Supplier<MerkleMap<EntityNum, MerkleStakingInfo>> stakingInfo,
 			final GlobalDynamicProperties dynamicProperties,
-			final Supplier<MerkleMap<EntityNum, MerkleAccount>> accounts,
-			final RewardCalculator rewardCalculator
+			final Supplier<MerkleMap<EntityNum, MerkleAccount>> accounts
 	) {
 		this.sideEffectsTracker = sideEffectsTracker;
 		this.networkCtx = networkCtx;
 		this.dynamicProperties = dynamicProperties;
 		this.stakingInfo = stakingInfo;
 		this.accounts = accounts;
-		this.rewardCalculator = rewardCalculator;
 	}
 
 	/**
@@ -101,22 +97,23 @@ public class AccountsCommitInterceptor implements CommitInterceptor<AccountID, M
 					pendingChanges.changes(i));
 		}
 		assertZeroSum();
-		checkAndActivateRewardsOnlyOnce();
+		activateRewardsIfValid();
 	}
 
-	private void checkAndActivateRewardsOnlyOnce() {
-		if (shouldActivateStakingRewards()) {
-			networkCtx.get().setStakingRewardsActivated(true);
-			stakingInfo.get().forEach((entityNum, info) -> info.clearRewardSumHistory());
-
-			long todayNumber = LocalDate.now(zoneUTC).toEpochDay();
-			accounts.get().forEach(((entityNum, account) -> {
-				if (account.getStakedId() < 0) {
-					account.setStakePeriodStart(todayNumber);
-				}
-			}));
-			log.info("Staking rewards is activated and rewardSumHistory is cleared");
+	private void activateRewardsIfValid() {
+		if (!shouldActivateStakingRewards()) {
+			return;
 		}
+		networkCtx.get().setStakingRewardsActivated(true);
+		stakingInfo.get().forEach((entityNum, info) -> info.clearRewardSumHistory());
+
+		long todayNumber = LocalDate.now(zoneUTC).toEpochDay();
+		accounts.get().forEach(((entityNum, account) -> {
+			if (account.getStakedId() < 0) {
+				account.setStakePeriodStart(todayNumber);
+			}
+		}));
+		log.info("Staking rewards is activated and rewardSumHistory is cleared");
 	}
 
 	/**
@@ -125,7 +122,7 @@ public class AccountsCommitInterceptor implements CommitInterceptor<AccountID, M
 	 *
 	 * @return true if rewards should be activated, false otherwise
 	 */
-	public boolean shouldActivateStakingRewards() {
+	protected boolean shouldActivateStakingRewards() {
 		return !rewardsActivated && rewardBalanceChanged && (newRewardBalance >= dynamicProperties.getStakingStartThreshold());
 	}
 
@@ -140,28 +137,9 @@ public class AccountsCommitInterceptor implements CommitInterceptor<AccountID, M
 				rewardBalanceChanged = true;
 				newRewardBalance = newBalance;
 			}
-
 			final long adjustment = (merkleAccount != null) ? newBalance - merkleAccount.getBalance() : newBalance;
 			sideEffectsTracker.trackHbarChange(accountNum, adjustment);
-
-			if (shouldCalculateReward(merkleAccount)) {
-				calculateReward(accountNum);
-				// this step will be done for changes to all staking fields in future PR
-			}
 		}
-	}
-
-	void calculateReward(final long accountNum) {
-		final long reward = rewardCalculator.computeAndApplyRewards(EntityNum.fromLong(accountNum));
-		if (reward > 0) {
-			sideEffectsTracker.trackHbarChange(accountNum, reward);
-			sideEffectsTracker.trackHbarChange(stakingFundAccount.longValue(), -reward);
-		}
-		sideEffectsTracker.trackRewardPayment(accountNum, reward);
-	}
-
-	boolean shouldCalculateReward(final MerkleAccount account) {
-		return account != null && account.getStakedId() < 0 && networkCtx.get().areRewardsActivated();
 	}
 
 	private void assertZeroSum() {

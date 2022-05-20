@@ -35,6 +35,7 @@ import com.hederahashgraph.api.proto.java.AccountID;
 import com.swirlds.common.system.Address;
 import com.swirlds.common.system.AddressBook;
 import com.swirlds.merkle.map.MerkleMap;
+import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -59,6 +60,7 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 
 @ExtendWith(MockitoExtension.class)
@@ -88,7 +90,7 @@ class AccountsCommitInterceptorTest {
 	public void setUp() {
 		stakingInfo = buildsStakingInfoMap();
 		subject = new AccountsCommitInterceptor(sideEffectsTracker, () -> networkCtx, () -> stakingInfo,
-				dynamicProperties, () -> accounts, rewardCalculator);
+				dynamicProperties, () -> accounts);
 	}
 
 	@Test
@@ -209,52 +211,6 @@ class AccountsCommitInterceptorTest {
 		assertTrue(subject.shouldActivateStakingRewards());
 	}
 
-	@Test
-	void calculatesRewardIfNeeded() {
-		final var amount = 5L;
-
-		final var changes = new EntityChangeSet<AccountID, MerkleAccount, AccountProperty>();
-		changes.include(partyId, party, randomAndBalanceChanges(partyBalance + amount));
-		changes.include(counterpartyId, counterparty, randomAndBalanceChanges(counterpartyBalance - amount));
-
-		given(networkCtx.areRewardsActivated()).willReturn(true);
-		given(rewardCalculator.computeAndApplyRewards(EntityNum.fromAccountId(counterpartyId))).willReturn(1L);
-
-		subject.preview(changes);
-
-		verify(sideEffectsTracker).trackHbarChange(partyId.getAccountNum(), +amount);
-		verify(sideEffectsTracker).trackHbarChange(counterpartyId.getAccountNum(), -amount);
-		verify(sideEffectsTracker).trackHbarChange(counterpartyId.getAccountNum(), 1);
-		verify(sideEffectsTracker).trackHbarChange(stakingFundId.getAccountNum(), -1);
-	}
-
-	@Test
-	void calculatesReward() {
-		given(rewardCalculator.computeAndApplyRewards(any())).willReturn(0L);
-		subject.calculateReward(counterpartyId.getAccountNum());
-
-		verify(sideEffectsTracker, never()).trackHbarChange(stakingFundId.getAccountNum(), -5L);
-		verify(sideEffectsTracker).trackRewardPayment(counterpartyId.getAccountNum(), 0L);
-
-		given(rewardCalculator.computeAndApplyRewards(any())).willReturn(5L);
-		subject.calculateReward(counterpartyId.getAccountNum());
-
-		verify(sideEffectsTracker).trackHbarChange(counterpartyId.getAccountNum(), 5L);
-		verify(sideEffectsTracker).trackHbarChange(stakingFundId.getAccountNum(), -5L);
-	}
-
-	@Test
-	void checksConditionToCalculateReward() {
-		assertFalse(subject.shouldCalculateReward(null));
-
-		given(networkCtx.areRewardsActivated()).willReturn(false);
-		assertFalse(subject.shouldCalculateReward(counterparty));
-
-		given(networkCtx.areRewardsActivated()).willReturn(true);
-		assertTrue(subject.shouldCalculateReward(counterparty));
-		assertFalse(subject.shouldCalculateReward(party));
-	}
-
 	private MerkleMap<EntityNum, MerkleStakingInfo> buildsStakingInfoMap() {
 		given(addressBook.getSize()).willReturn(2);
 		given(addressBook.getAddress(0)).willReturn(address1);
@@ -267,12 +223,12 @@ class AccountsCommitInterceptorTest {
 
 	private void setupMockInterceptor() {
 		subject = new AccountsCommitInterceptor(sideEffectsTracker, () -> networkCtx, () -> stakingInfo,
-				dynamicProperties, () -> accounts, rewardCalculator);
+				dynamicProperties, () -> accounts);
 	}
 
 	private void setupLiveInterceptor() {
 		subject = new AccountsCommitInterceptor(new SideEffectsTracker(), () -> networkCtx, () -> stakingInfo,
-				dynamicProperties, () -> accounts, rewardCalculator);
+				dynamicProperties, () -> accounts);
 	}
 
 	private Map<AccountProperty, Object> randomAndBalanceChanges(final long newBalance) {

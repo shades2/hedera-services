@@ -191,6 +191,10 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 			final var app = getMetadata().app();
 			app.workingState().updatePrimitiveChildrenFrom(this);
 		}
+		if (deserializedVersionFromState < RELEASE_0270_VERSION) {
+			// build stakingInfo child
+			setChild(StateChildIndices.STAKING_INFO, stakingInfoBuilder.buildStakingInfoMap(addressBook()));
+		}
 	}
 
 	/* --- SwirldState --- */

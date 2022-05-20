@@ -29,7 +29,8 @@ import com.hedera.services.ledger.TransactionalLedger;
 import com.hedera.services.ledger.accounts.ContractAliases;
 import com.hedera.services.ledger.accounts.StackedContractAliases;
 import com.hedera.services.ledger.accounts.staking.RewardCalculator;
-import com.hedera.services.ledger.interceptors.AccountsCommitInterceptor;
+import com.hedera.services.ledger.interceptors.StakeAwareAccountsCommitsInterceptor;
+import com.hedera.services.ledger.interceptors.StakeChangeManager;
 import com.hedera.services.ledger.properties.AccountProperty;
 import com.hedera.services.ledger.properties.NftProperty;
 import com.hedera.services.ledger.properties.TokenProperty;
@@ -324,9 +325,10 @@ public class WorldLedgers {
 		final var wrappedTokensLedger = activeLedgerWrapping(tokensLedger);
 		final var wrappedAccountsLedger = activeLedgerWrapping(accountsLedger);
 		if (sideEffectsTracker != null) {
-			final var accountsCommitInterceptor = new AccountsCommitInterceptor(sideEffectsTracker, networkCtx,
-					stakingInfo, dynamicProperties, accounts, rewardCalculator);
-			wrappedAccountsLedger.setCommitInterceptor(accountsCommitInterceptor);
+			final var stakeAwareAccountsCommitInterceptor = new StakeAwareAccountsCommitsInterceptor(sideEffectsTracker, networkCtx,
+					stakingInfo, dynamicProperties, accounts, rewardCalculator,
+					new StakeChangeManager(accounts, stakingInfo));
+			wrappedAccountsLedger.setCommitInterceptor(stakeAwareAccountsCommitInterceptor);
 		}
 		final var wrappedTokenRelsLedger = activeLedgerWrapping(tokenRelsLedger);
 
