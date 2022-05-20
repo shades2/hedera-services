@@ -190,12 +190,21 @@ public class StateView {
 
 	public Optional<TokenInfo> infoForToken(final TokenID tokenId) {
 		if (stateChildren == null) {
+			log.warn("Returning no info for token 0.0.{} because stateChildren == null",
+					tokenId.getTokenNum());
+			System.out.println(String.format(
+					"Returning no info for token 0.0.%d because stateChildren == null", tokenId.getTokenNum()));
 			return Optional.empty();
 		}
 		try {
 			final var tokens = stateChildren.tokens();
 			final var token = tokens.get(EntityNum.fromTokenId(tokenId));
 			if (token == null) {
+				log.warn("Returning no info for token 0.0.{} because token was missing from MerkleMap",
+						tokenId.getTokenNum());
+				System.out.println(String.format(
+						"Returning no info for token 0.0.%d because token was missing from MerkleMap",
+						tokenId.getTokenNum()));
 				return Optional.empty();
 			}
 			final var info = TokenInfo.newBuilder()
