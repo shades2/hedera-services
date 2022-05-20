@@ -206,7 +206,7 @@ public class NetworkCtxManager {
 		return now.getEpochSecond() > then.getEpochSecond() + 120;
 	}
 
-	public static boolean inSameUtcDay(Instant now, Instant then) {
+	public static boolean 	inSameUtcDay(Instant now, Instant then) {
 		return LocalDateTime.ofInstant(now, UTC).getDayOfYear() == LocalDateTime.ofInstant(then, UTC).getDayOfYear();
 	}
 
