@@ -78,7 +78,7 @@ class TreasuryReturnHelperTest {
 		final var nft = new UniqueTokenValue();
 
 		given(tokens.get(missingTokenNum)).willReturn(null);
-		given(uniqueTokens.get(key)).willReturn(nft);
+		given(uniqueTokens.getForModify(key)).willReturn(nft);
 
 		assertNull(subject.updateNftReturns(key, uniqueTokens));
 
@@ -89,7 +89,7 @@ class TreasuryReturnHelperTest {
 
 		given(tokens.get(missingTokenNum)).willReturn(token);
 		given(token.tokenType()).willReturn(TokenType.NON_FUNGIBLE_UNIQUE);
-		given(uniqueTokens.get(key)).willReturn(null);
+		given(uniqueTokens.getForModify(key)).willReturn(null);
 
 		assertNull(subject.updateNftReturns(key, uniqueTokens));
 	}
@@ -104,7 +104,7 @@ class TreasuryReturnHelperTest {
 		given(tokens.get(missingTokenNum)).willReturn(token);
 		given(token.tokenType()).willReturn(TokenType.NON_FUNGIBLE_UNIQUE);
 		given(token.isDeleted()).willReturn(true);
-		given(uniqueTokens.get(key)).willReturn(nft);
+		given(uniqueTokens.getForModify(key)).willReturn(nft);
 		nft.setNext(nextKey.toNftNumPair());
 
 		assertEquals(nextKey, subject.updateNftReturns(key, uniqueTokens));
@@ -121,7 +121,7 @@ class TreasuryReturnHelperTest {
 		given(tokens.get(missingTokenNum)).willReturn(token);
 		given(token.tokenType()).willReturn(TokenType.NON_FUNGIBLE_UNIQUE);
 		given(token.isDeleted()).willReturn(false);
-		given(uniqueTokens.get(key)).willReturn(nft);
+		given(uniqueTokens.getForModify(key)).willReturn(nft);
 		nft.setNext(nextKey.toNftNumPair());
 
 		assertEquals(nextKey, subject.updateNftReturns(key, uniqueTokens));
