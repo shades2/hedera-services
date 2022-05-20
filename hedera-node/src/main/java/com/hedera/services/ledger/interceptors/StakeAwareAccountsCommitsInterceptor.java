@@ -227,7 +227,7 @@ public class StakeAwareAccountsCommitsInterceptor extends AccountsCommitIntercep
 
 	private void checkRewardActivation() {
 		if (shouldActivateStakingRewards()) {
-			networkCtx.get().setStakingRewards(true);
+			networkCtx.get().setStakingRewardsActivated(true);
 			stakingInfo.get().forEach((entityNum, info) -> info.clearRewardSumHistory());
 
 			long todayNumber = LocalDate.now(zoneUTC).toEpochDay();
