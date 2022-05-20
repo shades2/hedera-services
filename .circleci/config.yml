@@ -1283,13 +1283,6 @@ workflows:
                 at: /
 
   GCP-Daily-Services-Comp-Restart-Performance-Random-7N-7C:
-    triggers:
-      - schedule:
-          cron: "40 4 * * *"
-          filters:
-            branches:
-              only:
-                - master
     jobs:
       - build-platform-and-services
       - jrs-regression:
@@ -1618,6 +1611,7 @@ jobs:
             
             # Build JRS
             cd /swirlds-platform/regression
+            git checkout -b 02417-D-performace-test-improvement origin/02417-D-performace-test-improvement; 
             ./mvnw clean install
 
       - run:
@@ -1695,10 +1689,10 @@ jobs:
         default: true
       slack_results_channel:
         type: string
-        default: "hedera-regression"
+        default: "hedera-regression-test"
       slack_summary_channel:
         type: string
-        default: "hedera-regression-summary"
+        default: "hedera-regression-test"
       workflow-name:
         type: string
         default: ""
