@@ -27,22 +27,21 @@ import com.hedera.services.state.merkle.MerkleStakingInfo;
 import com.hedera.services.utils.EntityNum;
 import com.swirlds.merkle.map.MerkleMap;
 import org.apache.commons.lang3.tuple.Pair;
-import org.jetbrains.annotations.NotNull;
 
-import javax.annotation.Nullable;
 import javax.inject.Inject;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Map;
 import java.util.function.Supplier;
-
-import static com.hedera.services.ledger.interceptors.StakeAwareAccountsCommitsInterceptor.finalBalanceGiven;
+;
+import static com.hedera.services.ledger.interceptors.StakeChangeManager.finalBalanceGiven;
 import static com.hedera.services.ledger.properties.AccountProperty.BALANCE;
 import static com.hedera.services.ledger.properties.AccountProperty.STAKE_PERIOD_START;
 
 public class RewardCalculator {
 	private final Supplier<MerkleMap<EntityNum, MerkleStakingInfo>> stakingInfo;
 	private final Supplier<MerkleNetworkContext> networkCtx;
+	private long rewardsPaid;
 
 	public static final ZoneId zoneUTC = ZoneId.of("UTC");
 
@@ -103,8 +102,17 @@ public class RewardCalculator {
 		final var reward = result.getLeft();
 		final var stakePeriodStart = result.getRight();
 
-		changes.put(BALANCE, balance + reward); // should we also add for 800 account ?
+		changes.put(BALANCE, balance + reward);
 		changes.put(STAKE_PERIOD_START, stakePeriodStart);
+		rewardsPaid += reward; // used for adding balance change for 0.0.800
 		return reward;
+	}
+
+	public void reset() {
+		rewardsPaid = 0L;
+	}
+
+	public long rewardsPaidInThisTxn() {
+		return rewardsPaid;
 	}
 }

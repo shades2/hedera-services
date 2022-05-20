@@ -89,8 +89,7 @@ class AccountsCommitInterceptorTest {
 	@BeforeEach
 	public void setUp() {
 		stakingInfo = buildsStakingInfoMap();
-		subject = new AccountsCommitInterceptor(sideEffectsTracker, () -> networkCtx, () -> stakingInfo,
-				dynamicProperties, () -> accounts);
+		subject = new AccountsCommitInterceptor(sideEffectsTracker);
 	}
 
 	@Test
@@ -184,32 +183,6 @@ class AccountsCommitInterceptorTest {
 		mockedStatic.close();
 	}
 
-	@Test
-	void returnsIfRewardsShouldBeActivated() {
-		setupMockInterceptor();
-
-		subject.setRewardsActivated(true);
-		assertTrue(subject.isRewardsActivated());
-		assertFalse(subject.shouldActivateStakingRewards());
-
-		subject.setNewRewardBalance(10L);
-		assertFalse(subject.shouldActivateStakingRewards());
-
-		subject.setRewardsActivated(false);
-		assertFalse(subject.isRewardsActivated());
-		assertFalse(subject.isRewardBalanceChanged());
-		assertFalse(subject.shouldActivateStakingRewards());
-
-		subject.setRewardBalanceChanged(true);
-		assertTrue(subject.isRewardBalanceChanged());
-		assertEquals(10L, subject.getNewRewardBalance());
-		given(dynamicProperties.getStakingStartThreshold()).willReturn(20L);
-		assertFalse(subject.shouldActivateStakingRewards());
-
-		subject.setNewRewardBalance(20L);
-		assertEquals(20L, subject.getNewRewardBalance());
-		assertTrue(subject.shouldActivateStakingRewards());
-	}
 
 	private MerkleMap<EntityNum, MerkleStakingInfo> buildsStakingInfoMap() {
 		given(addressBook.getSize()).willReturn(2);
@@ -222,13 +195,11 @@ class AccountsCommitInterceptorTest {
 	}
 
 	private void setupMockInterceptor() {
-		subject = new AccountsCommitInterceptor(sideEffectsTracker, () -> networkCtx, () -> stakingInfo,
-				dynamicProperties, () -> accounts);
+		subject = new AccountsCommitInterceptor(sideEffectsTracker);
 	}
 
 	private void setupLiveInterceptor() {
-		subject = new AccountsCommitInterceptor(new SideEffectsTracker(), () -> networkCtx, () -> stakingInfo,
-				dynamicProperties, () -> accounts);
+		subject = new AccountsCommitInterceptor(new SideEffectsTracker());
 	}
 
 	private Map<AccountProperty, Object> randomAndBalanceChanges(final long newBalance) {
