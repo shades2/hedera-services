@@ -778,13 +778,17 @@ class StateViewTest {
 				.setContractAccountID(expectedAddress)
 				.setOwnedNfts(tokenAccount.getNftsOwned())
 				.setMaxAutomaticTokenAssociations(tokenAccount.getMaxAutomaticAssociations())
+				.setStakingInfo(StakingInfo.newBuilder()
+						.setDeclineReward(true)
+						.setStakedAccountId(AccountID.newBuilder().setAccountNum(10).build())
+						.build())
 				.build();
 
 		final var actualResponse =
 				subject.infoForAccount(tokenAccountId, aliasManager, maxTokensFprAccountInfo);
+		mockedStatic.close();
 
 		assertEquals(expectedResponse, actualResponse.get());
-		mockedStatic.close();
 	}
 
 	@Test
@@ -815,9 +819,9 @@ class StateViewTest {
 				.build();
 
 		final var actualResponse = subject.accountDetails(tokenAccountId, aliasManager, maxTokensFprAccountInfo);
+		mockedStatic.close();
 
 		assertEquals(expectedResponse, actualResponse.get());
-		mockedStatic.close();
 	}
 
 	@Test
@@ -850,8 +854,9 @@ class StateViewTest {
 				.build();
 
 		final var actualResponse = subject.infoForAccount(accountWithAlias, aliasManager, maxTokensFprAccountInfo);
-		assertEquals(expectedResponse, actualResponse.get());
 		mockedStatic.close();
+
+		assertEquals(expectedResponse, actualResponse.get());
 	}
 
 	@Test

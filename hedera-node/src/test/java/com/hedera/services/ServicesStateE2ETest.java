@@ -49,7 +49,6 @@ import java.util.List;
 import static com.hedera.services.ServicesState.EMPTY_HASH;
 import static com.hedera.services.context.AppsManager.APPS;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -76,16 +75,6 @@ public class ServicesStateE2ETest {
 	}
 
 	@Test
-	void testNftsFromSignedStateV24() {
-		assertDoesNotThrow(() -> loadSignedState(signedStateDir + "v0.24.2-nfts/SignedState.swh"));
-	}
-
-	@Test
-	void testMigrationFromSignedStateV24() throws IOException {
-		assertDoesNotThrow(() -> migrate(signedStateDir + "v0.24.2-nfts/SignedState.swh"));
-	}
-
-	@Test
 	void testGenesisState() throws NoSuchAlgorithmException, IOException {
 		final var swirldDualState = new DualStateImpl();
 		final var servicesState = new ServicesState();
@@ -96,7 +85,7 @@ public class ServicesStateE2ETest {
 		final var nodeId = platform.getSelfId().getId();
 		final var address = new Address(
 				nodeId, "", "", 1L, false, null, -1, null, -1, null, -1, null, -1,
-				null, null, (SerializablePublicKey)null, "");
+				null, null, (SerializablePublicKey)null, "0.0.3");
 		final var addressBook = new AddressBook(List.of(address));
 		final var app = createApp(platform);
 
