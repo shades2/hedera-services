@@ -99,7 +99,10 @@ public class StakeAwareAccountsCommitsInterceptor extends AccountsCommitIntercep
 		Set<Long> hasBeenRewarded = new HashSet<>();
 
 		// Iterate through the change set, maintaining two invariants:
-		//   1. At the beginning of iteration i,
+		//   1. At the beginning of iteration i, any account that is rewardable due to change in balance or
+		//      stakedAccountId or stakedNodeId or declineRewards fields. Also checks the balance of funding account
+		//      0.0.800 if it has reached the ONE TIME threshold to activate staking.
+		//      NOTE that this activation happens only once.
 		//   2. Any account whose stakedToMe balance is affected by a change in the [0, i) range has
 		//      been, if not already present, added to the pendingChanges; and its changes include its
 		//      new STAKED_TO_ME change
@@ -151,15 +154,17 @@ public class StakeAwareAccountsCommitsInterceptor extends AccountsCommitIntercep
 
 			final var curNodeId = (account != null) ? account.getStakedId() : 0L;
 			final var newNodeId = manager.getNodeStakeeNum(changes);
-			if (curNodeId != 0 && curNodeId != newNodeId) {
-				// Node stakee has been replaced, withdraw initial stake from ex-stakee
+			if (curNodeId < 0 && curNodeId != newNodeId) {
+				// Node stakee has been replaced, withdraw stakeRewarded or stakeNotRewarded from ex-stakee based on
+				// isDeclineReward option
 				manager.withdrawStake(
 						Math.abs(curNodeId),
 						account.getBalance() + account.getStakedToMe(),
 						manager.finalDeclineRewardGiven(account, changes));
 			}
-			if (newNodeId != 0) {
-				// Award updated stake to new node stakee
+			if (newNodeId < 0) {
+				// Award updated stake to new node stakee to the fields stakeRewarded or stakeNotRewarded from
+				// ex-stakee based on isDeclineReward option
 				manager.awardStake(
 						Math.abs(newNodeId),
 						finalBalanceGiven(account, changes) + manager.finalStakedToMeGiven(account, changes),
@@ -175,22 +180,24 @@ public class StakeAwareAccountsCommitsInterceptor extends AccountsCommitIntercep
 			int changesSize,
 			final Set<Long> hasBeenRewarded,
 			final long latestEligibleStart) {
+
 		final var curStakeeNum = (account != null) ? account.getStakedId() : 0L;
 		final var newStakeeNum = manager.getAccountStakeeNum(changes);
-		if (curStakeeNum != 0 && curStakeeNum != newStakeeNum) {
+
+		if (curStakeeNum > 0 && curStakeeNum != newStakeeNum) {
 			// Stakee has been replaced, withdraw initial balance from ex-stakee
 			final var exStakeeI = findOrAdd(curStakeeNum, pendingChanges);
-			manager.updateStakedToMe(-account.getBalance(), exStakeeI, pendingChanges);
+			manager.updateStakedToMe(exStakeeI, -account.getBalance(), pendingChanges);
 			if (exStakeeI == changesSize) {
 				changesSize++;
 			} else if (!hasBeenRewarded.contains(curStakeeNum)) {
 				payRewardIfRewardable(pendingChanges, exStakeeI, hasBeenRewarded, latestEligibleStart);
 			}
 		}
-		if (newStakeeNum != 0) {
+		if (newStakeeNum > 0) {
 			// Add pending balance to new stakee
 			final var newStakeeI = findOrAdd(newStakeeNum, pendingChanges);
-			manager.updateStakedToMe(finalBalanceGiven(account, changes), newStakeeI, pendingChanges);
+			manager.updateStakedToMe(newStakeeI, finalBalanceGiven(account, changes), pendingChanges);
 			if (newStakeeI == changesSize) {
 				changesSize++;
 			} else if (!hasBeenRewarded.contains(newStakeeNum)) {
@@ -200,7 +207,7 @@ public class StakeAwareAccountsCommitsInterceptor extends AccountsCommitIntercep
 		return changesSize;
 	}
 
-	private void payRewardIfRewardable(
+	void payRewardIfRewardable(
 			final EntityChangeSet<AccountID, MerkleAccount, AccountProperty> pendingChanges,
 			final int newStakeeI,
 			final Set<Long> hasBeenRewarded,
@@ -222,7 +229,7 @@ public class StakeAwareAccountsCommitsInterceptor extends AccountsCommitIntercep
 		hasBeenRewarded.add(accountNum);
 	}
 
-	private int findOrAdd(
+	int findOrAdd(
 			final long accountNum,
 			final EntityChangeSet<AccountID, MerkleAccount, AccountProperty> pendingChanges
 	) {
