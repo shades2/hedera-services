@@ -1,4 +1,24 @@
-package com.hedera.services.ledger.interceptors;
+package com.hedera.services.ledger.accounts.staking;
+
+/*-
+ * ‌
+ * Hedera Services Node
+ * ​
+ * Copyright (C) 2018 - 2022 Hedera Hashgraph, LLC
+ * ​
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * ‍
+ */
 
 import com.google.protobuf.ByteString;
 import com.hedera.services.ledger.EntityChangeSet;
@@ -20,8 +40,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDate;
 import java.util.Map;
 
-import static com.hedera.services.ledger.accounts.staking.RewardCalculator.zoneUTC;
-import static com.hedera.services.ledger.interceptors.StakeChangeManager.isWithinRange;
+import static com.hedera.services.ledger.accounts.staking.StakePeriodManager.isWithinRange;
+import static com.hedera.services.ledger.accounts.staking.StakePeriodManager.zoneUTC;
 import static com.hedera.services.state.migration.ReleaseTwentySevenMigration.buildStakingInfoMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -30,7 +50,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
 @ExtendWith(MockitoExtension.class)
-public class StakeChangeManagerTest {
+class StakeChangeManagerTest {
 	@Mock
 	private AddressBook addressBook;
 	@Mock
@@ -39,6 +59,10 @@ public class StakeChangeManagerTest {
 	private Address address2 = mock(Address.class);
 	@Mock
 	private MerkleAccount account;
+	@Mock
+	private StakeInfoManager stakeInfoManager;
+	@Mock
+	private MerkleMap<EntityNum, MerkleAccount> accounts;
 
 	private StakeChangeManager subject;
 	private MerkleMap<EntityNum, MerkleStakingInfo> stakingInfo;
@@ -48,7 +72,7 @@ public class StakeChangeManagerTest {
 	@BeforeEach
 	void setUp() {
 		stakingInfo = buildsStakingInfoMap();
-		subject = new StakeChangeManager(() -> stakingInfo);
+		subject = new StakeChangeManager(stakeInfoManager, () -> accounts);
 	}
 
 	@Test
@@ -106,6 +130,7 @@ public class StakeChangeManagerTest {
 		assertEquals(1000L, stakingInfo.get(EntityNum.fromLong(3L)).getStake());
 		assertEquals(300L, stakingInfo.get(EntityNum.fromLong(3L)).getStakeToReward());
 		assertEquals(400L, stakingInfo.get(EntityNum.fromLong(3L)).getStakeToNotReward());
+		given(stakeInfoManager.mutableStakeInfoFor(3L)).willReturn(stakingInfo.get(EntityNum.fromLong(3L)));
 		subject.withdrawStake(3L, 100L, false);
 
 		assertEquals(1000L, stakingInfo.get(EntityNum.fromLong(3L)).getStake());
@@ -124,6 +149,7 @@ public class StakeChangeManagerTest {
 		assertEquals(1000L, stakingInfo.get(EntityNum.fromLong(3L)).getStake());
 		assertEquals(300L, stakingInfo.get(EntityNum.fromLong(3L)).getStakeToReward());
 		assertEquals(400L, stakingInfo.get(EntityNum.fromLong(3L)).getStakeToNotReward());
+		given(stakeInfoManager.mutableStakeInfoFor(3L)).willReturn(stakingInfo.get(EntityNum.fromLong(3L)));
 		subject.awardStake(3L, 100L, false);
 
 		assertEquals(1000L, stakingInfo.get(EntityNum.fromLong(3L)).getStake());
@@ -163,6 +189,22 @@ public class StakeChangeManagerTest {
 		assertEquals(200L, subject.finalStakedToMeGiven(account, changes));
 	}
 
+	@Test
+	void findsOrAddsAccountAsExpected() {
+		final var pendingChanges = buildPendingNodeStakeChanges();
+		assertEquals(1, pendingChanges.size());
+
+		final var num = subject.findOrAdd(partyId.getAccountNum(), pendingChanges);
+		assertEquals(1, num);
+		assertEquals(2, pendingChanges.size());
+	}
+
+	public EntityChangeSet<AccountID, MerkleAccount, AccountProperty> buildPendingNodeStakeChanges() {
+		var changes = randomStakeFieldChanges(100L);
+		var pendingChanges = new EntityChangeSet<AccountID, MerkleAccount, AccountProperty>();
+		pendingChanges.include(counterpartyId, counterparty, changes);
+		return pendingChanges;
+	}
 
 	private Map<AccountProperty, Object> randomStakeFieldChanges(final long newBalance) {
 		return Map.of(

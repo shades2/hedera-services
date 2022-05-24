@@ -20,47 +20,46 @@ package com.hedera.services.ledger.interceptors;
  * ‍
  */
 
+import com.google.common.annotations.VisibleForTesting;
 import com.hedera.services.context.SideEffectsTracker;
 import com.hedera.services.context.properties.GlobalDynamicProperties;
 import com.hedera.services.ledger.EntityChangeSet;
 import com.hedera.services.ledger.accounts.staking.RewardCalculator;
+import com.hedera.services.ledger.accounts.staking.StakeChangeManager;
+import com.hedera.services.ledger.accounts.staking.StakeInfoManager;
+import com.hedera.services.ledger.accounts.staking.StakePeriodManager;
 import com.hedera.services.ledger.properties.AccountProperty;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.state.merkle.MerkleNetworkContext;
-import com.hedera.services.state.merkle.MerkleStakingInfo;
-import com.hedera.services.utils.EntityNum;
 import com.hederahashgraph.api.proto.java.AccountID;
-import com.swirlds.merkle.map.MerkleMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
-import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 
-import static com.hedera.services.context.properties.StaticPropertiesHolder.STATIC_PROPERTIES;
-import static com.hedera.services.ledger.accounts.staking.RewardCalculator.zoneUTC;
-import static com.hedera.services.ledger.interceptors.StakeChangeManager.finalBalanceGiven;
-import static com.hedera.services.ledger.interceptors.StakeChangeManager.hasStakeFieldChanges;
-import static com.hedera.services.ledger.interceptors.StakeChangeManager.isWithinRange;
+import static com.hedera.services.ledger.accounts.staking.StakeChangeManager.finalBalanceGiven;
+import static com.hedera.services.ledger.accounts.staking.StakeChangeManager.hasStakeFieldChanges;
+import static com.hedera.services.ledger.accounts.staking.StakePeriodManager.isWithinRange;
 import static com.hedera.services.ledger.properties.AccountProperty.DECLINE_REWARD;
 
 public class StakeAwareAccountsCommitsInterceptor extends AccountsCommitInterceptor {
-	private final StakeChangeManager manager;
+	private final StakeChangeManager stakeChangeManager;
 	private final Supplier<MerkleNetworkContext> networkCtx;
-	private final Supplier<MerkleMap<EntityNum, MerkleStakingInfo>> stakingInfo;
-	private final Supplier<MerkleMap<EntityNum, MerkleAccount>> accounts;
 	private final RewardCalculator rewardCalculator;
 	private final SideEffectsTracker sideEffectsTracker;
 	private final GlobalDynamicProperties dynamicProperties;
+	private final StakePeriodManager stakePeriodManager;
+	private final StakeInfoManager stakeInfoManager;
 
 	private boolean rewardsActivated;
 	private boolean rewardBalanceChanged;
 	private long newRewardBalance;
+	private Set<Long> hasBeenRewarded;
 
 	private static final Logger log = LogManager.getLogger(StakeAwareAccountsCommitsInterceptor.class);
 	private static final long STAKING_FUNDING_ACCOUNT_NUMBER = 800L;
@@ -68,19 +67,19 @@ public class StakeAwareAccountsCommitsInterceptor extends AccountsCommitIntercep
 	public StakeAwareAccountsCommitsInterceptor(
 			final SideEffectsTracker sideEffectsTracker,
 			final Supplier<MerkleNetworkContext> networkCtx,
-			final Supplier<MerkleMap<EntityNum, MerkleStakingInfo>> stakingInfo,
 			final GlobalDynamicProperties dynamicProperties,
-			final Supplier<MerkleMap<EntityNum, MerkleAccount>> accounts,
 			final RewardCalculator rewardCalculator,
-			final StakeChangeManager manager) {
+			final StakeChangeManager stakeChangeManager,
+			final StakePeriodManager stakePeriodManager,
+			final StakeInfoManager stakeInfoManager) {
 		super(sideEffectsTracker);
-		this.manager = manager;
+		this.stakeChangeManager = stakeChangeManager;
 		this.networkCtx = networkCtx;
-		this.stakingInfo = stakingInfo;
-		this.accounts = accounts;
 		this.rewardCalculator = rewardCalculator;
 		this.sideEffectsTracker = sideEffectsTracker;
 		this.dynamicProperties = dynamicProperties;
+		this.stakePeriodManager = stakePeriodManager;
+		this.stakeInfoManager = stakeInfoManager;
 	}
 
 	@Override
@@ -88,15 +87,6 @@ public class StakeAwareAccountsCommitsInterceptor extends AccountsCommitIntercep
 		// if the rewards are activated previously they will not be activated again
 		rewardsActivated = rewardsActivated || networkCtx.get().areRewardsActivated();
 		rewardBalanceChanged = false;
-
-		super.preview(pendingChanges);
-
-		// The latest period by which an account must have started staking, if it can be eligible for a
-		// reward; if staking is not active, this will return Long.MIN_VALUE so no account is eligible
-		final var latestEligibleStart = rewardCalculator.latestRewardableStakePeriodStart();
-
-		// boolean to track if the account has been rewarded already with one of the pending changes
-		Set<Long> hasBeenRewarded = new HashSet<>();
 
 		// Iterate through the change set, maintaining two invariants:
 		//   1. At the beginning of iteration i, any account that is rewardable due to change in balance or
@@ -106,45 +96,62 @@ public class StakeAwareAccountsCommitsInterceptor extends AccountsCommitIntercep
 		//   2. Any account whose stakedToMe balance is affected by a change in the [0, i) range has
 		//      been, if not already present, added to the pendingChanges; and its changes include its
 		//      new STAKED_TO_ME change
+		updateAccountStakes(pendingChanges);
+
+		// Now iterate through the change set again to update node stakes; we do this is in a
+		// separate loop to ensure all STAKED_TO_ME fields have their final values
+		updateNodeStakes(pendingChanges);
+		updateFundingRewardBalances(pendingChanges);
+
+		super.preview(pendingChanges);
+
+		checkStakingRewardsActivation();
+	}
+
+	private void updateAccountStakes(final EntityChangeSet<AccountID, MerkleAccount, AccountProperty> pendingChanges) {
+		// The latest period by which an account must have started staking, if it can be eligible for a
+		// reward; if staking is not active, this will return Long.MIN_VALUE so no account is eligible
+		final var latestEligibleStart = stakePeriodManager.latestRewardableStakePeriodStart();
+
+		// boolean to track if the account has been rewarded already with one of the pending changes
+		hasBeenRewarded = new HashSet<>();
+
 		for (int i = 0, n = pendingChanges.size(); i < n; i++) {
 			final var account = pendingChanges.entity(i);
 			final var changes = pendingChanges.changes(i);
 			final var accountNum = pendingChanges.id(i).getAccountNum();
 
-			checksFundingBalanceChange(changes, account, accountNum);
+//			rewardBalanceChanged |= accountNum == STAKING_FUNDING_ACCOUNT_NUMBER;
+			checksFundingBalanceChange(changes, accountNum);
 
 			// Update BALANCE and STAKE_PERIOD_START in the pending changes for this account, if reward-eligible
 			if (isRewardable(account, changes, latestEligibleStart)) {
-				payReward(account, changes, accountNum, hasBeenRewarded);
+				payReward(account, changes, accountNum);
 			}
 			// Update any STAKED_TO_ME side effects of this change
-			n = updateStakedToMeSideEffects(account, changes, pendingChanges, n, hasBeenRewarded, latestEligibleStart);
+			n = updateStakedToMeSideEffects(i, pendingChanges, latestEligibleStart);
 		}
-
-		// Now iterate through the change set again to update node stakes; we do this is in a
-		// separate loop to ensure all STAKED_TO_ME fields have their final values
-		updateNodeStakes(pendingChanges);
-		trackRewardsPaidByFunding(pendingChanges);
-
-		activateRewardsIfValid();
 	}
 
-	private void checksFundingBalanceChange(final Map<AccountProperty, Object> changes,
-			final MerkleAccount account, final long accountNum) {
+	private void checksFundingBalanceChange(final Map<AccountProperty, Object> changes, final long accountNum) {
 		if (changes.containsKey(AccountProperty.BALANCE)) {
 			final long newBalance = (long) changes.get(AccountProperty.BALANCE);
-			if (account != null && (accountNum == STAKING_FUNDING_ACCOUNT_NUMBER)) {
+			if (accountNum == STAKING_FUNDING_ACCOUNT_NUMBER) {
 				rewardBalanceChanged = true;
 				newRewardBalance = newBalance;
 			}
 		}
 	}
 
-	private void trackRewardsPaidByFunding(
+
+	private void updateFundingRewardBalances(
 			final EntityChangeSet<AccountID, MerkleAccount, AccountProperty> pendingChanges) {
 		final var rewardsPaid = rewardCalculator.rewardsPaidInThisTxn();
-		final var rewardAccountI = findOrAdd(800L, pendingChanges);
-		manager.updateBalance(-rewardsPaid, rewardAccountI, pendingChanges);
+		rewardBalanceChanged |= rewardsPaid > 0;
+		if (rewardsPaid > 0) {
+			final var rewardAccountI = stakeChangeManager.findOrAdd(800L, pendingChanges);
+			newRewardBalance += stakeChangeManager.updateBalance(-rewardsPaid, rewardAccountI, pendingChanges);
+		}
 	}
 
 	private void updateNodeStakes(final EntityChangeSet<AccountID, MerkleAccount, AccountProperty> pendingChanges) {
@@ -153,55 +160,55 @@ public class StakeAwareAccountsCommitsInterceptor extends AccountsCommitIntercep
 			final var changes = pendingChanges.changes(i);
 
 			final var curNodeId = (account != null) ? account.getStakedId() : 0L;
-			final var newNodeId = manager.getNodeStakeeNum(changes);
+			final var newNodeId = stakeChangeManager.getNodeStakeeNum(changes);
 			if (curNodeId < 0 && curNodeId != newNodeId) {
 				// Node stakee has been replaced, withdraw stakeRewarded or stakeNotRewarded from ex-stakee based on
 				// isDeclineReward option
-				manager.withdrawStake(
+				stakeChangeManager.withdrawStake(
 						Math.abs(curNodeId),
 						account.getBalance() + account.getStakedToMe(),
-						manager.finalDeclineRewardGiven(account, changes));
+						stakeChangeManager.finalDeclineRewardGiven(account, changes));
 			}
 			if (newNodeId < 0) {
 				// Award updated stake to new node stakee to the fields stakeRewarded or stakeNotRewarded from
 				// ex-stakee based on isDeclineReward option
-				manager.awardStake(
+				stakeChangeManager.awardStake(
 						Math.abs(newNodeId),
-						finalBalanceGiven(account, changes) + manager.finalStakedToMeGiven(account, changes),
-						manager.finalDeclineRewardGiven(account, changes));
+						finalBalanceGiven(account, changes) + stakeChangeManager.finalStakedToMeGiven(account, changes),
+						stakeChangeManager.finalDeclineRewardGiven(account, changes));
 			}
 		}
 	}
 
-	private int updateStakedToMeSideEffects(
-			final MerkleAccount account,
-			final Map<AccountProperty, Object> changes,
+	int updateStakedToMeSideEffects(
+			final int entityI,
 			final EntityChangeSet<AccountID, MerkleAccount, AccountProperty> pendingChanges,
-			int changesSize,
-			final Set<Long> hasBeenRewarded,
 			final long latestEligibleStart) {
+		int changesSize = pendingChanges.size();
+		final var account = pendingChanges.entity(entityI);
+		final var changes = pendingChanges.changes(entityI);
 
 		final var curStakeeNum = (account != null) ? account.getStakedId() : 0L;
-		final var newStakeeNum = manager.getAccountStakeeNum(changes);
+		final var newStakeeNum = stakeChangeManager.getAccountStakeeNum(changes);
 
 		if (curStakeeNum > 0 && curStakeeNum != newStakeeNum) {
 			// Stakee has been replaced, withdraw initial balance from ex-stakee
-			final var exStakeeI = findOrAdd(curStakeeNum, pendingChanges);
-			manager.updateStakedToMe(exStakeeI, -account.getBalance(), pendingChanges);
+			final var exStakeeI = stakeChangeManager.findOrAdd(curStakeeNum, pendingChanges);
+			stakeChangeManager.updateStakedToMe(exStakeeI, -account.getBalance(), pendingChanges);
 			if (exStakeeI == changesSize) {
 				changesSize++;
 			} else if (!hasBeenRewarded.contains(curStakeeNum)) {
-				payRewardIfRewardable(pendingChanges, exStakeeI, hasBeenRewarded, latestEligibleStart);
+				payRewardIfRewardable(pendingChanges, exStakeeI, latestEligibleStart);
 			}
 		}
 		if (newStakeeNum > 0) {
 			// Add pending balance to new stakee
-			final var newStakeeI = findOrAdd(newStakeeNum, pendingChanges);
-			manager.updateStakedToMe(newStakeeI, finalBalanceGiven(account, changes), pendingChanges);
+			final var newStakeeI = stakeChangeManager.findOrAdd(newStakeeNum, pendingChanges);
+			stakeChangeManager.updateStakedToMe(newStakeeI, finalBalanceGiven(account, changes), pendingChanges);
 			if (newStakeeI == changesSize) {
 				changesSize++;
 			} else if (!hasBeenRewarded.contains(newStakeeNum)) {
-				payRewardIfRewardable(pendingChanges, newStakeeI, hasBeenRewarded, latestEligibleStart);
+				payRewardIfRewardable(pendingChanges, newStakeeI, latestEligibleStart);
 			}
 		}
 		return changesSize;
@@ -209,42 +216,23 @@ public class StakeAwareAccountsCommitsInterceptor extends AccountsCommitIntercep
 
 	void payRewardIfRewardable(
 			final EntityChangeSet<AccountID, MerkleAccount, AccountProperty> pendingChanges,
-			final int newStakeeI,
-			final Set<Long> hasBeenRewarded,
+			final int stakeeI,
 			final long latestEligibleStart) {
-		final var account = pendingChanges.entity(newStakeeI);
-		final var changes = pendingChanges.changes(newStakeeI);
-		final var accountNum = pendingChanges.id(newStakeeI).getAccountNum();
+		final var account = pendingChanges.entity(stakeeI);
+		final var changes = pendingChanges.changes(stakeeI);
+		final var accountNum = pendingChanges.id(stakeeI).getAccountNum();
 		if (isRewardable(account, changes, latestEligibleStart)) {
-			payReward(account, changes, accountNum, hasBeenRewarded);
+			payReward(account, changes, accountNum);
 		}
 	}
 
 	private void payReward(final MerkleAccount account,
 			final Map<AccountProperty, Object> changes,
-			final long accountNum,
-			final Set<Long> hasBeenRewarded) {
-		final var reward = rewardCalculator.updateRewardChanges(account, changes);
+			final long accountNum) {
+		rewardCalculator.updateRewardChanges(account, changes);
+		final var reward = rewardCalculator.getAccountReward();
 		sideEffectsTracker.trackRewardPayment(accountNum, reward);
 		hasBeenRewarded.add(accountNum);
-	}
-
-	int findOrAdd(
-			final long accountNum,
-			final EntityChangeSet<AccountID, MerkleAccount, AccountProperty> pendingChanges
-	) {
-		final var n = pendingChanges.size();
-		for (int i = 0; i < n; i++) {
-			if (pendingChanges.id(i).getAccountNum() == accountNum) {
-				return (int) accountNum;
-			}
-		}
-		// This account wasn't in the current change set
-		pendingChanges.include(
-				STATIC_PROPERTIES.scopedAccountWith(accountNum),
-				accounts.get().get(EntityNum.fromLong(accountNum)),
-				Map.of());
-		return n;
 	}
 
 	boolean isRewardable(
@@ -262,19 +250,15 @@ public class StakeAwareAccountsCommitsInterceptor extends AccountsCommitIntercep
 				&& (!account.isDeclinedReward() || Boolean.FALSE.equals(changedDecline));
 	}
 
-	void activateRewardsIfValid() {
+	void checkStakingRewardsActivation() {
 		if (!shouldActivateStakingRewards()) {
 			return;
 		}
-		networkCtx.get().setStakingRewardsActivated(true);
-		stakingInfo.get().forEach((entityNum, info) -> info.clearRewardSumHistory());
+		long todayNumber = stakePeriodManager.currentStakePeriod();
 
-		long todayNumber = LocalDate.now(zoneUTC).toEpochDay();
-		accounts.get().forEach(((entityNum, account) -> {
-			if (account.getStakedId() < 0) {
-				account.setStakePeriodStart(todayNumber);
-			}
-		}));
+		networkCtx.get().setStakingRewardsActivated(true);
+		stakeInfoManager.clearRewardsHistory();
+		stakeChangeManager.setStakePeriodStart(todayNumber);
 		log.info("Staking rewards is activated and rewardSumHistory is cleared");
 	}
 
@@ -286,31 +270,48 @@ public class StakeAwareAccountsCommitsInterceptor extends AccountsCommitIntercep
 	 */
 	protected boolean shouldActivateStakingRewards() {
 		return !rewardsActivated && rewardBalanceChanged && (newRewardBalance >= dynamicProperties.getStakingStartThreshold());
+		// newRewardBalance needs to check BALANCE changes for 0.0.800
 	}
 
 
 	/* only used for unit tests */
+	@VisibleForTesting
 	public boolean isRewardsActivated() {
 		return rewardsActivated;
 	}
 
+	@VisibleForTesting
 	public void setRewardsActivated(final boolean rewardsActivated) {
 		this.rewardsActivated = rewardsActivated;
 	}
 
+	@VisibleForTesting
 	public boolean isRewardBalanceChanged() {
 		return rewardBalanceChanged;
 	}
 
+	@VisibleForTesting
 	public void setRewardBalanceChanged(final boolean rewardBalanceChanged) {
 		this.rewardBalanceChanged = rewardBalanceChanged;
 	}
 
+	@VisibleForTesting
 	public long getNewRewardBalance() {
 		return newRewardBalance;
 	}
 
+	@VisibleForTesting
 	public void setNewRewardBalance(final long newRewardBalance) {
 		this.newRewardBalance = newRewardBalance;
+	}
+
+	@VisibleForTesting
+	public Set<Long> getHasBeenRewarded() {
+		return hasBeenRewarded;
+	}
+
+	@VisibleForTesting
+	public void setHasBeenRewarded(final Set<Long> hasBeenRewarded) {
+		this.hasBeenRewarded = hasBeenRewarded;
 	}
 }

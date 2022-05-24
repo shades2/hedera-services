@@ -1,9 +1,28 @@
-package com.hedera.services.ledger.interceptors;
+package com.hedera.services.ledger.accounts.staking;
+
+/*-
+ * ‌
+ * Hedera Services Node
+ * ​
+ * Copyright (C) 2018 - 2022 Hedera Hashgraph, LLC
+ * ​
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * ‍
+ */
 
 import com.hedera.services.ledger.EntityChangeSet;
 import com.hedera.services.ledger.properties.AccountProperty;
 import com.hedera.services.state.merkle.MerkleAccount;
-import com.hedera.services.state.merkle.MerkleStakingInfo;
 import com.hedera.services.utils.EntityNum;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.swirlds.merkle.map.MerkleMap;
@@ -16,6 +35,7 @@ import java.util.EnumMap;
 import java.util.Map;
 import java.util.function.Supplier;
 
+import static com.hedera.services.context.properties.StaticPropertiesHolder.STATIC_PROPERTIES;
 import static com.hedera.services.ledger.properties.AccountProperty.BALANCE;
 import static com.hedera.services.ledger.properties.AccountProperty.DECLINE_REWARD;
 import static com.hedera.services.ledger.properties.AccountProperty.STAKED_ID;
@@ -23,15 +43,18 @@ import static com.hedera.services.ledger.properties.AccountProperty.STAKED_TO_ME
 
 @Singleton
 public class StakeChangeManager {
-	private final Supplier<MerkleMap<EntityNum, MerkleStakingInfo>> stakingInfo;
+	private final StakeInfoManager stakeInfoManager;
+	private final Supplier<MerkleMap<EntityNum, MerkleAccount>> accounts;
 
 	@Inject
-	public StakeChangeManager(final Supplier<MerkleMap<EntityNum, MerkleStakingInfo>> stakingInfo) {
-		this.stakingInfo = stakingInfo;
+	public StakeChangeManager(final StakeInfoManager stakeInfoManager,
+			final Supplier<MerkleMap<EntityNum, MerkleAccount>> accounts) {
+		this.stakeInfoManager = stakeInfoManager;
+		this.accounts = accounts;
 	}
 
 	public void withdrawStake(final long curNodeId, final long amount, final boolean declinedReward) {
-		final var node = stakingInfo.get().getForModify(EntityNum.fromLong(curNodeId));
+		final var node = stakeInfoManager.mutableStakeInfoFor(curNodeId);
 		if (declinedReward) {
 			node.setStakeToNotReward(node.getStakeToNotReward() - amount);
 		} else {
@@ -40,7 +63,7 @@ public class StakeChangeManager {
 	}
 
 	public void awardStake(final long newNodeId, final long amount, final boolean declinedReward) {
-		final var node = stakingInfo.get().getForModify(EntityNum.fromLong(newNodeId));
+		final var node = stakeInfoManager.mutableStakeInfoFor(newNodeId);
 		if (declinedReward) {
 			node.setStakeToNotReward(node.getStakeToNotReward() + amount);
 		} else {
@@ -54,7 +77,7 @@ public class StakeChangeManager {
 		return (entityId < 0) ? 0 : entityId;
 	}
 
-	long getNodeStakeeNum(final Map<AccountProperty, Object> changes) {
+	public long getNodeStakeeNum(final Map<AccountProperty, Object> changes) {
 		final var entityId = (long) changes.getOrDefault(STAKED_ID, 0L);
 		// Node ids are negative
 		return (entityId < 0) ? entityId : 0;
@@ -78,7 +101,7 @@ public class StakeChangeManager {
 		if (changes.containsKey(DECLINE_REWARD)) {
 			return (Boolean) changes.get(DECLINE_REWARD);
 		} else {
-			return (account == null) ? false : account.isDeclinedReward();
+			return account != null && account.isDeclinedReward();
 		}
 	}
 
@@ -107,26 +130,51 @@ public class StakeChangeManager {
 		pendingChanges.updateChange(stakeeI, mutableChanges);
 	}
 
-	public void updateBalance(
+	public long updateBalance(
 			final long delta,
 			final int rewardAccountI,
 			@NotNull final EntityChangeSet<AccountID, MerkleAccount, AccountProperty> pendingChanges
 	) {
 		final var mutableChanges = new EnumMap<>(pendingChanges.changes(rewardAccountI));
+		var newBalance = delta;
 		if (mutableChanges.containsKey(BALANCE)) {
-			mutableChanges.put(BALANCE, (long) mutableChanges.get(BALANCE) + delta);
+			newBalance = (long) mutableChanges.get(BALANCE) + delta;
+			mutableChanges.put(BALANCE, newBalance);
 		} else {
-			mutableChanges.put(BALANCE, delta);
+			mutableChanges.put(BALANCE, newBalance);
 		}
 		pendingChanges.updateChange(rewardAccountI, mutableChanges);
+		return newBalance;
 	}
 
-	static boolean isWithinRange(final long stakePeriodStart, final long latestRewardableStakePeriodStart) {
-		return stakePeriodStart > -1 && stakePeriodStart < latestRewardableStakePeriodStart;
-	}
-
-	static boolean hasStakeFieldChanges(@NotNull final Map<AccountProperty, Object> changes) {
+	public static boolean hasStakeFieldChanges(@NotNull final Map<AccountProperty, Object> changes) {
 		return changes.containsKey(BALANCE) || changes.containsKey(DECLINE_REWARD) ||
 				changes.containsKey(STAKED_ID) || changes.containsKey(STAKED_TO_ME);
+	}
+
+	public int findOrAdd(
+			final long accountNum,
+			final EntityChangeSet<AccountID, MerkleAccount, AccountProperty> pendingChanges
+	) {
+		final var n = pendingChanges.size();
+		for (int i = 0; i < n; i++) {
+			if (pendingChanges.id(i).getAccountNum() == accountNum) {
+				return i;
+			}
+		}
+		// This account wasn't in the current change set
+		pendingChanges.include(
+				STATIC_PROPERTIES.scopedAccountWith(accountNum),
+				accounts.get().get(EntityNum.fromLong(accountNum)),
+				new EnumMap<>(AccountProperty.class));
+		return n;
+	}
+
+	public void setStakePeriodStart(final long todayNumber) {
+		accounts.get().forEach(((entityNum, account) -> {
+			if (account.getStakedId() < 0) {
+				account.setStakePeriodStart(todayNumber);
+			}
+		}));
 	}
 }
