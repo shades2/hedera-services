@@ -173,7 +173,7 @@ public class StakeAwareAccountsCommitsInterceptor extends AccountsCommitIntercep
 				// Award updated stake to new node stakee to the fields stakeRewarded or stakeNotRewarded from
 				// ex-stakee based on isDeclineReward option
 				stakeChangeManager.awardStake(
-						Math.abs(newNodeId),
+						Math.abs(newNodeId + 1),
 						finalBalanceGiven(account, changes) + stakeChangeManager.finalStakedToMeGiven(account, changes),
 						stakeChangeManager.finalDeclineRewardGiven(account, changes));
 			}
