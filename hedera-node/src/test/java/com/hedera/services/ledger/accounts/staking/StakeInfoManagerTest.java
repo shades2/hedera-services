@@ -36,27 +36,29 @@ class StakeInfoManagerTest {
 	@Test
 	void resetsRewardSUmHistory() {
 		stakingInfo.forEach((a, b) -> b.setRewardSumHistory(new long[] { 5, 5 }));
-		assertEquals(5L, stakingInfo.get(EntityNum.fromLong(3L)).getRewardSumHistory()[0]);
-		assertEquals(5L, stakingInfo.get(EntityNum.fromLong(4L)).getRewardSumHistory()[0]);
+		assertEquals(5L, stakingInfo.get(EntityNum.fromLong(0L)).getRewardSumHistory()[0]);
+		assertEquals(5L, stakingInfo.get(EntityNum.fromLong(1L)).getRewardSumHistory()[0]);
 		subject.clearRewardsHistory();
 
-		assertEquals(0L, stakingInfo.get(EntityNum.fromLong(3L)).getRewardSumHistory()[0]);
-		assertEquals(0L, stakingInfo.get(EntityNum.fromLong(4L)).getRewardSumHistory()[0]);
+		assertEquals(0L, stakingInfo.get(EntityNum.fromLong(0L)).getRewardSumHistory()[0]);
+		assertEquals(0L, stakingInfo.get(EntityNum.fromLong(1L)).getRewardSumHistory()[0]);
 	}
 
 	@Test
 	void getsCorrectStakeInfo() {
-		final var expectedInfo = stakingInfo.get(EntityNum.fromLong(3L));
-		final var actual = subject.mutableStakeInfoFor(3L);
+		final var expectedInfo = stakingInfo.get(EntityNum.fromLong(0L));
+		final var actual = subject.mutableStakeInfoFor(0L);
 		assertEquals(expectedInfo, actual);
 	}
 
 	public MerkleMap<EntityNum, MerkleStakingInfo> buildsStakingInfoMap() {
 		given(addressBook.getSize()).willReturn(2);
 		given(addressBook.getAddress(0)).willReturn(address1);
-		given(address1.getMemo()).willReturn("0.0.3");
+
+		given(address1.getId()).willReturn(0L);
 		given(addressBook.getAddress(1)).willReturn(address2);
-		given(address2.getMemo()).willReturn("0.0.4");
+
+		given(address2.getId()).willReturn(1L);
 
 		final var info = buildStakingInfoMap(addressBook);
 		info.forEach((a, b) -> {
