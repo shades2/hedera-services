@@ -149,18 +149,18 @@ class StakeAwareAccountsCommitInterceptorTest {
 		assertEquals(20L, subject.getNewRewardBalance());
 		assertTrue(subject.shouldActivateStakingRewards());
 
-		assertEquals(5L, stakingInfo.get(EntityNum.fromLong(3L)).getRewardSumHistory()[0]);
-		assertEquals(5L, stakingInfo.get(EntityNum.fromLong(4L)).getRewardSumHistory()[0]);
-		assertEquals(5L, stakingInfo.get(EntityNum.fromLong(3L)).getRewardSumHistory()[1]);
-		assertEquals(5L, stakingInfo.get(EntityNum.fromLong(4L)).getRewardSumHistory()[1]);
+		assertEquals(5L, stakingInfo.get(EntityNum.fromLong(0L)).getRewardSumHistory()[0]);
+		assertEquals(5L, stakingInfo.get(EntityNum.fromLong(1L)).getRewardSumHistory()[0]);
+		assertEquals(5L, stakingInfo.get(EntityNum.fromLong(0L)).getRewardSumHistory()[1]);
+		assertEquals(5L, stakingInfo.get(EntityNum.fromLong(1L)).getRewardSumHistory()[1]);
 
 		subject.checkStakingRewardsActivation();
 		verify(networkCtx).setStakingRewardsActivated(true);
 		verify(manager).setStakePeriodStart(anyLong());
-		assertEquals(0L, stakingInfo.get(EntityNum.fromLong(3L)).getRewardSumHistory()[0]);
-		assertEquals(0L, stakingInfo.get(EntityNum.fromLong(4L)).getRewardSumHistory()[0]);
-		assertEquals(0L, stakingInfo.get(EntityNum.fromLong(3L)).getRewardSumHistory()[1]);
-		assertEquals(0L, stakingInfo.get(EntityNum.fromLong(4L)).getRewardSumHistory()[1]);
+		assertEquals(0L, stakingInfo.get(EntityNum.fromLong(0L)).getRewardSumHistory()[0]);
+		assertEquals(0L, stakingInfo.get(EntityNum.fromLong(1L)).getRewardSumHistory()[0]);
+		assertEquals(0L, stakingInfo.get(EntityNum.fromLong(0L)).getRewardSumHistory()[1]);
+		assertEquals(0L, stakingInfo.get(EntityNum.fromLong(1L)).getRewardSumHistory()[1]);
 	}
 
 	@Test
@@ -228,8 +228,8 @@ class StakeAwareAccountsCommitInterceptorTest {
 		given(stakePeriodManager.currentStakePeriod()).willReturn(19132L);
 
 		// rewardsSumHistory is not cleared
-		assertEquals(5, stakingInfo.get(EntityNum.fromLong(3L)).getRewardSumHistory()[0]);
-		assertEquals(5, stakingInfo.get(EntityNum.fromLong(4L)).getRewardSumHistory()[0]);
+		assertEquals(5, stakingInfo.get(EntityNum.fromLong(0L)).getRewardSumHistory()[0]);
+		assertEquals(5, stakingInfo.get(EntityNum.fromLong(1L)).getRewardSumHistory()[0]);
 		assertEquals(-1, counterparty.getStakePeriodStart());
 		assertEquals(-1, party.getStakePeriodStart());
 
@@ -242,8 +242,8 @@ class StakeAwareAccountsCommitInterceptorTest {
 		verify(manager).setStakePeriodStart(19132L);
 
 		// rewardsSumHistory is cleared
-		assertEquals(0, stakingInfo.get(EntityNum.fromLong(3L)).getRewardSumHistory()[0]);
-		assertEquals(0, stakingInfo.get(EntityNum.fromLong(4L)).getRewardSumHistory()[0]);
+		assertEquals(0, stakingInfo.get(EntityNum.fromLong(0L)).getRewardSumHistory()[0]);
+		assertEquals(0, stakingInfo.get(EntityNum.fromLong(1L)).getRewardSumHistory()[0]);
 		assertEquals(-1, party.getStakePeriodStart());
 	}
 
@@ -373,9 +373,9 @@ class StakeAwareAccountsCommitInterceptorTest {
 	public MerkleMap<EntityNum, MerkleStakingInfo> buildsStakingInfoMap() {
 		given(addressBook.getSize()).willReturn(2);
 		given(addressBook.getAddress(0)).willReturn(address1);
-		given(address1.getMemo()).willReturn("0.0.3");
+		given(address1.getId()).willReturn(0L);
 		given(addressBook.getAddress(1)).willReturn(address2);
-		given(address2.getMemo()).willReturn("0.0.4");
+		given(address2.getId()).willReturn(1L);
 
 		final var info = buildStakingInfoMap(addressBook);
 		info.forEach((a, b) -> {
