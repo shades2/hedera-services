@@ -203,15 +203,8 @@ public class UniqueTokenValue implements VirtualValue {
 	/* package */ void deserializeFrom(
 			final CheckedSupplier<Byte> readByteFn,
 			final CheckedSupplier<Long> readLongFn,
-			final CheckedConsumer<byte[]> readBytesFn,
-			int dataVersion) throws IOException {
+			final CheckedConsumer<byte[]> readBytesFn) throws IOException {
 		throwIfImmutable();
-
-		if (dataVersion != CURRENT_VERSION) {
-			throw new UnsupportedOperationException("Data version " + dataVersion + " unsupported. Expected: "
-					+ CURRENT_VERSION);
-		}
-
 		ownerAccountNum = readLongFn.get();
 		spenderAccountNum = readLongFn.get();
 		packedCreationTime = readLongFn.get();
@@ -222,12 +215,12 @@ public class UniqueTokenValue implements VirtualValue {
 
 	@Override
 	public void deserialize(final SerializableDataInputStream inputStream, final int version) throws IOException {
-		deserializeFrom(inputStream::readByte, inputStream::readLong, inputStream::readFully, version);
+		deserializeFrom(inputStream::readByte, inputStream::readLong, inputStream::readFully);
 	}
 
 	@Override
 	public void deserialize(final ByteBuffer byteBuffer, final int version) throws IOException {
-		deserializeFrom(byteBuffer::get, byteBuffer::getLong, byteBuffer::get, version);
+		deserializeFrom(byteBuffer::get, byteBuffer::getLong, byteBuffer::get);
 	}
 
 	@Override
