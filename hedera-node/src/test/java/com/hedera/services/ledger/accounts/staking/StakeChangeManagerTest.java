@@ -37,11 +37,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.Map;
 
-import static com.hedera.services.ledger.accounts.staking.StakePeriodManager.isWithinRange;
-import static com.hedera.services.ledger.accounts.staking.StakePeriodManager.zoneUTC;
+import static com.hedera.services.ledger.accounts.staking.StakeChangeManager.finalBalanceGiven;
 import static com.hedera.services.state.migration.ReleaseTwentySevenMigration.buildStakingInfoMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -67,7 +66,7 @@ class StakeChangeManagerTest {
 	private StakeChangeManager subject;
 	private MerkleMap<EntityNum, MerkleStakingInfo> stakingInfo;
 
-	public static final long stakePeriodStart = LocalDate.now(zoneUTC).toEpochDay() - 1;
+	private final EntityNum node0Id = EntityNum.fromLong(0L);
 
 	@BeforeEach
 	void setUp() {
@@ -79,13 +78,6 @@ class StakeChangeManagerTest {
 	void validatesIfAnyStakedFieldChanges() {
 		assertTrue(subject.hasStakeFieldChanges(randomStakeFieldChanges(100L)));
 		assertFalse(subject.hasStakeFieldChanges(randomNotStakeFieldChanges()));
-	}
-
-	@Test
-	void validatesIfStartPeriodIsWithinRange() {
-		assertTrue(isWithinRange(stakePeriodStart - 365, stakePeriodStart));
-		assertFalse(isWithinRange(-1, stakePeriodStart));
-		assertFalse(isWithinRange(stakePeriodStart, stakePeriodStart));
 	}
 
 	@Test
@@ -127,42 +119,40 @@ class StakeChangeManagerTest {
 
 	@Test
 	void withdrawsStakeCorrectly() {
-		given(stakeInfoManager.mutableStakeInfoFor(0L)).willReturn(stakingInfo.get(EntityNum.fromLong(0L)));
-
-		assertEquals(1000L, stakingInfo.get(EntityNum.fromLong(0L)).getStake());
-		assertEquals(300L, stakingInfo.get(EntityNum.fromLong(0L)).getStakeToReward());
-		assertEquals(400L, stakingInfo.get(EntityNum.fromLong(0L)).getStakeToNotReward());
-
+		assertEquals(1000L, stakingInfo.get(node0Id).getStake());
+		assertEquals(300L, stakingInfo.get(node0Id).getStakeToReward());
+		assertEquals(400L, stakingInfo.get(node0Id).getStakeToNotReward());
+		given(stakeInfoManager.mutableStakeInfoFor(0L)).willReturn(stakingInfo.get(node0Id));
 		subject.withdrawStake(0L, 100L, false);
 
-		assertEquals(1000L, stakingInfo.get(EntityNum.fromLong(0L)).getStake());
-		assertEquals(200L, stakingInfo.get(EntityNum.fromLong(0L)).getStakeToReward());
-		assertEquals(400L, stakingInfo.get(EntityNum.fromLong(0L)).getStakeToNotReward());
+		assertEquals(1000L, stakingInfo.get(node0Id).getStake());
+		assertEquals(200L, stakingInfo.get(node0Id).getStakeToReward());
+		assertEquals(400L, stakingInfo.get(node0Id).getStakeToNotReward());
 
 		subject.withdrawStake(0L, 100L, true);
 
-		assertEquals(1000L, stakingInfo.get(EntityNum.fromLong(0L)).getStake());
-		assertEquals(200L, stakingInfo.get(EntityNum.fromLong(0L)).getStakeToReward());
-		assertEquals(300L, stakingInfo.get(EntityNum.fromLong(0L)).getStakeToNotReward());
+		assertEquals(1000L, stakingInfo.get(node0Id).getStake());
+		assertEquals(200L, stakingInfo.get(node0Id).getStakeToReward());
+		assertEquals(300L, stakingInfo.get(node0Id).getStakeToNotReward());
 	}
 
 	@Test
 	void awardsStakeCorrectly() {
-		assertEquals(1000L, stakingInfo.get(EntityNum.fromLong(0L)).getStake());
-		assertEquals(300L, stakingInfo.get(EntityNum.fromLong(0L)).getStakeToReward());
-		assertEquals(400L, stakingInfo.get(EntityNum.fromLong(0L)).getStakeToNotReward());
-		given(stakeInfoManager.mutableStakeInfoFor(0L)).willReturn(stakingInfo.get(EntityNum.fromLong(0L)));
+		assertEquals(1000L, stakingInfo.get(node0Id).getStake());
+		assertEquals(300L, stakingInfo.get(node0Id).getStakeToReward());
+		assertEquals(400L, stakingInfo.get(node0Id).getStakeToNotReward());
+		given(stakeInfoManager.mutableStakeInfoFor(0L)).willReturn(stakingInfo.get(node0Id));
 		subject.awardStake(0L, 100L, false);
 
-		assertEquals(1000L, stakingInfo.get(EntityNum.fromLong(0L)).getStake());
-		assertEquals(400L, stakingInfo.get(EntityNum.fromLong(0L)).getStakeToReward());
-		assertEquals(400L, stakingInfo.get(EntityNum.fromLong(0L)).getStakeToNotReward());
+		assertEquals(1000L, stakingInfo.get(node0Id).getStake());
+		assertEquals(400L, stakingInfo.get(node0Id).getStakeToReward());
+		assertEquals(400L, stakingInfo.get(node0Id).getStakeToNotReward());
 
 		subject.awardStake(0L, 100L, true);
 
-		assertEquals(1000L, stakingInfo.get(EntityNum.fromLong(0L)).getStake());
-		assertEquals(400L, stakingInfo.get(EntityNum.fromLong(0L)).getStakeToReward());
-		assertEquals(500L, stakingInfo.get(EntityNum.fromLong(0L)).getStakeToNotReward());
+		assertEquals(1000L, stakingInfo.get(node0Id).getStake());
+		assertEquals(400L, stakingInfo.get(node0Id).getStakeToReward());
+		assertEquals(500L, stakingInfo.get(node0Id).getStakeToNotReward());
 	}
 
 	@Test
@@ -171,7 +161,7 @@ class StakeChangeManagerTest {
 
 		assertEquals(0L, subject.getAccountStakeeNum(changes));
 		assertEquals(-2L, subject.getNodeStakeeNum(changes));
-		assertEquals(100L, subject.finalBalanceGiven(account, changes));
+		assertEquals(100L, finalBalanceGiven(account, changes));
 		assertEquals(true, subject.finalDeclineRewardGiven(account, changes));
 		assertEquals(2000L, subject.finalStakedToMeGiven(account, changes));
 	}
@@ -186,7 +176,7 @@ class StakeChangeManagerTest {
 
 		assertEquals(0L, subject.getAccountStakeeNum(changes));
 		assertEquals(0L, subject.getNodeStakeeNum(changes));
-		assertEquals(1000L, subject.finalBalanceGiven(account, changes));
+		assertEquals(1000L, finalBalanceGiven(account, changes));
 		assertEquals(true, subject.finalDeclineRewardGiven(account, changes));
 		assertEquals(200L, subject.finalStakedToMeGiven(account, changes));
 	}
@@ -196,9 +186,52 @@ class StakeChangeManagerTest {
 		final var pendingChanges = buildPendingNodeStakeChanges();
 		assertEquals(1, pendingChanges.size());
 
-		final var num = subject.findOrAdd(partyId.getAccountNum(), pendingChanges);
+		var num = subject.findOrAdd(partyId.getAccountNum(), pendingChanges);
 		assertEquals(1, num);
+		num = subject.findOrAdd(counterpartyId.getAccountNum(), pendingChanges);
+		assertEquals(0, num);
+
 		assertEquals(2, pendingChanges.size());
+	}
+
+	@Test
+	void setsStakePeriodStart() {
+		final long todayNum = 123456789L;
+
+		final var accountsMap = new MerkleMap<EntityNum, MerkleAccount>();
+		accountsMap.put(EntityNum.fromAccountId(counterpartyId), counterparty);
+		accountsMap.put(EntityNum.fromAccountId(partyId), party);
+
+		subject = new StakeChangeManager(stakeInfoManager, () -> accountsMap);
+		subject.setStakePeriodStart(todayNum);
+
+		assertEquals(todayNum, counterparty.getStakePeriodStart());
+		assertEquals(-1, party.getStakePeriodStart());
+	}
+
+	@Test
+	void checksIfBalanceIncraesed() {
+		Map<AccountProperty, Object> stakingFundChanges = Map.of(AccountProperty.BALANCE, 100L);
+		assertTrue(subject.isIncreased(stakingFundChanges, stakingFund));
+
+		stakingFundChanges = Map.of(AccountProperty.BALANCE, -100L);
+		assertFalse(subject.isIncreased(stakingFundChanges, stakingFund));
+
+		stakingFundChanges = Map.of(AccountProperty.BALANCE, 100L);
+		assertTrue(subject.isIncreased(stakingFundChanges, null));
+
+		stakingFundChanges = Map.of(AccountProperty.ALIAS, ByteString.copyFromUtf8("Testing"));
+		assertFalse(subject.isIncreased(stakingFundChanges, stakingFund));
+	}
+
+
+	@Test
+	void returnsDefaultsWhenAccountIsNull() {
+		final var changes = randomNotStakeFieldChanges();
+
+		assertEquals(0, finalBalanceGiven(null, changes));
+		assertEquals(false, subject.finalDeclineRewardGiven(null, changes));
+		assertEquals(0, subject.finalStakedToMeGiven(null, changes));
 	}
 
 	public EntityChangeSet<AccountID, MerkleAccount, AccountProperty> buildPendingNodeStakeChanges() {
@@ -209,26 +242,26 @@ class StakeChangeManagerTest {
 	}
 
 	private Map<AccountProperty, Object> randomStakeFieldChanges(final long newBalance) {
-		return Map.of(
-				AccountProperty.BALANCE, newBalance,
-				AccountProperty.STAKED_ID, -2L,
-				AccountProperty.DECLINE_REWARD, true,
-				AccountProperty.STAKED_TO_ME, 2000L);
+		final var map = new HashMap<AccountProperty, Object>();
+		map.put(AccountProperty.BALANCE, newBalance);
+		map.put(AccountProperty.STAKED_ID, -2L);
+		map.put(AccountProperty.DECLINE_REWARD, true);
+		map.put(AccountProperty.STAKED_TO_ME, 2000L);
+		return map;
 	}
 
 	private Map<AccountProperty, Object> randomNotStakeFieldChanges() {
-		return Map.of(
-				AccountProperty.ALIAS, ByteString.copyFromUtf8("testing"));
+		final var map = new HashMap<AccountProperty, Object>();
+		map.put(AccountProperty.ALIAS, ByteString.copyFromUtf8("testing"));
+		return map;
 	}
 
 
 	public MerkleMap<EntityNum, MerkleStakingInfo> buildsStakingInfoMap() {
 		given(addressBook.getSize()).willReturn(2);
 		given(addressBook.getAddress(0)).willReturn(address1);
-
 		given(address1.getId()).willReturn(0L);
 		given(addressBook.getAddress(1)).willReturn(address2);
-
 		given(address2.getId()).willReturn(1L);
 
 		final var info = buildStakingInfoMap(addressBook);

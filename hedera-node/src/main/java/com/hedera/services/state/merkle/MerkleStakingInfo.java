@@ -298,4 +298,20 @@ public class MerkleStakingInfo extends AbstractMerkleLeaf implements Keyed<Entit
 		// reset the historyHash
 		historyHash = null;
 	}
+
+	public void removeRewardStake(final long amount, final boolean declinedReward) {
+		if (declinedReward) {
+			this.stakeToNotReward = stakeToNotReward - amount;
+		} else {
+			this.stakeToReward = stakeToReward - amount;
+		}
+	}
+
+	public void addRewardStake(final long amount, final boolean declinedReward) {
+		if (declinedReward) {
+			this.stakeToNotReward = stakeToNotReward + amount;
+		} else {
+			this.stakeToReward = stakeToReward + amount;
+		}
+	}
 }

@@ -55,20 +55,12 @@ public class StakeChangeManager {
 
 	public void withdrawStake(final long curNodeId, final long amount, final boolean declinedReward) {
 		final var node = stakeInfoManager.mutableStakeInfoFor(curNodeId);
-		if (declinedReward) {
-			node.setStakeToNotReward(node.getStakeToNotReward() - amount);
-		} else {
-			node.setStakeToReward(node.getStakeToReward() - amount);
-		}
+		node.removeRewardStake(amount, declinedReward);
 	}
 
 	public void awardStake(final long newNodeId, final long amount, final boolean declinedReward) {
 		final var node = stakeInfoManager.mutableStakeInfoFor(newNodeId);
-		if (declinedReward) {
-			node.setStakeToNotReward(node.getStakeToNotReward() + amount);
-		} else {
-			node.setStakeToReward(node.getStakeToReward() + amount);
-		}
+		node.addRewardStake(amount, declinedReward);
 	}
 
 	public long getAccountStakeeNum(final Map<AccountProperty, Object> changes) {
@@ -121,7 +113,7 @@ public class StakeChangeManager {
 			final long delta,
 			@NotNull final EntityChangeSet<AccountID, MerkleAccount, AccountProperty> pendingChanges
 	) {
-		final var mutableChanges = new EnumMap<>(pendingChanges.changes(stakeeI));
+		final var mutableChanges = pendingChanges.changes(stakeeI);
 		if (mutableChanges.containsKey(STAKED_TO_ME)) {
 			mutableChanges.put(STAKED_TO_ME, (long) mutableChanges.get(STAKED_TO_ME) + delta);
 		} else {
@@ -130,26 +122,25 @@ public class StakeChangeManager {
 		pendingChanges.updateChange(stakeeI, mutableChanges);
 	}
 
-	public long updateBalance(
+	public void updateBalance(
 			final long delta,
 			final int rewardAccountI,
 			@NotNull final EntityChangeSet<AccountID, MerkleAccount, AccountProperty> pendingChanges
 	) {
-		final var mutableChanges = new EnumMap<>(pendingChanges.changes(rewardAccountI));
-		var newBalance = delta;
+		final var mutableChanges = pendingChanges.changes(rewardAccountI);
 		if (mutableChanges.containsKey(BALANCE)) {
-			newBalance = (long) mutableChanges.get(BALANCE) + delta;
-			mutableChanges.put(BALANCE, newBalance);
+			mutableChanges.put(BALANCE, (long) mutableChanges.get(BALANCE) + delta);
 		} else {
-			mutableChanges.put(BALANCE, newBalance);
+			mutableChanges.put(BALANCE, delta);
 		}
 		pendingChanges.updateChange(rewardAccountI, mutableChanges);
-		return newBalance;
 	}
 
 	public static boolean hasStakeFieldChanges(@NotNull final Map<AccountProperty, Object> changes) {
-		return changes.containsKey(BALANCE) || changes.containsKey(DECLINE_REWARD) ||
-				changes.containsKey(STAKED_ID) || changes.containsKey(STAKED_TO_ME);
+		return changes.containsKey(BALANCE) ||
+				changes.containsKey(DECLINE_REWARD) ||
+				changes.containsKey(STAKED_ID) ||
+				changes.containsKey(STAKED_TO_ME);
 	}
 
 	public int findOrAdd(
@@ -176,5 +167,15 @@ public class StakeChangeManager {
 				account.setStakePeriodStart(todayNumber);
 			}
 		}));
+	}
+
+	public boolean isIncreased(final Map<AccountProperty, Object> changes, final MerkleAccount account) {
+		// checks if balance of 0.0.800 increased
+		if (changes.containsKey(AccountProperty.BALANCE)) {
+			final long newBalance = (long) changes.get(AccountProperty.BALANCE);
+			final long currentBalance = account != null ? account.getBalance() : 0;
+			return (newBalance - currentBalance) > 0;
+		}
+		return false;
 	}
 }

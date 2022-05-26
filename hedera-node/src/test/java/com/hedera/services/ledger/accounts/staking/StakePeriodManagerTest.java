@@ -11,7 +11,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.Instant;
 import java.time.LocalDate;
 
-import static com.hedera.services.ledger.accounts.staking.StakePeriodManager.isWithinRange;
 import static com.hedera.services.ledger.accounts.staking.StakePeriodManager.zoneUTC;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -53,20 +52,65 @@ class StakePeriodManagerTest {
 		final var instant = Instant.ofEpochSecond(123456789L);
 		given(txnCtx.consensusTime()).willReturn(instant);
 		final var todayNumber = subject.currentStakePeriod() - 1;
+		given(networkContext.areRewardsActivated()).willReturn(true);
 
 		var stakePeriodStart = todayNumber - 366;
-		assertTrue(isWithinRange(stakePeriodStart, todayNumber));
+		assertTrue(subject.isRewardable(stakePeriodStart));
 
 		stakePeriodStart = -1;
-		assertFalse(isWithinRange(stakePeriodStart, todayNumber));
+		assertFalse(subject.isRewardable(stakePeriodStart));
 
 		stakePeriodStart = todayNumber - 365;
-		assertTrue(isWithinRange(stakePeriodStart, todayNumber));
+		assertTrue(subject.isRewardable(stakePeriodStart));
 
 		stakePeriodStart = todayNumber - 1;
-		assertTrue(isWithinRange(stakePeriodStart, todayNumber));
+		assertTrue(subject.isRewardable(stakePeriodStart));
 
 		stakePeriodStart = todayNumber - 2;
-		assertTrue(isWithinRange(stakePeriodStart, todayNumber));
+		assertTrue(subject.isRewardable(stakePeriodStart));
 	}
+
+	@Test
+	void calculatesOnlyOncePerSecond() {
+		var consensusTime = Instant.ofEpochSecond(12345678L);
+		var expectedStakePeriod = LocalDate.ofInstant(consensusTime, zoneUTC).toEpochDay();
+
+		given(txnCtx.consensusTime()).willReturn(consensusTime);
+		assertEquals(expectedStakePeriod, subject.currentStakePeriod());
+		assertEquals(consensusTime.getEpochSecond(), subject.getPrevConsensusSecs());
+
+		final var newConsensusTime = Instant.ofEpochSecond(12345679L);
+		given(txnCtx.consensusTime()).willReturn(newConsensusTime);
+		expectedStakePeriod = LocalDate.ofInstant(newConsensusTime, zoneUTC).toEpochDay();
+
+		assertEquals(expectedStakePeriod, subject.currentStakePeriod());
+		assertEquals(newConsensusTime.getEpochSecond(), subject.getPrevConsensusSecs());
+	}
+
+	@Test
+	void validatesIfStartPeriodIsWithinRange() {
+		final var instant = Instant.ofEpochSecond(12345678910L);
+		given(txnCtx.consensusTime()).willReturn(instant);
+		given(networkContext.areRewardsActivated()).willReturn(true);
+		final long stakePeriodStart = subject.currentStakePeriod();
+
+		assertTrue(subject.isRewardable(stakePeriodStart - 365));
+		assertFalse(subject.isRewardable(-1));
+		assertFalse(subject.isRewardable(stakePeriodStart));
+	}
+
+	@Test
+	void givesEffectivePeriodCorrectly() {
+		final var delta = 500;
+		given(txnCtx.consensusTime()).willReturn(Instant.ofEpochSecond(12345678910L));
+
+		final var stakePeriod = subject.currentStakePeriod();
+		final var period = subject.effectivePeriod(stakePeriod - delta);
+
+		final var expectedEffectivePeriod = LocalDate.ofInstant(Instant.ofEpochSecond(12345678910L),
+				zoneUTC).toEpochDay();
+		assertEquals(expectedEffectivePeriod - 365, period);
+		assertEquals(expectedEffectivePeriod - 10, subject.effectivePeriod(stakePeriod - 10));
+	}
+
 }
