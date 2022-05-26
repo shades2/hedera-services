@@ -126,6 +126,40 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 		this.metadata = (that.metadata == null) ? null : that.metadata.copy();
 	}
 
+	/**
+	 * Log out the sizes the state children.
+	 */
+	 private void logStateChildrenSizes(int version) {
+		 final var numUniqueTokens =
+				 version < UniqueTokensMigrator.TARGET_RELEASE
+						 ? legacyUniqueTokens().size()
+						 : uniqueTokens().size();
+		log.info("  (@ {}) # NFTs               = {}",
+				StateChildIndices.UNIQUE_TOKENS,
+				numUniqueTokens);
+		log.info("  (@ {}) # token associations = {}",
+				StateChildIndices.TOKEN_ASSOCIATIONS,
+				tokenAssociations().size());
+		log.info("  (@ {}) # topics             = {}",
+				StateChildIndices.TOPICS,
+				topics().size());
+		log.info("  (@ {}) # blobs              = {}",
+				StateChildIndices.STORAGE,
+				storage().size());
+		log.info("  (@ {}) # accounts/contracts = {}",
+				StateChildIndices.ACCOUNTS,
+				accounts().size());
+		log.info("  (@ {}) # tokens             = {}",
+				StateChildIndices.TOKENS,
+				tokens().size());
+		log.info("  (@ {}) # scheduled txns     = {}",
+				StateChildIndices.SCHEDULE_TXS,
+				scheduleTxs().size());
+		log.info("  (@ {}) # contract K/V pairs = {}",
+				StateChildIndices.CONTRACT_STORAGE,
+				contractStorage().size());
+	}
+
 	/* --- MerkleInternal --- */
 	@Override
 	public long getClassId() {
@@ -191,6 +225,9 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 			UniqueTokensMigrator.migrateFromUniqueTokenMerkleMap(this);
 		}
 		runPostMigrationTasks();
+
+		log.info("Migration completed.");
+		logStateChildrenSizes(CURRENT_VERSION);
 	}
 
 	/* --- SwirldState --- */
@@ -425,7 +462,7 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 				dualState.getFreezeTime(),
 				dualState.getLastFrozenTime());
 
-		final var stateVersion = networkCtx().getStateVersion();
+		final var stateVersion = fromGenesis ? CURRENT_VERSION : networkCtx().getStateVersion();
 		if (stateVersion > CURRENT_VERSION) {
 			log.error("Fatal error, network state version {} > node software version {}",
 					networkCtx().getStateVersion(),
@@ -438,13 +475,15 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 				networkCtx().discardPreparedUpgradeMeta();
 				dualState.setFreezeTime(null);
 			}
-			if (stateVersion < CURRENT_VERSION) {
-				// Only signal the MigrationRecordsManager to re-run if this is an upgrade
+			if (fromGenesis || stateVersion < CURRENT_VERSION) {
+				// Only signal the MigrationRecordsManager to re-run if this is an upgrade or genesis.
 				networkCtx().markMigrationRecordsNotYetStreamed();
 			}
 			networkCtx().setStateVersion(CURRENT_VERSION);
 
 			metadata = new StateMetadata(app, new FCHashMap<>());
+			// Log state before migration.
+			logStateChildrenSizes(stateVersion);
 			final Runnable initTask = () -> {
 				// This updates the working state accessor with our children
 				app.initializationFlow().runWith(this);
@@ -460,7 +499,7 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 				log.info("  --> Context initialized accordingly on Services node {}", selfId);
 			};
 
-			if (!fromGenesis && stateVersion < CURRENT_VERSION) {
+			if (stateVersion < CURRENT_VERSION) {
 				log.info("Delaying init tasks due to migration");
 				addPostMigrationTask(initTask);
 			} else {

@@ -68,6 +68,7 @@ import com.swirlds.virtualmap.VirtualMap;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -175,7 +176,13 @@ class ServicesStateTest {
 	@LoggingTarget
 	private LogCaptor logCaptor;
 	@LoggingSubject
-	private ServicesState subject = new ServicesState();
+	private ServicesState subject;
+
+	@BeforeEach
+	void setUp() {
+		subject = new ServicesState();
+		setAllChildren();
+	}
 
 	@AfterEach
 	void cleanup() {
@@ -519,7 +526,10 @@ class ServicesStateTest {
 		subject.setChild(StateChildIndices.ACCOUNTS, accounts);
 
 		given(app.dualStateAccessor()).willReturn(dualStateAccessor);
+		given(app.hashLogger()).willReturn(hashLogger);
+		given(app.initializationFlow()).willReturn(initFlow);
 		given(platform.getSelfId()).willReturn(selfId);
+		given(networkContext.getStateVersion()).willReturn(StateVersions.CURRENT_VERSION);
 
 		APPS.save(selfId.getId(), app);
 
@@ -657,6 +667,7 @@ class ServicesStateTest {
 		subject.setChild(StateChildIndices.SPECIAL_FILES, specialFiles);
 		subject.setChild(StateChildIndices.NETWORK_CTX, networkContext);
 		subject.setChild(StateChildIndices.ACCOUNTS, accounts);
+		subject.setChild(StateChildIndices.UNIQUE_TOKENS, new MerkleMap<>());
 
 		final var when = Instant.ofEpochSecond(1_234_567L, 890);
 		given(dualState.getFreezeTime()).willReturn(when);
@@ -777,6 +788,7 @@ class ServicesStateTest {
 		subject.setChild(StateChildIndices.ADDRESS_BOOK, addressBook);
 		subject.setChild(StateChildIndices.NETWORK_CTX, networkContext);
 		subject.setChild(StateChildIndices.SPECIAL_FILES, specialFiles);
+		subject.setChild(StateChildIndices.UNIQUE_TOKENS, new MerkleMap<>());
 		subject.setMetadata(metadata);
 		subject.setDeserializedVersion(UniqueTokensMigrator.TARGET_RELEASE - 1);
 
@@ -832,5 +844,9 @@ class ServicesStateTest {
 		subject.setChild(StateChildIndices.STORAGE, mockMm);
 		subject.setChild(StateChildIndices.TOPICS, mockMm);
 		subject.setChild(StateChildIndices.SCHEDULE_TXS, mockMm);
+	}
+
+	private void setAllChildren() {
+		subject.createGenesisChildren(addressBook, 0);
 	}
 }
