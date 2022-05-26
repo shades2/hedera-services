@@ -1200,13 +1200,6 @@ workflows:
                 at: /
 
   GCP-Daily-Services-Recovery-4N-1C:
-    triggers:
-      - schedule:
-          cron: "55 6 * * *"
-          filters:
-            branches:
-              only:
-                - master
     jobs:
       - build-platform-and-services
       - jrs-regression:
@@ -1604,6 +1597,7 @@ jobs:
             
             # Build JRS
             cd /swirlds-platform/regression
+            git checkout -b 02447-D-service-recover-test-settings origin/02447-D-service-recover-test-settings; 
             ./mvnw clean install
 
       - run:
@@ -1681,10 +1675,10 @@ jobs:
         default: true
       slack_results_channel:
         type: string
-        default: "hedera-regression"
+        default: "hedera-regression-test"
       slack_summary_channel:
         type: string
-        default: "hedera-regression-summary"
+        default: "hedera-regression-test"
       workflow-name:
         type: string
         default: ""
