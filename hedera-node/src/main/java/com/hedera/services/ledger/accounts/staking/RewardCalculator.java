@@ -50,10 +50,8 @@ public class RewardCalculator {
 	public void updateRewardChanges(final MerkleAccount account, final Map<AccountProperty, Object> changes) {
 		computePendingRewards(account);
 
-		if (accountReward > 0) {
-			final var balance = finalBalanceGiven(account, changes);
-			changes.put(BALANCE, balance + accountReward);
-		}
+		final var balance = finalBalanceGiven(account, changes);
+		changes.put(BALANCE, balance + accountReward);
 
 		changes.put(STAKE_PERIOD_START, accountUpdatedStakePeriodStart);
 		rewardsPaid += accountReward; // used for adding balance change for 0.0.800

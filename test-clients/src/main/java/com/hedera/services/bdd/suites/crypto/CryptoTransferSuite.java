@@ -211,7 +211,7 @@ public class CryptoTransferSuite extends HapiApiSuite {
 						cryptoCreate("a2")
 								.balance(ONE_HUNDRED_HBARS)
 								.stakedNodeId(0),
-						cryptoTransfer(tinyBarsFromTo(GENESIS, "0.0.800", ONE_MILLION_HBARS))
+						cryptoTransfer(tinyBarsFromTo(GENESIS, "0.0.800", ONE_MILLION_HBARS)) // will trigger staking
 				)
 				.when(
 						sleepFor(300_000)
@@ -221,7 +221,17 @@ public class CryptoTransferSuite extends HapiApiSuite {
 								.via("trigger"),
 						getTxnRecord("trigger")
 								.logged()
-								.hasChildRecordCount(1)
+								.hasChildRecordCount(1),
+						sleepFor(180_000),
+						cryptoTransfer(tinyBarsFromTo("a1", "a2", ONE_HBAR))
+								.via("transfer"),
+						getTxnRecord("transfer")
+								.logged(),
+						sleepFor(180_000),
+						cryptoTransfer(tinyBarsFromTo("a1", "a2", ONE_HBAR))
+								.via("transfer1"),
+						getTxnRecord("transfer1")
+								.logged()
 				);
 	}
 

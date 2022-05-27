@@ -33,6 +33,8 @@ import com.hedera.services.utils.EntityNum;
 import com.hederahashgraph.api.proto.java.NodeStake;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.swirlds.merkle.map.MerkleMap;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -59,6 +61,8 @@ public class EndOfStakingPeriodCalculator {
 	private final RecordsHistorian recordsHistorian;
 	private final EntityCreator creator;
 	private final PropertySource properties;
+
+	private static final Logger log = LogManager.getLogger(EndOfStakingPeriodCalculator.class);
 
 	@Inject
 	public EndOfStakingPeriodCalculator(
@@ -120,6 +124,7 @@ public class EndOfStakingPeriodCalculator {
 					.setStakeRewarded(merkleStakingInfo.getStakeToReward())
 					.build());
 		}
+		log.info("rewardSumHistory update : " + stakingInfo.get(EntityNum.fromLong(0L)).getRewardSumHistory());
 		merkleNetworkContext.setTotalStakedRewardStart(updatedTotalStakedRewardStart);
 		merkleNetworkContext.setTotalStakedStart(updatedTotalStakedStart);
 

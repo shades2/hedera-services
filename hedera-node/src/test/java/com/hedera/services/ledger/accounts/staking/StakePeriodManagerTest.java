@@ -1,6 +1,7 @@
 package com.hedera.services.ledger.accounts.staking;
 
 import com.hedera.services.context.TransactionContext;
+import com.hedera.services.context.properties.PropertySource;
 import com.hedera.services.state.merkle.MerkleNetworkContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,12 +24,14 @@ class StakePeriodManagerTest {
 	private TransactionContext txnCtx;
 	@Mock
 	private MerkleNetworkContext networkContext;
+	@Mock
+	private PropertySource properties;
 
 	private StakePeriodManager subject;
 
 	@BeforeEach
 	public void setUp() {
-		subject = new StakePeriodManager(txnCtx, () -> networkContext);
+		subject = new StakePeriodManager(txnCtx, () -> networkContext, properties);
 	}
 
 	@Test
