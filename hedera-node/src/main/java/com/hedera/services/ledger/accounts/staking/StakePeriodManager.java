@@ -23,11 +23,12 @@ package com.hedera.services.ledger.accounts.staking;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.hedera.services.context.TransactionContext;
+import com.hedera.services.context.annotations.CompositeProps;
+import com.hedera.services.context.properties.PropertySource;
 import com.hedera.services.state.merkle.MerkleNetworkContext;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.function.Supplier;
 
@@ -37,14 +38,17 @@ public class StakePeriodManager {
 	private final Supplier<MerkleNetworkContext> networkCtx;
 	private long currentStakePeriod;
 	private long prevConsensusSecs;
+	private PropertySource properties;
 
 	public static final ZoneId zoneUTC = ZoneId.of("UTC");
 
 	@Inject
 	public StakePeriodManager(final TransactionContext txnCtx,
-			final Supplier<MerkleNetworkContext> networkCtx) {
+			final Supplier<MerkleNetworkContext> networkCtx,
+			@CompositeProps PropertySource properties) {
 		this.txnCtx = txnCtx;
 		this.networkCtx = networkCtx;
+		this.properties = properties;
 	}
 
 	public long currentStakePeriod() {
@@ -52,7 +56,8 @@ public class StakePeriodManager {
 
 		if (prevConsensusSecs != currentConsensusSecs) {
 			prevConsensusSecs = currentConsensusSecs;
-			currentStakePeriod = LocalDate.ofInstant(txnCtx.consensusTime(), zoneUTC).toEpochDay();
+			currentStakePeriod = currentConsensusSecs /
+					(properties.getLongProperty("staking.periodMins") * 60);
 		}
 		return currentStakePeriod;
 	}
