@@ -126,7 +126,7 @@ public class EndOfStakingPeriodCalculator {
 					.setStakeRewarded(merkleStakingInfo.getStakeToReward())
 					.build());
 		}
-		log.info("rewardSumHistory update : " + stakingInfo.get(EntityNum.fromLong(0L)).getRewardSumHistory());
+		log.info("rewardSumHistory update : " + stakingInfo.get(EntityNum.fromLong(0L)).getRewardSumHistory()[0]);
 		merkleNetworkContext.setTotalStakedRewardStart(updatedTotalStakedRewardStart);
 		merkleNetworkContext.setTotalStakedStart(updatedTotalStakedStart);
 

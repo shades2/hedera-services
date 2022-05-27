@@ -167,13 +167,11 @@ class StakeAwareAccountsCommitInterceptorTest {
 
 		stakingInfo.forEach((a, b) -> b.setRewardSumHistory(new long[] { 5, 5 }));
 		subject.setRewardsActivated(true);
-		subject.setRewardBalanceIncreased(true);
 		given(dynamicProperties.getStakingStartThreshold()).willReturn(100L);
 
 		//rewards are activated,so can't activate again
 		subject.preview(changes);
-		assertFalse(subject.isRewardBalanceIncreased());
-		verify(networkCtx, never()).setStakingRewardsActivated(true);
+		verify(networkCtx, never()).setStakingRewards(true);
 		verify(stakeChangeManager, never()).setStakePeriodStart(anyLong());
 
 		//rewards are not activated, threshold is less but balance for 0.0.800 is not increased
