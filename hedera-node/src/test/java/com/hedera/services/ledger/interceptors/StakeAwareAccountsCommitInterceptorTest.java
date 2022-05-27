@@ -171,7 +171,7 @@ class StakeAwareAccountsCommitInterceptorTest {
 
 		//rewards are activated,so can't activate again
 		subject.preview(changes);
-		verify(networkCtx, never()).setStakingRewards(true);
+		verify(networkCtx, never()).setStakingRewardsActivated(true);
 		verify(stakeChangeManager, never()).setStakePeriodStart(anyLong());
 
 		//rewards are not activated, threshold is less but balance for 0.0.800 is not increased
