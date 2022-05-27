@@ -36,7 +36,9 @@ public final class ReleaseTwentySevenMigration {
 		final var numberOfNodes = addressBook.getSize();
 		for (int i = 0; i < numberOfNodes; i++) {
 			final var nodeNum = EntityNum.fromLong(addressBook.getAddress(i).getId());
-			stakingInfo.put(nodeNum, new MerkleStakingInfo());
+			final var info = new MerkleStakingInfo();
+			info.setMaxStake(1_000_000_000L);
+			stakingInfo.put(nodeNum, info);
 		}
 
 		return stakingInfo;

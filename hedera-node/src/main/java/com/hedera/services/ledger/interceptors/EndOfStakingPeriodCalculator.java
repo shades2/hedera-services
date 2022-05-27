@@ -112,6 +112,8 @@ public class EndOfStakingPeriodCalculator {
 			}
 
 			final var stakedRewardUsed = Math.min(merkleStakingInfo.getStakeToReward(), merkleStakingInfo.getStake());
+			// set stakedRewardStart.
+			merkleStakingInfo.setStakeRewardStart(stakedRewardUsed);
 			updatedTotalStakedRewardStart += stakedRewardUsed;
 			updatedTotalStakedStart += merkleStakingInfo.getStake();
 
