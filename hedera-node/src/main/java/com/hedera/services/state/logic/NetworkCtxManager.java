@@ -135,6 +135,7 @@ public class NetworkCtxManager {
 				if (isAfter2Mins.test(lastMidnightBoundaryCheck, consensusTime)) {
 					networkCtxNow.midnightRates().replaceWith(exchange.activeRates());
 					endOfStakingPeriodCalculator.updateNodes(consensusTime);
+					log.info("Updating rewardSumHistory for end of Period Calculations");
 				}
 				/* And mark this as the last time we checked the midnight boundary */
 				networkCtxNow.setLastMidnightBoundaryCheck(consensusTime);

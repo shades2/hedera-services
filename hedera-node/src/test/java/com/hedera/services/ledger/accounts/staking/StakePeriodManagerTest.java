@@ -25,13 +25,13 @@ class StakePeriodManagerTest {
 	@Mock
 	private MerkleNetworkContext networkContext;
 	@Mock
-	private PropertySource propertySource;
+	private PropertySource properties;
 
 	private StakePeriodManager subject;
 
 	@BeforeEach
 	public void setUp() {
-		subject = new StakePeriodManager(txnCtx, () -> networkContext, propertySource);
+		subject = new StakePeriodManager(txnCtx, () -> networkContext, properties);
 	}
 
 	@Test
