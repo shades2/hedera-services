@@ -84,6 +84,31 @@ class LinkAwareUniqueTokensCommitInterceptorTest {
 		given(changes.changes(0)).willReturn(change);
 		given(change.includes(NftProperty.OWNER)).willReturn(false);
 
+		given(changes.size()).willReturn(1);
+		given(changes.entity(0)).willReturn(nft);
+		given(changes.changes(0)).willReturn(change);
+
+		subject.preview(changes);
+
+		verifyNoInteractions(uniqueTokensLinkManager);
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	void resultsInNoOpForSameOwnershipChange() {
+		var changes = (EntityChangeSet<NftId, MerkleUniqueToken, NftProperty>) mock(EntityChangeSet.class);
+		var nft = mock(MerkleUniqueToken.class);
+		final long ownerNum = 1111L;
+		final var owner = EntityNum.fromLong(ownerNum);
+		var change = (PropertyChanges<NftProperty>) mock(PropertyChanges.class);
+
+		given(changes.size()).willReturn(1);
+		given(changes.entity(0)).willReturn(nft);
+		given(changes.changes(0)).willReturn(change);
+		given(change.includes(NftProperty.OWNER)).willReturn(true);
+		given(change.get(NftProperty.OWNER)).willReturn(owner.toEntityId());
+		given(nft.getOwner()).willReturn(owner.toEntityId());
+
 		subject.preview(changes);
 
 		verifyNoInteractions(uniqueTokensLinkManager);
@@ -174,7 +199,6 @@ class LinkAwareUniqueTokensCommitInterceptorTest {
 
 		verify(uniqueTokensLinkManager).updateLinks(owner, null, nftKey);
 	}
-
 	@Test
 	@SuppressWarnings("unchecked")
 	void triggersUpdateLinksOnMultiStageMintAndTransferAsExpected() {
