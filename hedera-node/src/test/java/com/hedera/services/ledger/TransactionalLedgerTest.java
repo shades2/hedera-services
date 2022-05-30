@@ -123,7 +123,16 @@ class TransactionalLedgerTest {
 		testLedger.rollback();
 		testLedger.begin();
 		assertEquals(0, changesFactory.getNextChanges());
-		testLedger.rollback();
+	}
+
+	@Test
+	void canOnlySetLongPropertyOnMissingEntity() {
+		setupTestLedger();
+
+		testLedger.begin();
+		assertThrows(IllegalArgumentException.class, () -> testLedger.setLong(1L, LONG, 2L));
+		testLedger.create(1L);
+		testLedger.setLong(1L, LONG, 2L);
 	}
 
 	@Test

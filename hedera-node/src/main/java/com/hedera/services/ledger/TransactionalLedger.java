@@ -337,7 +337,15 @@ public class TransactionalLedger<K, P extends Enum<P> & BeanProperty<A>, A> impl
 		}).set(property, value);
 	}
 
+	/**
+	 * Sets value of a given long property to a given value for the specified account.
+	 *
+	 * @param id the id of the account to update
+	 * @param property the long property to change
+	 * @param value the new value
+	 */
 	public void setLong(final K id, final P property, final long value) {
+		assertIsSettable(id);
 		throw new AssertionError("Not implemented");
 	}
 

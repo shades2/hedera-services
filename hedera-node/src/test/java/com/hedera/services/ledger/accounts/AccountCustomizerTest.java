@@ -21,55 +21,48 @@ package com.hedera.services.ledger.accounts;
  */
 
 import com.hedera.services.ledger.TransactionalLedger;
-import com.hedera.services.ledger.properties.ChangeSummaryManager;
-import com.hedera.services.ledger.properties.TestAccountProperty;
+import com.hedera.services.ledger.properties.AccountProperty;
 import com.hedera.services.legacy.core.jproto.JKeyList;
+import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.state.submerkle.EntityId;
+import com.hederahashgraph.api.proto.java.AccountID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Set;
 
-import static com.hedera.services.ledger.accounts.AccountCustomizer.Option.AUTO_RENEW_ACCOUNT_ID;
-import static com.hedera.services.ledger.accounts.AccountCustomizer.Option.AUTO_RENEW_PERIOD;
-import static com.hedera.services.ledger.accounts.AccountCustomizer.Option.EXPIRY;
-import static com.hedera.services.ledger.accounts.AccountCustomizer.Option.IS_DELETED;
-import static com.hedera.services.ledger.accounts.AccountCustomizer.Option.IS_RECEIVER_SIG_REQUIRED;
-import static com.hedera.services.ledger.accounts.AccountCustomizer.Option.IS_SMART_CONTRACT;
-import static com.hedera.services.ledger.accounts.AccountCustomizer.Option.KEY;
-import static com.hedera.services.ledger.accounts.AccountCustomizer.Option.MAX_AUTOMATIC_ASSOCIATIONS;
-import static com.hedera.services.ledger.accounts.AccountCustomizer.Option.MEMO;
-import static com.hedera.services.ledger.accounts.AccountCustomizer.Option.PROXY;
-import static com.hedera.services.ledger.accounts.AccountCustomizer.Option.USED_AUTOMATIC_ASSOCIATIONS;
-import static com.hedera.services.ledger.properties.TestAccountProperty.FLAG;
-import static com.hedera.services.ledger.properties.TestAccountProperty.OBJ;
+import static com.hedera.services.ledger.properties.AccountProperty.AUTO_RENEW_ACCOUNT_ID;
+import static com.hedera.services.ledger.properties.AccountProperty.AUTO_RENEW_PERIOD;
+import static com.hedera.services.ledger.properties.AccountProperty.EXPIRY;
+import static com.hedera.services.ledger.properties.AccountProperty.IS_DELETED;
+import static com.hedera.services.ledger.properties.AccountProperty.IS_RECEIVER_SIG_REQUIRED;
+import static com.hedera.services.ledger.properties.AccountProperty.IS_SMART_CONTRACT;
+import static com.hedera.services.ledger.properties.AccountProperty.KEY;
+import static com.hedera.services.ledger.properties.AccountProperty.MAX_AUTOMATIC_ASSOCIATIONS;
+import static com.hedera.services.ledger.properties.AccountProperty.MEMO;
+import static com.hedera.services.ledger.properties.AccountProperty.PROXY;
+import static com.hedera.services.ledger.properties.AccountProperty.USED_AUTOMATIC_ASSOCIATIONS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.BDDMockito.mock;
 import static org.mockito.BDDMockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 
 class AccountCustomizerTest {
-	private TestAccountCustomizer subject;
-	private ChangeSummaryManager<TestAccount, TestAccountProperty> changeManager;
+	private HederaAccountCustomizer subject;
 
-	private void setupWithMockChangeManager() {
-		changeManager = mock(ChangeSummaryManager.class);
-		subject = new TestAccountCustomizer(changeManager);
-	}
-
+	@BeforeEach
 	private void setupWithLiveChangeManager() {
-		subject = new TestAccountCustomizer(new ChangeSummaryManager<>());
+		subject = new HederaAccountCustomizer();
 	}
 
 	@Test
 	void testChanges() {
-		setupWithLiveChangeManager();
 		subject
 				.isDeleted(false)
 				.expiry(100L)
 				.memo("memo")
-				.customizing(new TestAccount());
+				.customizing(new MerkleAccount());
 
 		assertNotNull(subject.getChanges());
 		assertEquals(3, subject.getChanges().changed().size());
@@ -77,23 +70,21 @@ class AccountCustomizerTest {
 
 	@Test
 	void directlyCustomizesAnAccount() {
-		setupWithLiveChangeManager();
-
 		final var ta = subject.isDeleted(true)
 				.expiry(55L)
 				.memo("Something!")
-				.customizing(new TestAccount());
+				.customizing(new MerkleAccount());
 
-		assertEquals(55L, ta.value);
-		assertTrue(ta.flag);
-		assertEquals("Something!", ta.thing);
+		assertEquals(55L, ta.getExpiry());
+		assertTrue(ta.isDeleted());
+		assertEquals("Something!", ta.getMemo());
 	}
 
 	@Test
+	@SuppressWarnings("unchecked")
 	void setsCustomizedProperties() {
-		setupWithLiveChangeManager();
-		final var id = 1L;
-		final TransactionalLedger<Long, TestAccountProperty, TestAccount> ledger = mock(TransactionalLedger.class);
+		final var id = AccountID.newBuilder().setAccountNum(1L).build();
+		final TransactionalLedger<AccountID, AccountProperty, MerkleAccount> ledger = mock(TransactionalLedger.class);
 		final var customMemo = "alpha bravo charlie";
 		final var customIsReceiverSigRequired = true;
 
@@ -102,121 +93,108 @@ class AccountCustomizerTest {
 				.memo(customMemo);
 		subject.customize(id, ledger);
 
-		verify(ledger).set(id, OBJ, customMemo);
-		verify(ledger).set(id, FLAG, customIsReceiverSigRequired);
+		verify(ledger).set(id, MEMO, customMemo);
+		verify(ledger).set(id, IS_RECEIVER_SIG_REQUIRED, customIsReceiverSigRequired);
 	}
 
 	@Test
 	void changesExpectedKeyProperty() {
-		setupWithMockChangeManager();
 		final var key = new JKeyList();
 
 		subject.key(key);
 
-		assertEquals(Set.of(TestAccountCustomizer.OPTION_PROPERTIES.get(KEY)), subject.getChanges().changedSet());
+		assertEquals(Set.of(KEY), subject.getChanges().changedSet());
 	}
 
 	@Test
 	void changesExpectedMemoProperty() {
-		setupWithMockChangeManager();
 		final var memo = "standardization ftw?";
 
 		subject.memo(memo);
 
-		assertEquals(Set.of(TestAccountCustomizer.OPTION_PROPERTIES.get(MEMO)), subject.getChanges().changedSet());
+		assertEquals(Set.of(MEMO), subject.getChanges().changedSet());
 	}
 
 	@Test
 	void changesExpectedProxyProperty() {
-		setupWithMockChangeManager();
 		final var proxy = new EntityId();
 
 		subject.proxy(proxy);
 
-		assertEquals(Set.of(TestAccountCustomizer.OPTION_PROPERTIES.get(PROXY)), subject.getChanges().changedSet());
+		assertEquals(Set.of(PROXY), subject.getChanges().changedSet());
 	}
 
 	@Test
 	void nullProxyAndAutoRenewAreNoops() {
-		setupWithMockChangeManager();
-
 		subject.proxy(null);
 		subject.autoRenewAccount(null);
-
-		verifyNoInteractions(changeManager);
+		assertTrue(subject.getChanges().changed().isEmpty());
 	}
 
 	@Test
 	void changesExpectedAutoRenewAccountProperty() {
-		setupWithMockChangeManager();
 		final var autoRenewId = new EntityId();
 
 		subject.autoRenewAccount(autoRenewId);
 
 		assertEquals(
-				Set.of(TestAccountCustomizer.OPTION_PROPERTIES.get(AUTO_RENEW_ACCOUNT_ID)),
+				Set.of(AUTO_RENEW_ACCOUNT_ID),
 				subject.getChanges().changedSet());
 	}
 
 	@Test
 	void changesExpectedExpiryProperty() {
-		setupWithMockChangeManager();
 		final Long expiry = 1L;
 
 		subject.expiry(expiry.longValue());
 
-		assertEquals(Set.of(TestAccountCustomizer.OPTION_PROPERTIES.get(EXPIRY)), subject.getChanges().changedSet());
+		assertEquals(Set.of(EXPIRY), subject.getChanges().changedSet());
 	}
 
 	@Test
 	void changesExpectedAutoRenewProperty() {
-		setupWithMockChangeManager();
 		final Long autoRenew = 1L;
 
 		subject.autoRenewPeriod(autoRenew.longValue());
 
 		assertEquals(
-				Set.of(TestAccountCustomizer.OPTION_PROPERTIES.get(AUTO_RENEW_PERIOD)),
+				Set.of(AUTO_RENEW_PERIOD),
 				subject.getChanges().changedSet());
 	}
 
 	@Test
 	void changesExpectedIsSmartContractProperty() {
-		setupWithMockChangeManager();
 		final Boolean isSmartContract = Boolean.TRUE;
 
 		subject.isSmartContract(isSmartContract.booleanValue());
 
 		assertEquals(
-				Set.of(TestAccountCustomizer.OPTION_PROPERTIES.get(IS_SMART_CONTRACT)),
+				Set.of(IS_SMART_CONTRACT),
 				subject.getChanges().changedSet());
 	}
 
 	@Test
 	void changesExpectedIsDeletedProperty() {
-		setupWithMockChangeManager();
 		final Boolean isDeleted = Boolean.TRUE;
 
 		subject.isDeleted(isDeleted.booleanValue());
 
-		assertEquals(Set.of(TestAccountCustomizer.OPTION_PROPERTIES.get(IS_DELETED)), subject.getChanges().changedSet());
+		assertEquals(Set.of(IS_DELETED), subject.getChanges().changedSet());
 	}
 
 	@Test
 	void changesExpectedReceiverSigRequiredProperty() {
-		setupWithMockChangeManager();
 		final Boolean isSigRequired = Boolean.FALSE;
 
 		subject.isReceiverSigRequired(isSigRequired);
 
 		assertEquals(
-				Set.of(TestAccountCustomizer.OPTION_PROPERTIES.get(IS_RECEIVER_SIG_REQUIRED)),
+				Set.of(IS_RECEIVER_SIG_REQUIRED),
 				subject.getChanges().changedSet());
 	}
 
 	@Test
 	void changesAutoAssociationFieldsAsExpected() {
-		setupWithMockChangeManager();
 		final int maxAutoAssociations = 1234;
 		final int alreadyUsedAutoAssociations = 123;
 
@@ -224,10 +202,7 @@ class AccountCustomizerTest {
 		subject.usedAutomaticAssociations(alreadyUsedAutoAssociations);
 
 		assertEquals(
-				Set.of(TestAccountCustomizer.OPTION_PROPERTIES.get(MAX_AUTOMATIC_ASSOCIATIONS)),
-				subject.getChanges().changedSet());
-		assertEquals(
-				Set.of(TestAccountCustomizer.OPTION_PROPERTIES.get(USED_AUTOMATIC_ASSOCIATIONS)),
+				Set.of(MAX_AUTOMATIC_ASSOCIATIONS, USED_AUTOMATIC_ASSOCIATIONS),
 				subject.getChanges().changedSet());
 	}
 }

@@ -21,9 +21,10 @@ package com.hedera.services.ledger.properties;
  */
 
 import com.hedera.services.ledger.PropertyChangeObserver;
+import com.hedera.services.ledger.TransactionalLedger;
 
 /**
- * Minimal implementation of a helper that manages summary changesets.
+ * Minimal implementation of a helper that manages summary change sets.
  * An extension point for possible future performance optimizations.
  *
  * @param <A>
@@ -50,8 +51,18 @@ public final class ChangeSummaryManager<A, P extends Enum<P> & BeanProperty<A>> 
 		});
 	}
 
+	public <K> void setAll(final PropertyChanges<P> changes, final TransactionalLedger<K, P, A> ledger, final K id) {
+		changes.changed().forEach(property -> {
+			if (property.isPrimitiveLong()) {
+				ledger.setLong(id, property, changes.getLong(property));
+			} else {
+				ledger.set(id, property, changes.get(property));
+			}
+		});
+	}
+
 	/**
-	 * Flush a changeset summary to a given object, notifying the given observer of each change.
+	 * Flush a change set summary to a given object, notifying the given observer of each change.
 	 *
 	 * @param id
 	 * 		the id to communicate to the observer

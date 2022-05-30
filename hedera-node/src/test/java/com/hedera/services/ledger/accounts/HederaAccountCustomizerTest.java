@@ -21,32 +21,16 @@ package com.hedera.services.ledger.accounts;
  */
 
 import com.google.protobuf.ByteString;
-import com.hedera.services.ledger.properties.AccountProperty;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.state.submerkle.EntityId;
 import com.hederahashgraph.api.proto.java.ContractCreateTransactionBody;
 import org.junit.jupiter.api.Test;
 
-import java.util.Arrays;
-import java.util.Map;
-
-import static com.hedera.services.ledger.accounts.AccountCustomizer.Option;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class HederaAccountCustomizerTest {
 	HederaAccountCustomizer subject = new HederaAccountCustomizer();
-
-	@Test
-	void hasExpectedOptionProps() {
-		// given:
-		Map<Option, AccountProperty> optionProperties = subject.getOptionProperties();
-
-		// expect:
-		Arrays.stream(Option.class.getEnumConstants()).forEach(
-				option -> assertEquals(AccountProperty.valueOf(option.toString()), optionProperties.get(option))
-		);
-	}
 
 	@Test
 	void canCustomizeAlias() {

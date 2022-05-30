@@ -29,7 +29,6 @@ import com.hedera.services.exceptions.DeletedAccountException;
 import com.hedera.services.exceptions.MissingAccountException;
 import com.hedera.services.ledger.HederaLedger;
 import com.hedera.services.ledger.SigImpactHistorian;
-import com.hedera.services.ledger.accounts.AccountCustomizer;
 import com.hedera.services.ledger.accounts.HederaAccountCustomizer;
 import com.hedera.services.ledger.properties.AccountProperty;
 import com.hedera.services.legacy.core.jproto.JKey;
@@ -52,10 +51,15 @@ import org.mockito.ArgumentCaptor;
 
 import java.time.Instant;
 import java.util.EnumSet;
+import java.util.List;
 
-import static com.hedera.services.ledger.accounts.AccountCustomizer.Option.EXPIRY;
-import static com.hedera.services.ledger.accounts.AccountCustomizer.Option.IS_RECEIVER_SIG_REQUIRED;
-import static com.hedera.services.ledger.accounts.AccountCustomizer.Option.MAX_AUTOMATIC_ASSOCIATIONS;
+import static com.hedera.services.ledger.properties.AccountProperty.AUTO_RENEW_PERIOD;
+import static com.hedera.services.ledger.properties.AccountProperty.EXPIRY;
+import static com.hedera.services.ledger.properties.AccountProperty.IS_RECEIVER_SIG_REQUIRED;
+import static com.hedera.services.ledger.properties.AccountProperty.KEY;
+import static com.hedera.services.ledger.properties.AccountProperty.MAX_AUTOMATIC_ASSOCIATIONS;
+import static com.hedera.services.ledger.properties.AccountProperty.MEMO;
+import static com.hedera.services.ledger.properties.AccountProperty.PROXY;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_DELETED;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_EXPIRED_AND_PENDING_REMOVAL;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.AUTORENEW_DURATION_NOT_IN_RANGE;
@@ -87,12 +91,12 @@ class CryptoUpdateTransitionLogicTest {
 	private static final int CUR_MAX_AUTOMATIC_ASSOCIATIONS = 10;
 	private static final int NEW_MAX_AUTOMATIC_ASSOCIATIONS = 15;
 
-	private static final Key KEY = SignedTxnFactory.DEFAULT_PAYER_KT.asKey();
-	private static final long AUTO_RENEW_PERIOD = 100_001L;
-	private static final AccountID PROXY = AccountID.newBuilder().setAccountNum(4_321L).build();
+	private static final Key SOME_KEY = SignedTxnFactory.DEFAULT_PAYER_KT.asKey();
+	private static final long SOME_AUTO_RENEW_PERIOD = 100_001L;
+	private static final AccountID SOME_PROXY = AccountID.newBuilder().setAccountNum(4_321L).build();
 	private static final AccountID PAYER = AccountID.newBuilder().setAccountNum(1_234L).build();
 	private static final AccountID TARGET = AccountID.newBuilder().setAccountNum(9_999L).build();
-	private static final String MEMO = "Not since life began";
+	private static final String SOME_MEMO = "Not since life began";
 
 	private boolean useLegacyFields;
 	private HederaLedger ledger;
@@ -123,7 +127,7 @@ class CryptoUpdateTransitionLogicTest {
 	@Test
 	void updatesProxyIfPresent() {
 		final var captor = ArgumentCaptor.forClass(HederaAccountCustomizer.class);
-		givenTxnCtx(EnumSet.of(AccountCustomizer.Option.PROXY));
+		givenTxnCtx(EnumSet.of(PROXY));
 
 		subject.doStateTransition();
 
@@ -132,7 +136,7 @@ class CryptoUpdateTransitionLogicTest {
 		verify(sigImpactHistorian).markEntityChanged(TARGET.getAccountNum());
 		final var changes = captor.getValue().getChanges();
 		assertEquals(1, changes.changed().size());
-		assertEquals(EntityId.fromGrpcAccountId(PROXY), changes.get(AccountProperty.PROXY));
+		assertEquals(EntityId.fromGrpcAccountId(SOME_PROXY), changes.get(PROXY));
 	}
 
 
@@ -147,7 +151,7 @@ class CryptoUpdateTransitionLogicTest {
 		verify(txnCtx).setStatus(SUCCESS);
 		final var changes = captor.getValue().getChanges();
 		assertEquals(1, changes.changed().size());
-		assertEquals(true, changes.get(AccountProperty.IS_RECEIVER_SIG_REQUIRED));
+		assertEquals(true, changes.get(IS_RECEIVER_SIG_REQUIRED));
 	}
 
 	@Test
@@ -162,7 +166,7 @@ class CryptoUpdateTransitionLogicTest {
 		verify(txnCtx).setStatus(SUCCESS);
 		final var changes = captor.getValue().getChanges();
 		assertEquals(1, changes.changed().size());
-		assertEquals(true, changes.get(AccountProperty.IS_RECEIVER_SIG_REQUIRED));
+		assertEquals(true, changes.get(IS_RECEIVER_SIG_REQUIRED));
 	}
 
 	@Test
@@ -176,7 +180,7 @@ class CryptoUpdateTransitionLogicTest {
 		verify(txnCtx).setStatus(SUCCESS);
 		final var changes = captor.getValue().getChanges();
 		assertEquals(1, changes.changed().size());
-		assertEquals(NEW_EXPIRY, (long) changes.get(AccountProperty.EXPIRY));
+		assertEquals(NEW_EXPIRY, (long) changes.get(EXPIRY));
 	}
 
 	@Test
@@ -193,7 +197,7 @@ class CryptoUpdateTransitionLogicTest {
 		verify(txnCtx).setStatus(SUCCESS);
 		final var changes = captor.getValue().getChanges();
 		assertEquals(1, changes.changed().size());
-		assertEquals(NEW_MAX_AUTOMATIC_ASSOCIATIONS, (int) changes.get(AccountProperty.MAX_AUTOMATIC_ASSOCIATIONS));
+		assertEquals(NEW_MAX_AUTOMATIC_ASSOCIATIONS, (int) changes.get(MAX_AUTOMATIC_ASSOCIATIONS));
 	}
 
 	@Test
@@ -225,40 +229,40 @@ class CryptoUpdateTransitionLogicTest {
 	@Test
 	void updatesMemoIfPresent() {
 		final var captor = ArgumentCaptor.forClass(HederaAccountCustomizer.class);
-		givenTxnCtx(EnumSet.of(AccountCustomizer.Option.MEMO));
+		givenTxnCtx(EnumSet.of(MEMO));
 
 		subject.doStateTransition();
 
 		verify(ledger).customize(argThat(TARGET::equals), captor.capture());
 		final var changes = captor.getValue().getChanges();
 		assertEquals(1, changes.changed().size());
-		assertEquals(MEMO, changes.get(AccountProperty.MEMO));
+		assertEquals(SOME_MEMO, changes.get(MEMO));
 	}
 
 	@Test
 	void updatesAutoRenewIfPresent() {
 		final var captor = ArgumentCaptor.forClass(HederaAccountCustomizer.class);
-		givenTxnCtx(EnumSet.of(AccountCustomizer.Option.AUTO_RENEW_PERIOD));
+		givenTxnCtx(EnumSet.of(AUTO_RENEW_PERIOD));
 
 		subject.doStateTransition();
 
 		verify(ledger).customize(argThat(TARGET::equals), captor.capture());
 		final var changes = captor.getValue().getChanges();
 		assertEquals(1, changes.changed().size());
-		assertEquals(AUTO_RENEW_PERIOD, changes.get(AccountProperty.AUTO_RENEW_PERIOD));
+		assertEquals(SOME_AUTO_RENEW_PERIOD, changes.get(AUTO_RENEW_PERIOD));
 	}
 
 	@Test
 	void updatesKeyIfPresent() throws Throwable {
 		final var captor = ArgumentCaptor.forClass(HederaAccountCustomizer.class);
-		givenTxnCtx(EnumSet.of(AccountCustomizer.Option.KEY));
+		givenTxnCtx(EnumSet.of(KEY));
 
 		subject.doStateTransition();
 
 		verify(ledger).customize(argThat(TARGET::equals), captor.capture());
 		final var changes = captor.getValue().getChanges();
 		assertEquals(1, changes.changed().size());
-		assertEquals(KEY, JKey.mapJKey((JKey) changes.get(AccountProperty.KEY)));
+		assertEquals(SOME_KEY, JKey.mapJKey((JKey) changes.get(AccountProperty.KEY)));
 	}
 
 	@Test
@@ -281,8 +285,8 @@ class CryptoUpdateTransitionLogicTest {
 
 	@Test
 	void rejectsInvalidMemo() {
-		givenTxnCtx(EnumSet.of(AccountCustomizer.Option.MEMO));
-		given(validator.memoCheck(MEMO)).willReturn(MEMO_TOO_LONG);
+		givenTxnCtx(EnumSet.of(MEMO));
+		given(validator.memoCheck(SOME_MEMO)).willReturn(MEMO_TOO_LONG);
 
 		assertEquals(MEMO_TOO_LONG, subject.semanticCheck().apply(cryptoUpdateTxn));
 	}
@@ -419,33 +423,32 @@ class CryptoUpdateTransitionLogicTest {
 	}
 
 	private void givenTxnCtx() {
-		givenTxnCtx(EnumSet.of(
-				AccountCustomizer.Option.KEY,
-				AccountCustomizer.Option.MEMO,
-				AccountCustomizer.Option.PROXY,
+		givenTxnCtx(EnumSet.copyOf(List.of(
+				KEY,
+				MEMO,
+				PROXY,
 				EXPIRY,
 				IS_RECEIVER_SIG_REQUIRED,
-				AccountCustomizer.Option.AUTO_RENEW_PERIOD
-		), EnumSet.noneOf(AccountCustomizer.Option.class));
+				AUTO_RENEW_PERIOD)), EnumSet.noneOf(AccountProperty.class));
 	}
 
-	private void givenTxnCtx(final EnumSet<AccountCustomizer.Option> updating) {
-		givenTxnCtx(updating, EnumSet.noneOf(AccountCustomizer.Option.class));
+	private void givenTxnCtx(final EnumSet<AccountProperty> updating) {
+		givenTxnCtx(updating, EnumSet.noneOf(AccountProperty.class));
 	}
 
 	private void givenTxnCtx(
-			final EnumSet<AccountCustomizer.Option> updating,
-			final EnumSet<AccountCustomizer.Option> misconfiguring
+			final EnumSet<AccountProperty> updating,
+			final EnumSet<AccountProperty> misconfiguring
 	) {
 		final var op = CryptoUpdateTransactionBody.newBuilder();
-		if (updating.contains(AccountCustomizer.Option.MEMO)) {
-			op.setMemo(StringValue.newBuilder().setValue(MEMO).build());
+		if (updating.contains(SOME_MEMO)) {
+			op.setMemo(StringValue.newBuilder().setValue(SOME_MEMO).build());
 		}
-		if (updating.contains(AccountCustomizer.Option.KEY)) {
-			op.setKey(KEY);
+		if (updating.contains(SOME_KEY)) {
+			op.setKey(SOME_KEY);
 		}
-		if (updating.contains(AccountCustomizer.Option.PROXY)) {
-			op.setProxyAccountID(PROXY);
+		if (updating.contains(SOME_PROXY)) {
+			op.setProxyAccountID(SOME_PROXY);
 		}
 		if (updating.contains(EXPIRY)) {
 			if (misconfiguring.contains(EXPIRY)) {
@@ -461,8 +464,8 @@ class CryptoUpdateTransitionLogicTest {
 				op.setReceiverSigRequired(true);
 			}
 		}
-		if (updating.contains(AccountCustomizer.Option.AUTO_RENEW_PERIOD)) {
-			op.setAutoRenewPeriod(Duration.newBuilder().setSeconds(AUTO_RENEW_PERIOD));
+		if (updating.contains(SOME_AUTO_RENEW_PERIOD)) {
+			op.setAutoRenewPeriod(Duration.newBuilder().setSeconds(SOME_AUTO_RENEW_PERIOD));
 		}
 		if (updating.contains(MAX_AUTOMATIC_ASSOCIATIONS)) {
 			op.setMaxAutomaticTokenAssociations(Int32Value.of(NEW_MAX_AUTOMATIC_ASSOCIATIONS));

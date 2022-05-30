@@ -21,6 +21,7 @@ package com.hedera.services.ledger.properties;
  */
 
 import com.hedera.services.ledger.PropertyChangeObserver;
+import com.hedera.services.ledger.TransactionalLedger;
 import com.hedera.services.ledger.accounts.TestAccount;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,10 +43,24 @@ class ChangeSummaryManagerTest {
 
 	@Mock
 	private PropertyChangeObserver<Long, TestAccountProperty> observer;
+	@Mock
+	private TransactionalLedger<Long, TestAccountProperty, TestAccount> ledger;
 
 	@BeforeEach
 	private void setup() {
 		changes.clear();
+	}
+
+	@Test
+	void setsAllChangesAsExpected() {
+		final var thing = new Object();
+		changes.setLong(LONG, 5L);
+		changes.set(OBJ, thing);
+
+		subject.setAll(changes, ledger, 1L);
+
+		verify(ledger).set(1L, OBJ, thing);
+		verify(ledger).setLong(1L, LONG, 5L);
 	}
 
 	@Test

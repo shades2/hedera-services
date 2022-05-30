@@ -37,10 +37,10 @@ import java.util.function.ToLongFunction;
  */
 public interface BeanProperty<A> {
 	static <K, P extends Enum<P> & BeanProperty<A>, A> void setFrom(
-			final TransactionalLedger<K, P, A> ledger,
-			final P property,
 			final A entity,
-			final K key
+			final TransactionalLedger<K, P, A> ledger,
+			final K key,
+			final P property
 	) {
 		throw new AssertionError("Not implemented");
 	}
