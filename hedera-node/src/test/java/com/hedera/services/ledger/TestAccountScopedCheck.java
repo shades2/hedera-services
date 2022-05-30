@@ -21,10 +21,10 @@ package com.hedera.services.ledger;
  */
 
 import com.hedera.services.ledger.accounts.TestAccount;
+import com.hedera.services.ledger.properties.PropertyChanges;
 import com.hedera.services.ledger.properties.TestAccountProperty;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 
-import java.util.Map;
 import java.util.function.Function;
 
 import static com.hedera.services.ledger.properties.TestAccountProperty.FLAG;
@@ -40,9 +40,9 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.SPENDER_DOES_N
 
 class TestAccountScopedCheck implements LedgerCheck<TestAccount, TestAccountProperty> {
 	@Override
-	public ResponseCodeEnum checkUsing(final TestAccount account, final Map<TestAccountProperty, Object> changeSet) {
+	public ResponseCodeEnum checkUsing(final TestAccount account, final PropertyChanges<TestAccountProperty> changeSet) {
 		Function<TestAccountProperty, Object> getter = prop -> {
-			if (changeSet != null && changeSet.containsKey(prop)) {
+			if (changeSet != null && changeSet.includes(prop)) {
 				return changeSet.get(prop);
 			} else {
 				return prop.getter().apply(account);
@@ -54,7 +54,7 @@ class TestAccountScopedCheck implements LedgerCheck<TestAccount, TestAccountProp
 	@Override
 	public ResponseCodeEnum checkUsing(
 			final Function<TestAccountProperty, Object> extantProps,
-			final Map<TestAccountProperty, Object> changeSet
+			final PropertyChanges<TestAccountProperty> changeSet
 	) {
 		if ((boolean) extantProps.apply(FLAG)) {
 			return ACCOUNT_IS_TREASURY;

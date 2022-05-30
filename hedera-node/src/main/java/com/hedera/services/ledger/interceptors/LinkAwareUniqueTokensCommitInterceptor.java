@@ -57,7 +57,7 @@ public class LinkAwareUniqueTokensCommitInterceptor implements CommitInterceptor
 				if (changes == null && !entity.getOwner().equals(MISSING_ENTITY_ID)) {
 					// Non-treasury-owned NFT wiped (or burned via a multi-stage contract operation)
 					uniqueTokensLinkManager.updateLinks(fromAccount.asNum(), null, entity.getKey());
-				} else if (changes != null && changes.containsKey(OWNER)) {
+				} else if (changes != null && changes.includes(OWNER)) {
 					// NFT owner changed (could be a treasury exit or return)
 					final var toAccount = (EntityId) changes.get(OWNER);
 					uniqueTokensLinkManager.updateLinks(fromAccount.asNum(), toAccount.asNum(), entity.getKey());

@@ -27,7 +27,7 @@ import com.hedera.services.legacy.core.jproto.JKeyList;
 import com.hedera.services.state.submerkle.EntityId;
 import org.junit.jupiter.api.Test;
 
-import java.util.EnumMap;
+import java.util.Set;
 
 import static com.hedera.services.ledger.accounts.AccountCustomizer.Option.AUTO_RENEW_ACCOUNT_ID;
 import static com.hedera.services.ledger.accounts.AccountCustomizer.Option.AUTO_RENEW_PERIOD;
@@ -43,11 +43,8 @@ import static com.hedera.services.ledger.accounts.AccountCustomizer.Option.USED_
 import static com.hedera.services.ledger.properties.TestAccountProperty.FLAG;
 import static com.hedera.services.ledger.properties.TestAccountProperty.OBJ;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.BDDMockito.any;
-import static org.mockito.BDDMockito.argThat;
 import static org.mockito.BDDMockito.mock;
 import static org.mockito.BDDMockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -68,14 +65,14 @@ class AccountCustomizerTest {
 	@Test
 	void testChanges() {
 		setupWithLiveChangeManager();
-		final var a = subject
+		subject
 				.isDeleted(false)
 				.expiry(100L)
 				.memo("memo")
 				.customizing(new TestAccount());
 
 		assertNotNull(subject.getChanges());
-		assertNotEquals(0, subject.getChanges().size());
+		assertEquals(3, subject.getChanges().changed().size());
 	}
 
 	@Test
@@ -116,10 +113,7 @@ class AccountCustomizerTest {
 
 		subject.key(key);
 
-		verify(changeManager).update(
-				any(EnumMap.class),
-				argThat(TestAccountCustomizer.OPTION_PROPERTIES.get(KEY)::equals),
-				argThat(key::equals));
+		assertEquals(Set.of(TestAccountCustomizer.OPTION_PROPERTIES.get(KEY)), subject.getChanges().changedSet());
 	}
 
 	@Test
@@ -129,10 +123,7 @@ class AccountCustomizerTest {
 
 		subject.memo(memo);
 
-		verify(changeManager).update(
-				any(EnumMap.class),
-				argThat(TestAccountCustomizer.OPTION_PROPERTIES.get(MEMO)::equals),
-				argThat(memo::equals));
+		assertEquals(Set.of(TestAccountCustomizer.OPTION_PROPERTIES.get(MEMO)), subject.getChanges().changedSet());
 	}
 
 	@Test
@@ -142,10 +133,7 @@ class AccountCustomizerTest {
 
 		subject.proxy(proxy);
 
-		verify(changeManager).update(
-				any(EnumMap.class),
-				argThat(TestAccountCustomizer.OPTION_PROPERTIES.get(PROXY)::equals),
-				argThat(proxy::equals));
+		assertEquals(Set.of(TestAccountCustomizer.OPTION_PROPERTIES.get(PROXY)), subject.getChanges().changedSet());
 	}
 
 	@Test
@@ -165,10 +153,9 @@ class AccountCustomizerTest {
 
 		subject.autoRenewAccount(autoRenewId);
 
-		verify(changeManager).update(
-				any(EnumMap.class),
-				argThat(TestAccountCustomizer.OPTION_PROPERTIES.get(AUTO_RENEW_ACCOUNT_ID)::equals),
-				argThat(autoRenewId::equals));
+		assertEquals(
+				Set.of(TestAccountCustomizer.OPTION_PROPERTIES.get(AUTO_RENEW_ACCOUNT_ID)),
+				subject.getChanges().changedSet());
 	}
 
 	@Test
@@ -178,10 +165,7 @@ class AccountCustomizerTest {
 
 		subject.expiry(expiry.longValue());
 
-		verify(changeManager).update(
-				any(EnumMap.class),
-				argThat(TestAccountCustomizer.OPTION_PROPERTIES.get(EXPIRY)::equals),
-				argThat(expiry::equals));
+		assertEquals(Set.of(TestAccountCustomizer.OPTION_PROPERTIES.get(EXPIRY)), subject.getChanges().changedSet());
 	}
 
 	@Test
@@ -191,10 +175,9 @@ class AccountCustomizerTest {
 
 		subject.autoRenewPeriod(autoRenew.longValue());
 
-		verify(changeManager).update(
-				any(EnumMap.class),
-				argThat(TestAccountCustomizer.OPTION_PROPERTIES.get(AUTO_RENEW_PERIOD)::equals),
-				argThat(autoRenew::equals));
+		assertEquals(
+				Set.of(TestAccountCustomizer.OPTION_PROPERTIES.get(AUTO_RENEW_PERIOD)),
+				subject.getChanges().changedSet());
 	}
 
 	@Test
@@ -204,10 +187,9 @@ class AccountCustomizerTest {
 
 		subject.isSmartContract(isSmartContract.booleanValue());
 
-		verify(changeManager).update(
-				any(EnumMap.class),
-				argThat(TestAccountCustomizer.OPTION_PROPERTIES.get(IS_SMART_CONTRACT)::equals),
-				argThat(isSmartContract::equals));
+		assertEquals(
+				Set.of(TestAccountCustomizer.OPTION_PROPERTIES.get(IS_SMART_CONTRACT)),
+				subject.getChanges().changedSet());
 	}
 
 	@Test
@@ -217,10 +199,7 @@ class AccountCustomizerTest {
 
 		subject.isDeleted(isDeleted.booleanValue());
 
-		verify(changeManager).update(
-				any(EnumMap.class),
-				argThat(TestAccountCustomizer.OPTION_PROPERTIES.get(IS_DELETED)::equals),
-				argThat(isDeleted::equals));
+		assertEquals(Set.of(TestAccountCustomizer.OPTION_PROPERTIES.get(IS_DELETED)), subject.getChanges().changedSet());
 	}
 
 	@Test
@@ -228,32 +207,27 @@ class AccountCustomizerTest {
 		setupWithMockChangeManager();
 		final Boolean isSigRequired = Boolean.FALSE;
 
-		subject.isReceiverSigRequired(isSigRequired.booleanValue());
+		subject.isReceiverSigRequired(isSigRequired);
 
-		verify(changeManager).update(
-				any(EnumMap.class),
-				argThat(TestAccountCustomizer.OPTION_PROPERTIES.get(IS_RECEIVER_SIG_REQUIRED)::equals),
-				argThat(isSigRequired::equals));
+		assertEquals(
+				Set.of(TestAccountCustomizer.OPTION_PROPERTIES.get(IS_RECEIVER_SIG_REQUIRED)),
+				subject.getChanges().changedSet());
 	}
 
 	@Test
 	void changesAutoAssociationFieldsAsExpected() {
 		setupWithMockChangeManager();
-		final Integer maxAutoAssociations = 1234;
-		final Integer alreadyUsedAutoAssociations = 123;
+		final int maxAutoAssociations = 1234;
+		final int alreadyUsedAutoAssociations = 123;
 
 		subject.maxAutomaticAssociations(maxAutoAssociations);
 		subject.usedAutomaticAssociations(alreadyUsedAutoAssociations);
 
-		verify(changeManager).update(
-				any(EnumMap.class),
-				argThat(TestAccountCustomizer.OPTION_PROPERTIES.get(MAX_AUTOMATIC_ASSOCIATIONS)::equals),
-				argThat(maxAutoAssociations::equals)
-		);
-		verify(changeManager).update(
-				any(EnumMap.class),
-				argThat(TestAccountCustomizer.OPTION_PROPERTIES.get(USED_AUTOMATIC_ASSOCIATIONS)::equals),
-				argThat(alreadyUsedAutoAssociations::equals)
-		);
+		assertEquals(
+				Set.of(TestAccountCustomizer.OPTION_PROPERTIES.get(MAX_AUTOMATIC_ASSOCIATIONS)),
+				subject.getChanges().changedSet());
+		assertEquals(
+				Set.of(TestAccountCustomizer.OPTION_PROPERTIES.get(USED_AUTOMATIC_ASSOCIATIONS)),
+				subject.getChanges().changedSet());
 	}
 }

@@ -24,12 +24,13 @@ import com.hedera.services.context.SideEffectsTracker;
 import com.hedera.services.ledger.CommitInterceptor;
 import com.hedera.services.ledger.EntityChangeSet;
 import com.hedera.services.ledger.properties.AccountProperty;
+import com.hedera.services.ledger.properties.PropertyChanges;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hederahashgraph.api.proto.java.AccountID;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Map;
+import static com.hedera.services.ledger.properties.AccountProperty.BALANCE;
 
 /**
  * A {@link CommitInterceptor} implementation that tracks the hbar adjustments being committed,
@@ -64,14 +65,14 @@ public class AccountsCommitInterceptor implements CommitInterceptor<AccountID, M
 	}
 
 	private void trackBalanceChangeIfAny(
-			final long accountNum,
-			@Nullable final MerkleAccount merkleAccount,
-			@NotNull final Map<AccountProperty, Object> accountChanges
+			final long num,
+			@Nullable final MerkleAccount account,
+			@NotNull final PropertyChanges<AccountProperty> changes
 	) {
-		if (accountChanges.containsKey(AccountProperty.BALANCE)) {
-			final long newBalance = (long) accountChanges.get(AccountProperty.BALANCE);
-			final long adjustment = (merkleAccount != null) ? newBalance - merkleAccount.getBalance() : newBalance;
-			sideEffectsTracker.trackHbarChange(accountNum, adjustment);
+		if (changes.includes(BALANCE)) {
+			final var newBalance = changes.getLong(BALANCE);
+			final var adjustment = (account != null) ? newBalance - account.getBalance() : newBalance;
+			sideEffectsTracker.trackHbarChange(num, adjustment);
 		}
 	}
 

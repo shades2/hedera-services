@@ -24,6 +24,7 @@ import com.google.protobuf.ByteString;
 import com.hedera.services.context.SideEffectsTracker;
 import com.hedera.services.ledger.interceptors.AccountsCommitInterceptor;
 import com.hedera.services.ledger.properties.AccountProperty;
+import com.hedera.services.ledger.properties.PropertyChanges;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.test.factories.accounts.MerkleAccountFactory;
 import com.hederahashgraph.api.proto.java.AccountID;
@@ -32,13 +33,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Map;
-
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-
 
 @ExtendWith(MockitoExtension.class)
 class AccountsCommitInterceptorTest {
@@ -82,9 +80,11 @@ class AccountsCommitInterceptorTest {
 	@Test
 	void noopWithoutBalancesChanges() {
 		setupMockInterceptor();
+		final var changeSet = new PropertyChanges<>(AccountProperty.class);
+		changeSet.set(AccountProperty.ALIAS, ByteString.copyFromUtf8("IGNORE THE VASE"));
 
 		final var changes = new EntityChangeSet<AccountID, MerkleAccount, AccountProperty>();
-		changes.include(partyId, party, Map.of(AccountProperty.ALIAS, ByteString.copyFromUtf8("IGNORE THE VASE")));
+		changes.include(partyId, party, changeSet);
 		subject.preview(changes);
 
 		verify(sideEffectsTracker).getNetHbarChange();
@@ -99,10 +99,11 @@ class AccountsCommitInterceptorTest {
 		subject = new AccountsCommitInterceptor(new SideEffectsTracker());
 	}
 
-	private Map<AccountProperty, Object> randomAndBalanceChanges(final long newBalance) {
-		return Map.of(
-				AccountProperty.BALANCE, newBalance,
-				AccountProperty.ALIAS, ByteString.copyFromUtf8("IGNORE THE VASE"));
+	private PropertyChanges<AccountProperty> randomAndBalanceChanges(final long newBalance) {
+		final var changeSet = new PropertyChanges<>(AccountProperty.class);
+		changeSet.set(AccountProperty.ALIAS, ByteString.copyFromUtf8("IGNORE THE VASE"));
+		changeSet.setLong(AccountProperty.BALANCE, newBalance);
+		return changeSet;
 	}
 
 	private static final long amount = 1L;

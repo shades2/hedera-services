@@ -29,6 +29,7 @@ import com.hedera.services.ledger.properties.PropertyChanges;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -50,7 +51,7 @@ import static java.util.stream.Collectors.joining;
 
 /**
  * Provides a ledger with transactional semantics. Changes during a transaction
- * are summarized in per-account change sets, which are then either saved to a
+ * are summarized in per-entity change sets, which are then either saved to a
  * backing store when the transaction is committed; or dropped with no effects
  * upon a rollback.
  *
@@ -61,7 +62,7 @@ import static java.util.stream.Collectors.joining;
  * @param <A>
  * 		the type of ledger entity
  */
-public class TransactionalLedger<K, P extends Enum<P> & BeanProperty<A>, A> implements Ledger<K, P>, BackingStore<K, A> {
+public class TransactionalLedger<K, P extends Enum<P> & BeanProperty<A>, A> implements BackingStore<K, A> {
 	private static final Logger log = LogManager.getLogger(TransactionalLedger.class);
 
 	public static final int MAX_ENTITIES_CONCEIVABLY_TOUCHED_IN_LEDGER_TXN = 42;
@@ -82,11 +83,22 @@ public class TransactionalLedger<K, P extends Enum<P> & BeanProperty<A>, A> impl
 	private final TransactionalLedger<K, P, A> entitiesLedger;
 
 	private boolean isInTransaction = false;
+	private boolean changesFactoryManager = false;
 	private Consumer<K> previewAction = null;
 	private Function<K, String> keyToString = null;
 	private EntityChangeSet<K, A, P> pendingChanges = null;
 	private CommitInterceptor<K, A, P> commitInterceptor = null;
 	private PropertyChangeObserver<K, P> propertyChangeObserver = null;
+
+	public TransactionalLedger(
+			final Class<P> propertyType,
+			final Supplier<A> newEntity,
+			final BackingStore<K, A> entities,
+			final ChangeSummaryManager<A, P> changeManager
+	) {
+		this(propertyType, newEntity, entities, new ChangesFactory<>(propertyType), changeManager);
+		changesFactoryManager = true;
+	}
 
 	public TransactionalLedger(
 			final Class<P> propertyType,
@@ -125,10 +137,8 @@ public class TransactionalLedger<K, P extends Enum<P> & BeanProperty<A>, A> impl
 	 * @return an active ledger wrapping the source
 	 */
 	public static <K, P extends Enum<P> & BeanProperty<A>, A> TransactionalLedger<K, P, A> activeLedgerWrapping(
-			final TransactionalLedger<K, P, A> sourceLedger
+			@NotNull final TransactionalLedger<K, P, A> sourceLedger
 	) {
-		Objects.requireNonNull(sourceLedger);
-
 		final var wrapper = new TransactionalLedger<>(
 				sourceLedger.getPropertyType(),
 				sourceLedger.getNewEntity(),
@@ -290,39 +300,55 @@ public class TransactionalLedger<K, P extends Enum<P> & BeanProperty<A>, A> impl
 		}
 	}
 
-	// --- Ledger implementation ---
+	// --- TransactionalLedger API ---
 	/**
-	 * {@inheritDoc}
+	 * Indicates whether an account is present (in either a saved or transient
+	 * state---either is considered extant).
+	 *
+	 * @param id the id of the relevant account.
+	 * @return whether the account is present.
 	 */
-	@Override
 	public boolean exists(final K id) {
 		return existsOrIsPendingCreation(id) && !isZombie(id);
 	}
 
 	/**
-	 * {@inheritDoc}
+	 * Indicates whether an account is present solely in a transient state.
+	 *
+	 * @param id the id of the relevant account.
+	 * @return whether the account has no saved state, only transient.
 	 */
-	@Override
 	public boolean existsPending(final K id) {
 		return isPendingCreation(id);
 	}
 
 	/**
-	 * {@inheritDoc}
+	 * Sets value of a given property to a given value for the specified account.
+	 *
+	 * @param id the id of the account to update.
+	 * @param property the property to change.
+	 * @param value the new value of the property.
 	 */
-	@Override
 	public void set(final K id, final P property, final Object value) {
 		assertIsSettable(id);
-		changeManager.update(changes.computeIfAbsent(id, ignore -> {
+		changes.computeIfAbsent(id, ignore -> {
 			changedKeys.add(id);
 			return changesFactory.get();
-		}), property, value);
+		}).set(property, value);
+	}
+
+	public void setLong(final K id, final P property, final long value) {
+		throw new AssertionError("Not implemented");
 	}
 
 	/**
-	 * {@inheritDoc}
+	 * Gets the current property value of the specified account. This value
+	 * need not be persisted to a durable backing store.
+	 *
+	 * @param id the id of the relevant account.
+	 * @param property which property to fetch.
+	 * @return the value of the property.
 	 */
-	@Override
 	public Object get(final K id, final P property) {
 		throwIfMissing(id);
 		final var changeSet = changes.get(id);
@@ -343,9 +369,10 @@ public class TransactionalLedger<K, P extends Enum<P> & BeanProperty<A>, A> impl
 	}
 
 	/**
-	 * {@inheritDoc}
+	 * Creates an new account with the given id and all default property values.
+	 *
+	 * @param id the id to use for the new account.
 	 */
-	@Override
 	public void create(final K id) {
 		assertIsCreatable(id);
 		changes.put(id, changesFactory.get());
@@ -353,9 +380,10 @@ public class TransactionalLedger<K, P extends Enum<P> & BeanProperty<A>, A> impl
 	}
 
 	/**
-	 * {@inheritDoc}
+	 * Forgets everything about the account with the given id.
+	 *
+	 * @param id the id of the account to be forgotten.
 	 */
-	@Override
 	public void destroy(final K id) {
 		throwIfNotInTxn();
 		if (!deadKeys.contains(id)) {
@@ -636,5 +664,10 @@ public class TransactionalLedger<K, P extends Enum<P> & BeanProperty<A>, A> impl
 	@VisibleForTesting
 	Map<K, PropertyChanges<P>> getChanges() {
 		return changes;
+	}
+
+	@VisibleForTesting
+	boolean isChangesFactoryManager() {
+		return changesFactoryManager;
 	}
 }

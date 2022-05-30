@@ -242,8 +242,6 @@ class AbstractStackedLedgerUpdaterTest {
 	private static final Address bAddress = EntityNum.fromLong(54321).toEvmAddress();
 	private static final long aBalance = 1_000L;
 	private static final long aNonce = 1L;
-	private static final long aExpiry = 1_234_567L;
-	private static final long aAutoRenew = 7776000L;
 	private static final byte[] rawNonMirrorAddress = unhex("abcdefabcdefabcdefbabcdefabcdefabcdefbbb");
 	private static final Address nonMirrorAddress = Address.wrap(Bytes.wrap(rawNonMirrorAddress));
 	private static final byte[] otherRawNonMirrorAddress = unhex("abcdecabcdecabcdecbabcdecabcdecabcdecbbb");

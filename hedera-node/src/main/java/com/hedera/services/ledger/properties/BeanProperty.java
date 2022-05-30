@@ -9,9 +9,9 @@ package com.hedera.services.ledger.properties;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -19,6 +19,8 @@ package com.hedera.services.ledger.properties;
  * limitations under the License.
  * ‍
  */
+
+import com.hedera.services.ledger.TransactionalLedger;
 
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -30,9 +32,19 @@ import java.util.function.ToLongFunction;
  * (The getter/setter pair should apply to a specific property of the
  * target type, of course.)
  *
- * @param <A> the type which the getter/setter apply to.
+ * @param <A>
+ * 		the type which the getter/setter apply to.
  */
 public interface BeanProperty<A> {
+	static <K, P extends Enum<P> & BeanProperty<A>, A> void setFrom(
+			final TransactionalLedger<K, P, A> ledger,
+			final P property,
+			final A entity,
+			final K key
+	) {
+		throw new AssertionError("Not implemented");
+	}
+
 	/**
 	 * Gets the setter relevant to the property at hand.
 	 *
@@ -49,6 +61,7 @@ public interface BeanProperty<A> {
 
 	/**
 	 * Returns whether this property is a primitive long.
+	 *
 	 * @return if this property is a long
 	 */
 	default boolean isPrimitiveLong() {
@@ -57,6 +70,7 @@ public interface BeanProperty<A> {
 
 	/**
 	 * Gets the un-boxed long setter for this property.
+	 *
 	 * @return the primitive setter on the target type
 	 */
 	default ObjLongConsumer<A> longSetter() {
@@ -65,6 +79,7 @@ public interface BeanProperty<A> {
 
 	/**
 	 * Gets the un-boxed long getter for this property.
+	 *
 	 * @return the primitive getter on the target type
 	 */
 	default ToLongFunction<A> longGetter() {

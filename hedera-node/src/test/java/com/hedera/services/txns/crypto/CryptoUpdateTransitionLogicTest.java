@@ -131,7 +131,7 @@ class CryptoUpdateTransitionLogicTest {
 		verify(txnCtx).setStatus(SUCCESS);
 		verify(sigImpactHistorian).markEntityChanged(TARGET.getAccountNum());
 		final var changes = captor.getValue().getChanges();
-		assertEquals(1, changes.size());
+		assertEquals(1, changes.changed().size());
 		assertEquals(EntityId.fromGrpcAccountId(PROXY), changes.get(AccountProperty.PROXY));
 	}
 
@@ -146,7 +146,7 @@ class CryptoUpdateTransitionLogicTest {
 		verify(ledger).customize(argThat(TARGET::equals), captor.capture());
 		verify(txnCtx).setStatus(SUCCESS);
 		final var changes = captor.getValue().getChanges();
-		assertEquals(1, changes.size());
+		assertEquals(1, changes.changed().size());
 		assertEquals(true, changes.get(AccountProperty.IS_RECEIVER_SIG_REQUIRED));
 	}
 
@@ -161,7 +161,7 @@ class CryptoUpdateTransitionLogicTest {
 		verify(ledger).customize(argThat(TARGET::equals), captor.capture());
 		verify(txnCtx).setStatus(SUCCESS);
 		final var changes = captor.getValue().getChanges();
-		assertEquals(1, changes.size());
+		assertEquals(1, changes.changed().size());
 		assertEquals(true, changes.get(AccountProperty.IS_RECEIVER_SIG_REQUIRED));
 	}
 
@@ -175,7 +175,7 @@ class CryptoUpdateTransitionLogicTest {
 		verify(ledger).customize(argThat(TARGET::equals), captor.capture());
 		verify(txnCtx).setStatus(SUCCESS);
 		final var changes = captor.getValue().getChanges();
-		assertEquals(1, changes.size());
+		assertEquals(1, changes.changed().size());
 		assertEquals(NEW_EXPIRY, (long) changes.get(AccountProperty.EXPIRY));
 	}
 
@@ -192,7 +192,7 @@ class CryptoUpdateTransitionLogicTest {
 		verify(ledger).customize(argThat(TARGET::equals), captor.capture());
 		verify(txnCtx).setStatus(SUCCESS);
 		final var changes = captor.getValue().getChanges();
-		assertEquals(1, changes.size());
+		assertEquals(1, changes.changed().size());
 		assertEquals(NEW_MAX_AUTOMATIC_ASSOCIATIONS, (int) changes.get(AccountProperty.MAX_AUTOMATIC_ASSOCIATIONS));
 	}
 
@@ -231,7 +231,7 @@ class CryptoUpdateTransitionLogicTest {
 
 		verify(ledger).customize(argThat(TARGET::equals), captor.capture());
 		final var changes = captor.getValue().getChanges();
-		assertEquals(1, changes.size());
+		assertEquals(1, changes.changed().size());
 		assertEquals(MEMO, changes.get(AccountProperty.MEMO));
 	}
 
@@ -244,7 +244,7 @@ class CryptoUpdateTransitionLogicTest {
 
 		verify(ledger).customize(argThat(TARGET::equals), captor.capture());
 		final var changes = captor.getValue().getChanges();
-		assertEquals(1, changes.size());
+		assertEquals(1, changes.changed().size());
 		assertEquals(AUTO_RENEW_PERIOD, changes.get(AccountProperty.AUTO_RENEW_PERIOD));
 	}
 
@@ -257,7 +257,7 @@ class CryptoUpdateTransitionLogicTest {
 
 		verify(ledger).customize(argThat(TARGET::equals), captor.capture());
 		final var changes = captor.getValue().getChanges();
-		assertEquals(1, changes.size());
+		assertEquals(1, changes.changed().size());
 		assertEquals(KEY, JKey.mapJKey((JKey) changes.get(AccountProperty.KEY)));
 	}
 

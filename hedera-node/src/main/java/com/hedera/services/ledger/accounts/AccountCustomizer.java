@@ -24,10 +24,10 @@ import com.google.protobuf.ByteString;
 import com.hedera.services.ledger.TransactionalLedger;
 import com.hedera.services.ledger.properties.BeanProperty;
 import com.hedera.services.ledger.properties.ChangeSummaryManager;
+import com.hedera.services.ledger.properties.PropertyChanges;
 import com.hedera.services.legacy.core.jproto.JKey;
 import com.hedera.services.state.submerkle.EntityId;
 
-import java.util.EnumMap;
 import java.util.Map;
 
 import static com.hedera.services.ledger.accounts.AccountCustomizer.Option.ALIAS;
@@ -78,7 +78,7 @@ public abstract class AccountCustomizer<
 	}
 
 	private final Map<Option, P> optionProperties;
-	private final EnumMap<P, Object> changes;
+	private final PropertyChanges<P> changes;
 	private final ChangeSummaryManager<A, P> changeManager;
 
 	protected abstract T self();
@@ -90,10 +90,10 @@ public abstract class AccountCustomizer<
 	) {
 		this.changeManager = changeManager;
 		this.optionProperties = optionProperties;
-		this.changes = new EnumMap<>(propertyType);
+		this.changes = new PropertyChanges<>(propertyType);
 	}
 
-	public Map<P, Object> getChanges() {
+	public PropertyChanges<P> getChanges() {
 		return changes;
 	}
 
@@ -107,69 +107,70 @@ public abstract class AccountCustomizer<
 	}
 
 	public void customize(final K id, final TransactionalLedger<K, P, A> ledger) {
-		changes.entrySet().forEach(change -> ledger.set(id, change.getKey(), change.getValue()));
+		changes.changed().forEach(property ->
+				ledger.set(id, property, changes.get(property)));
 	}
 
 	public T key(final JKey option) {
-		changeManager.update(changes, optionProperties.get(KEY), option);
+		changes.set(optionProperties.get(KEY), option);
 		return self();
 	}
 
 	public T memo(final String option) {
-		changeManager.update(changes, optionProperties.get(MEMO), option);
+		changes.set(optionProperties.get(MEMO), option);
 		return self();
 	}
 
 	public T proxy(final EntityId option) {
-		if(option != null) {
-			changeManager.update(changes, optionProperties.get(PROXY), option);
+		if (option != null) {
+			changes.set(optionProperties.get(PROXY), option);
 		}
 		return self();
 	}
 
 	public T expiry(final long option) {
-		changeManager.update(changes, optionProperties.get(EXPIRY), option);
+		changes.set(optionProperties.get(EXPIRY), option);
 		return self();
 	}
 
 	public T alias(final ByteString option) {
-		changeManager.update(changes, optionProperties.get(ALIAS), option);
+		changes.set(optionProperties.get(ALIAS), option);
 		return self();
 	}
 
 	public T isDeleted(final boolean option) {
-		changeManager.update(changes, optionProperties.get(IS_DELETED), option);
+		changes.set(optionProperties.get(IS_DELETED), option);
 		return self();
 	}
 
 	public T autoRenewPeriod(final long option) {
-		changeManager.update(changes, optionProperties.get(AUTO_RENEW_PERIOD), option);
+		changes.set(optionProperties.get(AUTO_RENEW_PERIOD), option);
 		return self();
 	}
 
 	public T isSmartContract(final boolean option) {
-		changeManager.update(changes, optionProperties.get(IS_SMART_CONTRACT), option);
+		changes.set(optionProperties.get(IS_SMART_CONTRACT), option);
 		return self();
 	}
 
 	public T isReceiverSigRequired(final boolean option) {
-		changeManager.update(changes, optionProperties.get(IS_RECEIVER_SIG_REQUIRED), option);
+		changes.set(optionProperties.get(IS_RECEIVER_SIG_REQUIRED), option);
 		return self();
 	}
 
 	public T maxAutomaticAssociations(final int option) {
-		changeManager.update(changes, optionProperties.get(MAX_AUTOMATIC_ASSOCIATIONS), option);
+		changes.set(optionProperties.get(MAX_AUTOMATIC_ASSOCIATIONS), option);
 		return self();
 	}
 
 	public T usedAutomaticAssociations(final int option) {
-		changeManager.update(changes, optionProperties.get(USED_AUTOMATIC_ASSOCIATIONS), option);
+		changes.set(optionProperties.get(USED_AUTOMATIC_ASSOCIATIONS), option);
 		return self();
 	}
 
 	public T autoRenewAccount(final EntityId option) {
-		if(option != null) {
-			changeManager.update(changes, optionProperties.get(AUTO_RENEW_ACCOUNT_ID), option);
+		if (option != null) {
+			changes.set(optionProperties.get(AUTO_RENEW_ACCOUNT_ID), option);
 		}
 		return self();
 	}

@@ -28,6 +28,7 @@ import com.hedera.services.ledger.backing.BackingStore;
 import com.hedera.services.ledger.interceptors.AccountsCommitInterceptor;
 import com.hedera.services.ledger.properties.AccountProperty;
 import com.hedera.services.ledger.properties.ChangeSummaryManager;
+import com.hedera.services.ledger.properties.PropertyChanges;
 import com.hedera.services.ledger.properties.TestAccountProperty;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hederahashgraph.api.proto.java.AccountID;
@@ -102,6 +103,30 @@ class TransactionalLedgerTest {
 	private TransactionalLedger<AccountID, AccountProperty, MerkleAccount> accountsLedger;
 
 	@Test
+	void onlyBaseLedgerManagesChangesFactory() {
+		setupTestLedger();
+		assertTrue(testLedger.isChangesFactoryManager());
+		final var wrapped = TransactionalLedger.activeLedgerWrapping(testLedger);
+		assertFalse(wrapped.isChangesFactoryManager());
+		final var changesFactory = testLedger.getChangesFactory();
+
+		testLedger.begin();
+		testLedger.create(1L);
+		assertEquals(1, changesFactory.getNextChanges());
+		wrapped.begin();
+		assertEquals(1, changesFactory.getNextChanges());
+		wrapped.create(2L);
+		assertEquals(2, changesFactory.getNextChanges());
+		wrapped.commit();
+		wrapped.begin();
+		assertEquals(2, changesFactory.getNextChanges());
+		testLedger.rollback();
+		testLedger.begin();
+		assertEquals(0, changesFactory.getNextChanges());
+		testLedger.rollback();
+	}
+
+	@Test
 	void settingInterceptorAlsoInitializesPendingChangesAndPreviewAction() {
 		setupTestLedger();
 
@@ -118,7 +143,9 @@ class TransactionalLedgerTest {
 		setupInterceptedTestLedger();
 		final var statefulChanges = testLedger.getPendingChanges();
 
-		statefulChanges.include(1L, anAccount, Map.of(FLAG, true));
+		final PropertyChanges<TestAccountProperty> changes = new PropertyChanges<>(TestAccountProperty.class);
+		changes.set(FLAG, true);
+		statefulChanges.include(1L, anAccount, changes);
 		testLedger.begin();
 
 		assertEquals(0, statefulChanges.size());
@@ -172,10 +199,11 @@ class TransactionalLedgerTest {
 		assertEquals(1, changes.size());
 		assertEquals(1L, changes.id(0));
 		assertNull(changes.entity(0));
-		assertEquals(Map.of(OBJ, things, FLAG, true), changes.changes(0));
+		assertChangesMatch(Map.of(OBJ, things, FLAG, true), changes.changes(0));
 		verify(backingTestAccounts).put(1L, expectedCommit);
 		assertTrue(testLedger.getCreatedKeys().isEmpty());
 	}
+
 
 	@Test
 	@SuppressWarnings("unchecked")
@@ -226,7 +254,7 @@ class TransactionalLedgerTest {
 		assertEquals(1, changes.size());
 		assertEquals(1L, changes.id(0));
 		assertSame(anAccount, changes.entity(0));
-		assertEquals(Map.of(OBJ, things, FLAG, true), changes.changes(0));
+		assertChangesMatch(Map.of(OBJ, things, FLAG, true), changes.changes(0));
 		verify(backingTestAccounts).put(1L, expectedCommit);
 		assertTrue(testLedger.getChangedKeys().isEmpty());
 	}
@@ -780,18 +808,33 @@ class TransactionalLedgerTest {
 
 	private void setupTestLedger() {
 		testLedger = new TransactionalLedger<>(
-				TestAccountProperty.class, TestAccount::new, backingTestAccounts, changeManager);
+				TestAccountProperty.class,
+				TestAccount::new,
+				backingTestAccounts,
+				changeManager);
 	}
 
 	private void setupInterceptedTestLedger() {
 		testLedger = new TransactionalLedger<>(
-				TestAccountProperty.class, TestAccount::new, backingTestAccounts, changeManager);
+				TestAccountProperty.class,
+				TestAccount::new,
+				backingTestAccounts,
+				changeManager);
 		testLedger.setCommitInterceptor(testInterceptor);
 	}
 
 	private void setupCheckableTestLedger() {
 		setupTestLedger();
 		scopedCheck = new TestAccountScopedCheck();
+	}
+
+	private void assertChangesMatch(
+			final Map<TestAccountProperty, Object> expected,
+			final PropertyChanges<TestAccountProperty> changes
+	) {
+		assertEquals(expected.size(), changes.changed().size());
+		expected.forEach((property, value) ->
+				assertEquals(value, changes.get(property)));
 	}
 
 	private static final ByteString alias = ByteString.copyFromUtf8("These aren't the droids you're looking for");

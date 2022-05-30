@@ -220,7 +220,7 @@ class CryptoCreateTransitionLogicTest {
 		verify(sigImpactHistorian).markEntityChanged(CREATED.getAccountNum());
 
 		final var changes = captor.getValue().getChanges();
-		assertEquals(7, changes.size());
+		assertEquals(7, changes.changed().size());
 		assertEquals(CUSTOM_AUTO_RENEW_PERIOD, (long) changes.get(AUTO_RENEW_PERIOD));
 		assertEquals(expiry, (long) changes.get(EXPIRY));
 		assertEquals(KEY, JKey.mapJKey((JKey) changes.get(AccountProperty.KEY)));

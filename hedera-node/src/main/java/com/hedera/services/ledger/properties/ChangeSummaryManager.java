@@ -33,21 +33,7 @@ import com.hedera.services.ledger.PropertyChangeObserver;
  */
 public final class ChangeSummaryManager<A, P extends Enum<P> & BeanProperty<A>> {
 	/**
-	 * Updates the changeset summary for the given property to the given value.
-	 *
-	 * @param changes
-	 * 		the total changeset summary so far
-	 * @param property
-	 * 		the property in the family whose changeset should be updated
-	 * @param value
-	 * 		the new value that summarizes the changeset
-	 */
-	public void update(final PropertyChanges<P> changes, final P property, final Object value) {
-		changes.set(property, value);
-	}
-
-	/**
-	 * Flush a changeset summary to a given object.
+	 * Flush a change set to a given object.
 	 *
 	 * @param changes
 	 * 		the summary of changes made to the relevant property family

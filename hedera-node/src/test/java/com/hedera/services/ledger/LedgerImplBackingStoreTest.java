@@ -24,12 +24,12 @@ import com.hedera.services.ledger.accounts.TestAccount;
 import com.hedera.services.ledger.backing.BackingStore;
 import com.hedera.services.ledger.backing.HashMapTestAccounts;
 import com.hedera.services.ledger.properties.ChangeSummaryManager;
+import com.hedera.services.ledger.properties.PropertyChanges;
 import com.hedera.services.ledger.properties.TestAccountProperty;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
-import java.util.Map;
 import java.util.function.Function;
 
 import static com.hedera.services.ledger.TransactionalLedger.activeLedgerWrapping;
@@ -209,7 +209,8 @@ class LedgerImplBackingStoreTest {
 
 		final var captor = ArgumentCaptor.forClass(Function.class);
 		final var mockCheck = (LedgerCheck<TestAccount, TestAccountProperty>) mock(LedgerCheck.class);
-		given(mockCheck.checkUsing(any(Function.class), any(Map.class))).willReturn(INVALID_TOKEN_MINT_AMOUNT);
+		given(mockCheck.checkUsing(any(Function.class), any(PropertyChanges.class)))
+				.willReturn(INVALID_TOKEN_MINT_AMOUNT);
 
 		subject.begin();
 		subject.set(1L, TestAccountProperty.FLAG, false);
@@ -217,7 +218,7 @@ class LedgerImplBackingStoreTest {
 
 		assertEquals(INVALID_TOKEN_MINT_AMOUNT, actual);
 
-		verify(mockCheck).checkUsing(captor.capture(), any(Map.class));
+		verify(mockCheck).checkUsing(captor.capture(), any(PropertyChanges.class));
 		final var extantProps = (Function<TestAccountProperty, Object>) captor.getValue();
 		assertEquals(2L, extantProps.apply(TestAccountProperty.LONG));
 		assertEquals(aTestAccount.isFlag(), extantProps.apply(TestAccountProperty.FLAG));
@@ -234,7 +235,8 @@ class LedgerImplBackingStoreTest {
 
 		final var captor = ArgumentCaptor.forClass(Function.class);
 		final var mockCheck = (LedgerCheck<TestAccount, TestAccountProperty>) mock(LedgerCheck.class);
-		given(mockCheck.checkUsing(any(Function.class), any(Map.class))).willReturn(INVALID_TOKEN_MINT_AMOUNT);
+		given(mockCheck.checkUsing(any(Function.class), any(PropertyChanges.class)))
+				.willReturn(INVALID_TOKEN_MINT_AMOUNT);
 
 		subject.begin();
 		subject.create(1L);
@@ -243,7 +245,7 @@ class LedgerImplBackingStoreTest {
 
 		assertEquals(INVALID_TOKEN_MINT_AMOUNT, actual);
 
-		verify(mockCheck).checkUsing(captor.capture(), any(Map.class));
+		verify(mockCheck).checkUsing(captor.capture(), any(PropertyChanges.class));
 		final var extantProps = (Function<TestAccountProperty, Object>) captor.getValue();
 		assertEquals(aDefaultAccount.getValue(), extantProps.apply(TestAccountProperty.LONG));
 		assertEquals(aDefaultAccount.isFlag(), extantProps.apply(TestAccountProperty.FLAG));

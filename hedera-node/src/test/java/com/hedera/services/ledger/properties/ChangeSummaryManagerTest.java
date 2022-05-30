@@ -28,8 +28,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.EnumMap;
-
 import static com.hedera.services.ledger.properties.TestAccountProperty.FLAG;
 import static com.hedera.services.ledger.properties.TestAccountProperty.LONG;
 import static com.hedera.services.ledger.properties.TestAccountProperty.OBJ;
@@ -40,7 +38,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 @ExtendWith(MockitoExtension.class)
 class ChangeSummaryManagerTest {
 	private static final ChangeSummaryManager<TestAccount, TestAccountProperty> subject = new ChangeSummaryManager<>();
-	private static final EnumMap<TestAccountProperty, Object> changes = new EnumMap<>(TestAccountProperty.class);
+	private static final PropertyChanges<TestAccountProperty> changes = new PropertyChanges<>(TestAccountProperty.class);
 
 	@Mock
 	private PropertyChangeObserver<Long, TestAccountProperty> observer;
@@ -56,8 +54,8 @@ class ChangeSummaryManagerTest {
 		final var thing = new Object();
 		final var testAccount = new TestAccount(1L, thing, false);
 
-		subject.update(changes, LONG, 5L);
-		subject.update(changes, FLAG, true);
+		changes.setLong(LONG, 5L);
+		changes.set(FLAG, true);
 		subject.persistWithObserver(id, changes, testAccount, observer);
 
 		assertEquals(new TestAccount(5L, thing, true), testAccount);
@@ -71,8 +69,8 @@ class ChangeSummaryManagerTest {
 		final var thing = new Object();
 		final var testAccount = new TestAccount(1L, thing, false);
 
-		subject.update(changes, LONG, 5L);
-		subject.update(changes, FLAG, true);
+		changes.setLong(LONG, 5L);
+		changes.set(FLAG, true);
 		subject.persist(changes, testAccount);
 
 		assertEquals(new TestAccount(5L, thing, true), testAccount);
@@ -80,23 +78,22 @@ class ChangeSummaryManagerTest {
 
 	@Test
 	void setsFlagWithPrimitiveArg() {
-		subject.update(changes, FLAG, true);
+		changes.set(FLAG, true);
 
 		assertEquals(Boolean.TRUE, changes.get(FLAG));
 	}
 
 	@Test
 	void setsValueWithPrimitiveArg() {
-		subject.update(changes, LONG, 5L);
+		changes.setLong(LONG, 5L);
 
-		assertEquals(Long.valueOf(5L), changes.get(LONG));
+		assertEquals(5L, changes.get(LONG));
 	}
 
 	@Test
 	void setsThing() {
 		final var thing = new Object();
-
-		subject.update(changes, OBJ, thing);
+		changes.set(OBJ, thing);
 
 		assertEquals(thing, changes.get(OBJ));
 	}

@@ -94,14 +94,10 @@ public interface StoresModule {
 	@Provides
 	@Singleton
 	static TransactionalLedger<TokenID, TokenProperty, MerkleToken> provideTokensLedger(
-			final BackingStore<TokenID, MerkleToken> backingTokens,
-			final SideEffectsTracker sideEffectsTracker
+			final BackingStore<TokenID, MerkleToken> backingTokens
 	) {
 		return new TransactionalLedger<>(
-				TokenProperty.class,
-				MerkleToken::new,
-				backingTokens,
-				new ChangeSummaryManager<>());
+				TokenProperty.class, MerkleToken::new, backingTokens, new ChangeSummaryManager<>());
 	}
 
 	@Binds
@@ -135,10 +131,7 @@ public interface StoresModule {
 			final SideEffectsTracker sideEffectsTracker
 	) {
 		final var accountsLedger = new TransactionalLedger<>(
-				AccountProperty.class,
-				MerkleAccount::new,
-				backingAccounts,
-				new ChangeSummaryManager<>());
+				AccountProperty.class, MerkleAccount::new, backingAccounts, new ChangeSummaryManager<>());
 		final var accountsCommitInterceptor = new AccountsCommitInterceptor(sideEffectsTracker);
 		accountsLedger.setCommitInterceptor(accountsCommitInterceptor);
 		return accountsLedger;

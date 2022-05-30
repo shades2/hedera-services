@@ -113,7 +113,8 @@ public abstract class AbstractLedgerWorldUpdater<W extends WorldView, A extends 
 	 * mutations will be tracked in the change-set represented by this {@link WorldUpdater}; and either
 	 * committed or reverted atomically with all other mutations in the change-set.
 	 *
-	 * @param address the address of interest
+	 * @param address
+	 * 		the address of interest
 	 * @return a tracked mutable account for the given address
 	 */
 	protected abstract A getForMutation(Address address);
@@ -241,7 +242,7 @@ public abstract class AbstractLedgerWorldUpdater<W extends WorldView, A extends 
 	) {
 		if (thisRecordSourceId == UNKNOWN_RECORD_SOURCE_ID) {
 			thisRecordSourceId = recordsHistorian.nextChildRecordSourceId();
-			this.recordsHistorian =  recordsHistorian;
+			this.recordsHistorian = recordsHistorian;
 		}
 		recordsHistorian.trackFollowingChildRecord(thisRecordSourceId, syntheticBody, recordSoFar);
 	}
@@ -261,42 +262,41 @@ public abstract class AbstractLedgerWorldUpdater<W extends WorldView, A extends 
 	private class BalanceChangeObserver implements PropertyChangeObserver<AccountID, AccountProperty> {
 		@Override
 		public void newProperty(final AccountID id, final AccountProperty property, final Object newValue) {
-
+			// No-op
 		}
 
 		@Override
 		public void newLongProperty(final AccountID id, final AccountProperty property, final long newValue) {
-
+			if (property == BALANCE) {
+				onBalanceChange(id, newValue);
+			}
 		}
 	}
 
-	private void onAccountPropertyChange(final AccountID id, final AccountProperty property, final Object newValue) {
-		/* HTS precompiles cannot create/delete accounts, so the only property we need to keep consistent is BALANCE */
-		if (property == BALANCE) {
-			final var address = EntityIdUtils.asTypedEvmAddress(id);
-			/* Impossible with a well-behaved precompile, as our wrapped accounts should also show this as deleted */
-			if (deletedAccounts.contains(address)) {
-				throw new IllegalArgumentException(
-						"A wrapped tracking ledger tried to change the " +
-								"balance of deleted account " + asLiteralString(id) + " to " + newValue);
-			}
-			var updatedAccount = updatedAccounts.get(address);
-			if (updatedAccount == null) {
-				final var origin = getForMutation(address);
-				/* Impossible with a well-behaved precompile, as our wrapped accounts should also show this as
-				 * non-existent, and none of the HTS precompiles should be creating accounts */
-				if (origin == null) {
-					throw new IllegalArgumentException(
-							"A wrapped tracking ledger tried to create/change the " +
-									"balance of missing account " + asLiteralString(id) + " to " + newValue);
-				}
-				updatedAccount = new UpdateTrackingLedgerAccount<>(origin, trackingLedgers.accounts());
-				track(updatedAccount);
-			}
-
-			final var newBalance = (long) newValue;
-			updatedAccount.setBalanceFromPropertyChangeObserver(Wei.of(newBalance));
+	private void onBalanceChange(final AccountID id, final long newBalance) {
+		// HTS precompiles cannot create/delete accounts, so the only property we need to keep consistent is BALANCE
+		final var address = EntityIdUtils.asTypedEvmAddress(id);
+		// Impossible with a well-behaved precompile, as our wrapped accounts should also show this as deleted
+		if (deletedAccounts.contains(address)) {
+			throw new IllegalArgumentException(
+					"A wrapped tracking ledger tried to change the " +
+							"balance of deleted account " + asLiteralString(id) + " to " + newBalance);
 		}
+		var updatedAccount = updatedAccounts.get(address);
+		if (updatedAccount == null) {
+			final var origin = getForMutation(address);
+			// Impossible with a well-behaved precompile, as our wrapped accounts should also show this as
+			// non-existent, and none of the HTS precompiles should be creating accounts
+			if (origin == null) {
+				throw new IllegalArgumentException(
+						"A wrapped tracking ledger tried to create/change the " +
+								"balance of missing account " + asLiteralString(id) + " to " + newBalance);
+			}
+			updatedAccount = new UpdateTrackingLedgerAccount<>(origin, trackingLedgers.accounts());
+			track(updatedAccount);
+		}
+
+		updatedAccount.setBalanceFromPropertyChangeObserver(Wei.of(newBalance));
 	}
 
 	public WorldLedgers trackingLedgers() {

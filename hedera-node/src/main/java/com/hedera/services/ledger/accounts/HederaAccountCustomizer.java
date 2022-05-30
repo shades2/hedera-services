@@ -32,6 +32,12 @@ import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Map;
 
+import static com.hedera.services.ledger.properties.AccountProperty.AUTO_RENEW_ACCOUNT_ID;
+import static com.hedera.services.ledger.properties.AccountProperty.AUTO_RENEW_PERIOD;
+import static com.hedera.services.ledger.properties.AccountProperty.MAX_AUTOMATIC_ASSOCIATIONS;
+import static com.hedera.services.ledger.properties.AccountProperty.MEMO;
+import static com.hedera.services.ledger.properties.AccountProperty.PROXY;
+
 public final class HederaAccountCustomizer extends
 		AccountCustomizer<AccountID, MerkleAccount, AccountProperty, HederaAccountCustomizer> {
 	private static final Map<Option, AccountProperty> OPTION_PROPERTIES;
@@ -39,17 +45,17 @@ public final class HederaAccountCustomizer extends
 	static {
 		Map<Option, AccountProperty> optionAccountPropertyMap = new EnumMap<>(Option.class);
 		optionAccountPropertyMap.put(Option.KEY, AccountProperty.KEY);
-		optionAccountPropertyMap.put(Option.MEMO, AccountProperty.MEMO);
-		optionAccountPropertyMap.put(Option.PROXY, AccountProperty.PROXY);
+		optionAccountPropertyMap.put(Option.MEMO, MEMO);
+		optionAccountPropertyMap.put(Option.PROXY, PROXY);
 		optionAccountPropertyMap.put(Option.EXPIRY, AccountProperty.EXPIRY);
 		optionAccountPropertyMap.put(Option.IS_DELETED, AccountProperty.IS_DELETED);
-		optionAccountPropertyMap.put(Option.AUTO_RENEW_PERIOD, AccountProperty.AUTO_RENEW_PERIOD);
+		optionAccountPropertyMap.put(Option.AUTO_RENEW_PERIOD, AUTO_RENEW_PERIOD);
 		optionAccountPropertyMap.put(Option.IS_SMART_CONTRACT, AccountProperty.IS_SMART_CONTRACT);
 		optionAccountPropertyMap.put(Option.IS_RECEIVER_SIG_REQUIRED, AccountProperty.IS_RECEIVER_SIG_REQUIRED);
-		optionAccountPropertyMap.put(Option.MAX_AUTOMATIC_ASSOCIATIONS, AccountProperty.MAX_AUTOMATIC_ASSOCIATIONS);
+		optionAccountPropertyMap.put(Option.MAX_AUTOMATIC_ASSOCIATIONS, MAX_AUTOMATIC_ASSOCIATIONS);
 		optionAccountPropertyMap.put(Option.USED_AUTOMATIC_ASSOCIATIONS, AccountProperty.USED_AUTOMATIC_ASSOCIATIONS);
 		optionAccountPropertyMap.put(Option.ALIAS, AccountProperty.ALIAS);
-		optionAccountPropertyMap.put(Option.AUTO_RENEW_ACCOUNT_ID, AccountProperty.AUTO_RENEW_ACCOUNT_ID);
+		optionAccountPropertyMap.put(Option.AUTO_RENEW_ACCOUNT_ID, AUTO_RENEW_ACCOUNT_ID);
 		OPTION_PROPERTIES = Collections.unmodifiableMap(optionAccountPropertyMap);
 	}
 
@@ -59,21 +65,21 @@ public final class HederaAccountCustomizer extends
 
 	public void customizeSynthetic(final ContractCreateTransactionBody.Builder op) {
 		final var changes = getChanges();
-		if (changes.containsKey(AccountProperty.MEMO)) {
-			op.setMemo((String) changes.get(AccountProperty.MEMO));
+		if (changes.includes(MEMO)) {
+			op.setMemo((String) changes.get(MEMO));
 		}
-		if (changes.containsKey(AccountProperty.AUTO_RENEW_PERIOD)) {
+		if (changes.includes(AUTO_RENEW_PERIOD)) {
 			op.setAutoRenewPeriod(Duration.newBuilder()
-					.setSeconds((long) changes.get(AccountProperty.AUTO_RENEW_PERIOD)));
+					.setSeconds((long) changes.get(AUTO_RENEW_PERIOD)));
 		}
-		if (changes.containsKey(AccountProperty.PROXY)) {
-			op.setProxyAccountID(((EntityId) changes.get(AccountProperty.PROXY)).toGrpcAccountId());
+		if (changes.includes(PROXY)) {
+			op.setProxyAccountID(((EntityId) changes.get(PROXY)).toGrpcAccountId());
 		}
-		if (changes.containsKey(AccountProperty.AUTO_RENEW_ACCOUNT_ID)) {
-			op.setAutoRenewAccountId(((EntityId) changes.get(AccountProperty.AUTO_RENEW_ACCOUNT_ID)).toGrpcAccountId());
+		if (changes.includes(AUTO_RENEW_ACCOUNT_ID)) {
+			op.setAutoRenewAccountId(((EntityId) changes.get(AUTO_RENEW_ACCOUNT_ID)).toGrpcAccountId());
 		}
-		if (changes.containsKey(AccountProperty.MAX_AUTOMATIC_ASSOCIATIONS)) {
-			op.setMaxAutomaticTokenAssociations(((int) changes.get(AccountProperty.MAX_AUTOMATIC_ASSOCIATIONS)));
+		if (changes.includes(MAX_AUTOMATIC_ASSOCIATIONS)) {
+			op.setMaxAutomaticTokenAssociations(((int) changes.get(MAX_AUTOMATIC_ASSOCIATIONS)));
 		}
 	}
 

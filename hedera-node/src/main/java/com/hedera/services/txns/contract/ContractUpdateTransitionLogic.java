@@ -26,7 +26,6 @@ import com.hedera.services.ledger.HederaLedger;
 import com.hedera.services.ledger.SigImpactHistorian;
 import com.hedera.services.ledger.accounts.AliasManager;
 import com.hedera.services.ledger.accounts.HederaAccountCustomizer;
-import com.hedera.services.ledger.properties.AccountProperty;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.txns.TransitionLogic;
 import com.hedera.services.txns.contract.helpers.UpdateCustomizerFactory;
@@ -42,6 +41,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+import static com.hedera.services.ledger.properties.AccountProperty.MAX_AUTOMATIC_ASSOCIATIONS;
 import static com.hedera.services.utils.EntityIdUtils.unaliased;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.AUTORENEW_DURATION_NOT_IN_RANGE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.EXISTING_AUTOMATIC_ASSOCIATIONS_EXCEED_GIVEN_LIMIT;
@@ -111,15 +111,19 @@ public class ContractUpdateTransitionLogic implements TransitionLogic {
 				txnCtx.setStatus(result.getRight());
 			}
 		} catch (Exception e) {
+			e.printStackTrace();
 			log.warn("Avoidable exception!", e);
 			txnCtx.setStatus(FAIL_INVALID);
 		}
 	}
 
-	private ResponseCodeEnum sanityCheckAutoAssociations(final EntityNum target, final HederaAccountCustomizer customizer) {
-		final var changes = customizer.getChanges();
-		if (changes.containsKey(AccountProperty.MAX_AUTOMATIC_ASSOCIATIONS)) {
-			final long newMax = (int) changes.get(AccountProperty.MAX_AUTOMATIC_ASSOCIATIONS);
+	private ResponseCodeEnum sanityCheckAutoAssociations(
+			final EntityNum target,
+			final HederaAccountCustomizer customizer
+	) {
+		final var changeSet = customizer.getChanges().changedSet();
+		if (changeSet.contains(MAX_AUTOMATIC_ASSOCIATIONS)) {
+			final long newMax = (int) customizer.getChanges().get(MAX_AUTOMATIC_ASSOCIATIONS);
 			if (newMax < ledger.alreadyUsedAutomaticAssociations(target.toGrpcAccountId())) {
 				return EXISTING_AUTOMATIC_ASSOCIATIONS_EXCEED_GIVEN_LIMIT;
 			}

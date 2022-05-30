@@ -130,7 +130,7 @@ public class CryptoUpdateTransitionLogic implements TransitionLogic {
 		}
 
 		final var changes = customizer.getChanges();
-		final var keyChanges = customizer.getChanges().keySet();
+		final var keyChanges = customizer.getChanges().changedSet();
 
 		if (ledger.isDetached(target) && !keyChanges.equals(EXPIRY_ONLY)) {
 			return ACCOUNT_EXPIRED_AND_PENDING_REMOVAL;

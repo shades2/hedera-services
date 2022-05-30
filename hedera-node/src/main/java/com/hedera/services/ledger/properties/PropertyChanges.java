@@ -1,15 +1,16 @@
 package com.hedera.services.ledger.properties;
 
-import org.jetbrains.annotations.NotNull;
-
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 
 public class PropertyChanges<P extends Enum<P> & BeanProperty<?>> {
 	private final long[] longValues;
 	private final Object[] values;
-	private final List<P> changedKeys;
+	private final List<P> changedProps;
 	private final boolean[] present;
 
 	public PropertyChanges(final Class<P> type) {
@@ -17,18 +18,22 @@ public class PropertyChanges<P extends Enum<P> & BeanProperty<?>> {
 		values = new Object[n];
 		present = new boolean[n];
 		longValues = new long[n];
-		changedKeys = new ArrayList<>(n);
+		changedProps = new ArrayList<>(n);
 	}
 
 	public boolean includes(final P property) {
-		throw new AssertionError("Not implemented");
+		return present[property.ordinal()];
 	}
 
 	public void undo(final P property) {
-		throw new AssertionError("Not implemented");
+		final var i = property.ordinal();
+		if (present[i]) {
+			present[i] = false;
+			changedProps.remove(property);
+		}
 	}
 
-	public void set(final P property, @NotNull final Object value) {
+	public void set(final P property, final Object value) {
 		final var i = property.ordinal();
 		if (property.isPrimitiveLong()) {
 			longValues[i] = (long) value;
@@ -64,13 +69,21 @@ public class PropertyChanges<P extends Enum<P> & BeanProperty<?>> {
 		return longValues[property.ordinal()];
 	}
 
+	public Set<P> changedSet() {
+		if (changedProps.isEmpty()) {
+			return Collections.emptySet();
+		} else {
+			return EnumSet.copyOf(changedProps);
+		}
+	}
+
 	public List<P> changed() {
-		return changedKeys;
+		return changedProps;
 	}
 
 	public void clear() {
 		Arrays.fill(present, false);
-		changedKeys.clear();
+		changedProps.clear();
 	}
 
 	private void assertGettable(final P property) {
@@ -83,7 +96,7 @@ public class PropertyChanges<P extends Enum<P> & BeanProperty<?>> {
 		final var i = property.ordinal();
 		if (!present[i]) {
 			present[i] = true;
-			changedKeys.add(property);
+			changedProps.add(property);
 		}
 	}
 }

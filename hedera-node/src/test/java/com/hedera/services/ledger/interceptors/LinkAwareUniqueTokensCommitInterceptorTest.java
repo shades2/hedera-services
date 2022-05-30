@@ -22,6 +22,7 @@ package com.hedera.services.ledger.interceptors;
 
 import com.hedera.services.ledger.EntityChangeSet;
 import com.hedera.services.ledger.properties.NftProperty;
+import com.hedera.services.ledger.properties.PropertyChanges;
 import com.hedera.services.state.merkle.MerkleUniqueToken;
 import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.store.models.NftId;
@@ -32,10 +33,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.util.EnumMap;
-import java.util.HashMap;
-import java.util.Map;
 
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
@@ -80,12 +77,12 @@ class LinkAwareUniqueTokensCommitInterceptorTest {
 	void resultsInNoOpForNoOwnershipChanges() {
 		var changes = (EntityChangeSet<NftId, MerkleUniqueToken, NftProperty>) mock(EntityChangeSet.class);
 		var nft = mock(MerkleUniqueToken.class);
-		var change = (HashMap<NftProperty, Object>) mock(HashMap.class);
+		var change = (PropertyChanges<NftProperty>) mock(PropertyChanges.class);
 
 		given(changes.size()).willReturn(1);
 		given(changes.entity(0)).willReturn(nft);
 		given(changes.changes(0)).willReturn(change);
-		given(change.containsKey(NftProperty.OWNER)).willReturn(false);
+		given(change.includes(NftProperty.OWNER)).willReturn(false);
 
 		subject.preview(changes);
 
@@ -97,7 +94,7 @@ class LinkAwareUniqueTokensCommitInterceptorTest {
 	void nonTreasuryExitTriggersUpdateLinksAsExpected() {
 		final var changes = (EntityChangeSet<NftId, MerkleUniqueToken, NftProperty>) mock(EntityChangeSet.class);
 		final var nft = mock(MerkleUniqueToken.class);
-		final var change = (HashMap<NftProperty, Object>) mock(HashMap.class);
+		final var change = (PropertyChanges<NftProperty>) mock(PropertyChanges.class);
 		final long ownerNum = 1111L;
 		final long newOwnerNum = 1234L;
 		final long tokenNum = 2222L;
@@ -109,7 +106,7 @@ class LinkAwareUniqueTokensCommitInterceptorTest {
 		given(changes.size()).willReturn(1);
 		given(changes.entity(0)).willReturn(nft);
 		given(changes.changes(0)).willReturn(change);
-		given(change.containsKey(NftProperty.OWNER)).willReturn(true);
+		given(change.includes(NftProperty.OWNER)).willReturn(true);
 		given(change.get(NftProperty.OWNER)).willReturn(newOwner.toEntityId());
 		given(nft.getOwner()).willReturn(owner.toEntityId());
 		given(nft.getKey()).willReturn(nftKey);
@@ -142,8 +139,8 @@ class LinkAwareUniqueTokensCommitInterceptorTest {
 		final var changes = (EntityChangeSet<NftId, MerkleUniqueToken, NftProperty>) mock(EntityChangeSet.class);
 		final var nft = mock(MerkleUniqueToken.class);
 		EntityNum owner = EntityNum.MISSING_NUM;
-		final Map<NftProperty, Object> scopedChanges = new EnumMap<>(NftProperty.class);
-		scopedChanges.put(NftProperty.SPENDER, new EntityId(0, 0, 123));
+		final var scopedChanges = new PropertyChanges<>(NftProperty.class);
+		scopedChanges.set(NftProperty.SPENDER, new EntityId(0, 0, 123));
 
 		given(changes.size()).willReturn(1);
 		given(changes.entity(0)).willReturn(nft);
@@ -185,7 +182,7 @@ class LinkAwareUniqueTokensCommitInterceptorTest {
 		final long ownerNum = 1111L;
 		final long tokenNum = 2222L;
 		final long serialNum = 2L;
-		final Map<NftProperty, Object> scopedChanges = new EnumMap<>(NftProperty.class);
+		final var scopedChanges = new PropertyChanges<>(NftProperty.class);
 		EntityNum owner = EntityNum.fromLong(ownerNum);
 		EntityNumPair nftKey = EntityNumPair.fromLongs(tokenNum, serialNum);
 		final var mintedNft = new MerkleUniqueToken();
@@ -194,7 +191,7 @@ class LinkAwareUniqueTokensCommitInterceptorTest {
 		given(changes.id(0)).willReturn(nftKey.asNftNumPair().nftId());
 		given(changes.entity(0)).willReturn(null);
 		given(changes.changes(0)).willReturn(scopedChanges);
-		scopedChanges.put(NftProperty.OWNER, owner.toEntityId());
+		scopedChanges.set(NftProperty.OWNER, owner.toEntityId());
 		given(uniqueTokensLinkManager.updateLinks(null, owner, nftKey)).willReturn(mintedNft);
 
 		subject.preview(changes);
@@ -207,14 +204,12 @@ class LinkAwareUniqueTokensCommitInterceptorTest {
 	@SuppressWarnings("unchecked")
 	void doesntTriggerUpdateLinkOnNormalTreasuryMint() {
 		final var changes = (EntityChangeSet<NftId, MerkleUniqueToken, NftProperty>) mock(EntityChangeSet.class);
-		final long tokenNum = 2222L;
-		final long serialNum = 2L;
-		final Map<NftProperty, Object> scopedChanges = new EnumMap<>(NftProperty.class);
+		final var scopedChanges = new PropertyChanges<>(NftProperty.class);
 
 		given(changes.size()).willReturn(1);
 		given(changes.entity(0)).willReturn(null);
 		given(changes.changes(0)).willReturn(scopedChanges);
-		scopedChanges.put(NftProperty.OWNER, EntityId.MISSING_ENTITY_ID);
+		scopedChanges.set(NftProperty.OWNER, EntityId.MISSING_ENTITY_ID);
 
 		subject.preview(changes);
 

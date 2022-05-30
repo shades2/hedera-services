@@ -30,6 +30,7 @@ import com.hedera.services.ledger.SigImpactHistorian;
 import com.hedera.services.ledger.accounts.AliasManager;
 import com.hedera.services.ledger.accounts.HederaAccountCustomizer;
 import com.hedera.services.ledger.properties.AccountProperty;
+import com.hedera.services.ledger.properties.PropertyChanges;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.txns.contract.helpers.UpdateCustomizerFactory;
 import com.hedera.services.txns.validation.OptionValidator;
@@ -49,9 +50,9 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.time.Instant;
-import java.util.Map;
 import java.util.Optional;
 
+import static com.hedera.services.ledger.properties.AccountProperty.MAX_AUTOMATIC_ASSOCIATIONS;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.AUTORENEW_DURATION_NOT_IN_RANGE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_DELETED;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.EXISTING_AUTOMATIC_ASSOCIATIONS_EXCEED_GIVEN_LIMIT;
@@ -146,6 +147,8 @@ class ContractUpdateTransitionLogicTest {
 		givenValidTxnCtx();
 		given(customizerFactory.customizerFor(contract, validator, contractUpdateTxn.getContractUpdateInstance()))
 				.willReturn(Pair.of(Optional.of(customizer), OK));
+		final var changeSet = new PropertyChanges<>(AccountProperty.class);
+		given(customizer.getChanges()).willReturn(changeSet);
 
 		// when:
 		subject.doStateTransition();
@@ -165,6 +168,9 @@ class ContractUpdateTransitionLogicTest {
 		givenValidTxnCtx();
 		given(customizerFactory.customizerFor(contract, validator, contractUpdateTxn.getContractUpdateInstance()))
 				.willReturn(Pair.of(Optional.of(customizer), OK));
+		final var changeSet = new PropertyChanges<>(AccountProperty.class);
+		given(customizer.getChanges()).willReturn(changeSet);
+
 		contract.setAlias(pretendAlias);
 
 		// when:
@@ -273,13 +279,14 @@ class ContractUpdateTransitionLogicTest {
 
 	@Test
 	void updateMaxAutomaticAssociationsFailWithMaxLessThanAlreadyExisting() {
+		final var changes = new PropertyChanges<>(AccountProperty.class);
+		changes.set(MAX_AUTOMATIC_ASSOCIATIONS, NEW_MAX_AUTOMATIC_ASSOCIATIONS);
 		final var captor = ArgumentCaptor.forClass(HederaAccountCustomizer.class);
 		givenValidTxnCtxWithMaxAssociations();
 		customizer = mock(HederaAccountCustomizer.class);
 		given(customizerFactory.customizerFor(contract, validator, contractUpdateTxn.getContractUpdateInstance()))
 				.willReturn(Pair.of(Optional.of(customizer), OK));
-		given(customizer.getChanges()).willReturn(
-				Map.of(AccountProperty.MAX_AUTOMATIC_ASSOCIATIONS, NEW_MAX_AUTOMATIC_ASSOCIATIONS));
+		given(customizer.getChanges()).willReturn(changes);
 		given(ledger.alreadyUsedAutomaticAssociations(targetId)).willReturn(NEW_MAX_AUTOMATIC_ASSOCIATIONS + 1);
 
 		subject.doStateTransition();
@@ -290,6 +297,8 @@ class ContractUpdateTransitionLogicTest {
 
 	@Test
 	void updateMaxAutomaticAssociationsFailWithMaxMoreThanAllowedTokenAssociations() {
+		final var changes = new PropertyChanges<>(AccountProperty.class);
+		changes.set(MAX_AUTOMATIC_ASSOCIATIONS, NEW_MAX_AUTOMATIC_ASSOCIATIONS);
 		final var captor = ArgumentCaptor.forClass(HederaAccountCustomizer.class);
 		givenValidTxnCtxWithMaxAssociations();
 		given(ledger.alreadyUsedAutomaticAssociations(targetId)).willReturn(CUR_MAX_AUTOMATIC_ASSOCIATIONS);
@@ -298,8 +307,7 @@ class ContractUpdateTransitionLogicTest {
 		customizer = mock(HederaAccountCustomizer.class);
 		given(customizerFactory.customizerFor(contract, validator, contractUpdateTxn.getContractUpdateInstance()))
 				.willReturn(Pair.of(Optional.of(customizer), OK));
-		given(customizer.getChanges()).willReturn(
-				Map.of(AccountProperty.MAX_AUTOMATIC_ASSOCIATIONS, NEW_MAX_AUTOMATIC_ASSOCIATIONS));
+		given(customizer.getChanges()).willReturn(changes);
 
 		subject.doStateTransition();
 

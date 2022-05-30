@@ -21,10 +21,9 @@ package com.hedera.services.ledger;
  */
 
 import com.hedera.services.ledger.accounts.TestAccount;
+import com.hedera.services.ledger.properties.PropertyChanges;
 import com.hedera.services.ledger.properties.TestAccountProperty;
 import org.junit.jupiter.api.Test;
-
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -37,7 +36,8 @@ class EntityChangeSetTest {
 
 	@Test
 	void canAddChanges() {
-		final Map<TestAccountProperty, Object> twoChanges = Map.of(TestAccountProperty.FLAG, false);
+		final PropertyChanges<TestAccountProperty> twoChanges = new PropertyChanges<>(TestAccountProperty.class);
+		twoChanges.set(TestAccountProperty.FLAG, false);
 		subject.include(1L, null, oneChanges);
 		subject.include(2L, a, twoChanges);
 
@@ -48,7 +48,8 @@ class EntityChangeSetTest {
 
 	@Test
 	void canUpdateCachedEntity() {
-		final Map<TestAccountProperty, Object> twoChanges = Map.of(TestAccountProperty.FLAG, false);
+		final PropertyChanges<TestAccountProperty> twoChanges = new PropertyChanges<>(TestAccountProperty.class);
+		twoChanges.set(TestAccountProperty.FLAG, false);
 		subject.include(1L, null, oneChanges);
 		subject.include(2L, null, twoChanges);
 		subject.cacheEntity(1, a);
@@ -68,7 +69,8 @@ class EntityChangeSetTest {
 
 	@Test
 	void distinguishesBetweenRetainsAndRemovals() {
-		final Map<TestAccountProperty, Object> twoChanges = Map.of(TestAccountProperty.FLAG, false);
+		final PropertyChanges<TestAccountProperty> twoChanges = new PropertyChanges<>(TestAccountProperty.class);
+		twoChanges.set(TestAccountProperty.FLAG, false);
 		subject.include(1L, null, oneChanges);
 		subject.includeRemoval(2L, a);
 		subject.include(3L, null, twoChanges);
@@ -85,11 +87,15 @@ class EntityChangeSetTest {
 			final int i,
 			final long k,
 			final TestAccount a,
-			final Map<TestAccountProperty, Object> p
+			final PropertyChanges<TestAccountProperty> p
 	) {
 		assertEquals(k, subject.id(i));
 		assertEquals(a, subject.entity(i));
 		assertEquals(p, subject.changes(i));
 	}
-	private static final Map<TestAccountProperty, Object> oneChanges = Map.of(TestAccountProperty.FLAG, false);
+	private static final PropertyChanges<TestAccountProperty> oneChanges =
+			new PropertyChanges<>(TestAccountProperty.class);
+	static {
+		oneChanges.set(TestAccountProperty.FLAG, false);
+	}
 }

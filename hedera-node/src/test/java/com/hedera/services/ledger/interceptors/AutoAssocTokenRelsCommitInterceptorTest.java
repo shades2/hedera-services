@@ -22,6 +22,7 @@ package com.hedera.services.ledger.interceptors;
 
 import com.hedera.services.context.SideEffectsTracker;
 import com.hedera.services.ledger.EntityChangeSet;
+import com.hedera.services.ledger.properties.PropertyChanges;
 import com.hedera.services.ledger.properties.TokenRelProperty;
 import com.hedera.services.state.merkle.MerkleTokenRelStatus;
 import com.hederahashgraph.api.proto.java.AccountID;
@@ -32,8 +33,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.util.Map;
 
 import static org.mockito.Mockito.verify;
 
@@ -51,9 +50,10 @@ class AutoAssocTokenRelsCommitInterceptorTest {
 
 	@Test
 	void recordsOnlyNewAssociations() {
+		final var unchanged = new PropertyChanges<>(TokenRelProperty.class);
 		final var changes = new EntityChangeSet<Pair<AccountID, TokenID>, MerkleTokenRelStatus, TokenRelProperty>();
-		changes.include(Pair.of(aAccountId, alreadyAssocTokenId), extantRel, Map.of());
-		changes.include(Pair.of(aAccountId, newAssocTokenId), null, Map.of());
+		changes.include(Pair.of(aAccountId, alreadyAssocTokenId), extantRel, unchanged);
+		changes.include(Pair.of(aAccountId, newAssocTokenId), null, unchanged);
 
 		subject.preview(changes);
 

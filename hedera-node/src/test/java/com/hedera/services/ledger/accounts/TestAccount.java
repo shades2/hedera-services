@@ -104,22 +104,6 @@ public class TestAccount {
 		this.validHbarAllowances = validHbarAllowances;
 	}
 
-	public Allowance getValidFungibleAllowances() {
-		return validFungibleAllowances;
-	}
-
-	public void setValidFungibleAllowances(final Allowance validFungibleAllowances) {
-		this.validFungibleAllowances = validFungibleAllowances;
-	}
-
-	public Allowance getValidNftAllowances() {
-		return validNftAllowances;
-	}
-
-	public void setValidNftAllowances(final Allowance validNftAllowances) {
-		this.validNftAllowances = validNftAllowances;
-	}
-
 	@Override
 	public boolean equals(Object o) {
 		if (o == this) {

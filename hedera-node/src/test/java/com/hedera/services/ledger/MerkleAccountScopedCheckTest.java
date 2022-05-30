@@ -22,6 +22,7 @@ package com.hedera.services.ledger;
 
 import com.hedera.services.ledger.properties.AccountProperty;
 import com.hedera.services.ledger.properties.NftProperty;
+import com.hedera.services.ledger.properties.PropertyChanges;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.state.merkle.MerkleUniqueToken;
 import com.hedera.services.state.submerkle.EntityId;
@@ -68,7 +69,7 @@ class MerkleAccountScopedCheckTest {
 	@Mock
 	private MerkleAccount account;
 	@Mock
-	private Map<AccountProperty, Object> changeSet;
+	private PropertyChanges<AccountProperty> changeSet;
 	@Mock
 	private Function<AccountProperty, Object> extantProps;
 
@@ -93,8 +94,8 @@ class MerkleAccountScopedCheckTest {
 	@Test
 	void failAsExpectedForDeletedAccountInChangeSet() {
 		when(balanceChange.isForHbar()).thenReturn(true);
-		Map<AccountProperty, Object> changes = new HashMap<>();
-		changes.put(IS_DELETED, true);
+		final var changes = new PropertyChanges<>(AccountProperty.class);
+		changes.set(IS_DELETED, true);
 
 		assertEquals(ACCOUNT_DELETED, subject.checkUsing(account, changes));
 	}
@@ -247,11 +248,8 @@ class MerkleAccountScopedCheckTest {
 	private static final TokenID fungibleTokenID = TokenID.newBuilder().setTokenNum(1234L).build();
 	private static final TokenID nonFungibleTokenID = TokenID.newBuilder().setTokenNum(1235L).build();
 	private static final NftId nftId1 = NftId.withDefaultShardRealm(nonFungibleTokenID.getTokenNum(), 1L);
-	private static final NftId nftId2 = NftId.withDefaultShardRealm(nonFungibleTokenID.getTokenNum(), 2L);
 	private static final FcTokenAllowanceId fungibleAllowanceId =
 			FcTokenAllowanceId.from(EntityNum.fromTokenId(fungibleTokenID), payerNum);
-	private static final FcTokenAllowanceId nftAllowanceId =
-			FcTokenAllowanceId.from(EntityNum.fromTokenId(nonFungibleTokenID), payerNum);
 	private static final Map<EntityNum, Long> CRYPTO_ALLOWANCES = new HashMap<>();
 	private static final Map<FcTokenAllowanceId, Long> FUNGIBLE_ALLOWANCES = new HashMap<>();
 	private static final Set<FcTokenAllowanceId> NFT_ALLOWANCES = new TreeSet<>();
