@@ -109,6 +109,14 @@ class AccountPropertyTest {
 	}
 
 	@Test
+	void primitiveBalanceAccessorsWork() {
+		final var account = new MerkleAccount();
+		assertThrows(IllegalArgumentException.class, () -> BALANCE.longSetter().accept(account, -1));
+		BALANCE.longSetter().accept(account, 123);
+		assertEquals(123L, BALANCE.longGetter().applyAsLong(account));
+	}
+
+	@Test
 	void gettersAndSettersWork() throws Exception {
 		final boolean origIsDeleted = false;
 		final boolean origIsReceiverSigReq = false;

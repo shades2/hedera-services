@@ -32,6 +32,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+import java.util.function.ObjLongConsumer;
+import java.util.function.ToLongFunction;
 
 /**
  * Implements a property family whose instances can provide the
@@ -73,6 +75,30 @@ public enum AccountProperty implements BeanProperty<MerkleAccount> {
 		}
 	},
 	BALANCE {
+		private static final ObjLongConsumer<MerkleAccount> UNBOXED_SETTER = (account, balance) -> {
+			try {
+				account.setBalance(balance);
+			} catch (final NegativeAccountBalanceException e) {
+				throw new IllegalArgumentException("Could not set balance on account " + account, e);
+			}
+		};
+		private static final ToLongFunction<MerkleAccount> UNBOXED_GETTER = MerkleAccount::getBalance;
+
+		@Override
+		public boolean isPrimitiveLong() {
+			return true;
+		}
+
+		@Override
+		public ObjLongConsumer<MerkleAccount> longSetter() {
+			return UNBOXED_SETTER;
+		}
+
+		@Override
+		public ToLongFunction<MerkleAccount> longGetter() {
+			return UNBOXED_GETTER;
+		}
+
 		@Override
 		@SuppressWarnings("unchecked")
 		public BiConsumer<MerkleAccount, Object> setter() {

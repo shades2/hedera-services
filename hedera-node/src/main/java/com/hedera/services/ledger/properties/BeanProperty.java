@@ -22,6 +22,8 @@ package com.hedera.services.ledger.properties;
 
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+import java.util.function.ObjLongConsumer;
+import java.util.function.ToLongFunction;
 
 /**
  * Defines a type that can provide a getter/setter pair for a given type.
@@ -44,4 +46,28 @@ public interface BeanProperty<A> {
 	 * @return the getter on the target type.
 	 */
 	Function<A, Object> getter();
+
+	/**
+	 * Returns whether this property is a primitive long.
+	 * @return if this property is a long
+	 */
+	default boolean isPrimitiveLong() {
+		return false;
+	}
+
+	/**
+	 * Gets the un-boxed long setter for this property.
+	 * @return the primitive setter on the target type
+	 */
+	default ObjLongConsumer<A> longSetter() {
+		throw new UnsupportedOperationException("No long setter specialization");
+	}
+
+	/**
+	 * Gets the un-boxed long getter for this property.
+	 * @return the primitive getter on the target type
+	 */
+	default ToLongFunction<A> longGetter() {
+		throw new UnsupportedOperationException("No long getter specialization");
+	}
 }

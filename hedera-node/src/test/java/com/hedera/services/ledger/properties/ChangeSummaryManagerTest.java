@@ -61,7 +61,7 @@ class ChangeSummaryManagerTest {
 		subject.persistWithObserver(id, changes, testAccount, observer);
 
 		assertEquals(new TestAccount(5L, thing, true), testAccount);
-		verify(observer).newProperty(id, LONG, 5L);
+		verify(observer).newLongProperty(id, LONG, 5L);
 		verify(observer).newProperty(id, FLAG, true);
 		verifyNoMoreInteractions(observer);
 	}

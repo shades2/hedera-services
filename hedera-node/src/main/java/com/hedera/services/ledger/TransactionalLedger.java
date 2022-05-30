@@ -25,13 +25,13 @@ import com.hedera.services.exceptions.MissingAccountException;
 import com.hedera.services.ledger.backing.BackingStore;
 import com.hedera.services.ledger.properties.BeanProperty;
 import com.hedera.services.ledger.properties.ChangeSummaryManager;
+import com.hedera.services.ledger.properties.PropertyChanges;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
-import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -71,15 +71,15 @@ public class TransactionalLedger<K, P extends Enum<P> & BeanProperty<A>, A> impl
 	private final List<K> createdKeys = new ArrayList<>(MAX_ENTITIES_CONCEIVABLY_TOUCHED_IN_LEDGER_TXN);
 	private final List<K> changedKeys = new ArrayList<>(MAX_ENTITIES_CONCEIVABLY_TOUCHED_IN_LEDGER_TXN);
 	private final List<K> removedKeys = new ArrayList<>(MAX_ENTITIES_CONCEIVABLY_TOUCHED_IN_LEDGER_TXN);
-	private final Map<K, EnumMap<P, Object>> changes = new HashMap<>();
+	private final Map<K, PropertyChanges<P>> changes = new HashMap<>();
 
 	private final Class<P> propertyType;
 	private final Supplier<A> newEntity;
 	private final Consumer<K> finalizeAction;
+	private final ChangesFactory<P> changesFactory;
 	private final BackingStore<K, A> entities;
 	private final ChangeSummaryManager<A, P> changeManager;
 	private final TransactionalLedger<K, P, A> entitiesLedger;
-	private final Function<K, EnumMap<P, Object>> changeFactory;
 
 	private boolean isInTransaction = false;
 	private Consumer<K> previewAction = null;
@@ -92,6 +92,7 @@ public class TransactionalLedger<K, P extends Enum<P> & BeanProperty<A>, A> impl
 			final Class<P> propertyType,
 			final Supplier<A> newEntity,
 			final BackingStore<K, A> entities,
+			final ChangesFactory<P> changesFactory,
 			final ChangeSummaryManager<A, P> changeManager
 	) {
 		this.entities = entities;
@@ -99,7 +100,7 @@ public class TransactionalLedger<K, P extends Enum<P> & BeanProperty<A>, A> impl
 		this.newEntity = newEntity;
 		this.propertyType = propertyType;
 		this.changeManager = changeManager;
-		this.changeFactory = ignore -> new EnumMap<>(propertyType);
+		this.changesFactory = changesFactory;
 
 		if (entities instanceof TransactionalLedger) {
 			this.entitiesLedger = (TransactionalLedger<K, P, A>) entities;
@@ -132,6 +133,7 @@ public class TransactionalLedger<K, P extends Enum<P> & BeanProperty<A>, A> impl
 				sourceLedger.getPropertyType(),
 				sourceLedger.getNewEntity(),
 				sourceLedger,
+				sourceLedger.getChangesFactory(),
 				sourceLedger.getChangeManager());
 		wrapper.begin();
 		return wrapper;
@@ -157,8 +159,8 @@ public class TransactionalLedger<K, P extends Enum<P> & BeanProperty<A>, A> impl
 					.append(readable(id))
 					.append(": [");
 			desc.append(
-					value.entrySet().stream()
-							.map(entry -> String.format("%s -> %s", entry.getKey(), readableProperty(entry.getValue())))
+					value.changed().stream()
+							.map(prop -> String.format("%s -> %s", prop, readableProperty(value.get(prop))))
 							.collect(joining(", ")));
 			desc.append("]");
 			isFirstChange.set(false);
@@ -221,10 +223,10 @@ public class TransactionalLedger<K, P extends Enum<P> & BeanProperty<A>, A> impl
 		throwIfNotInTxn();
 		if (!changedKeys.isEmpty()) {
 			for (var key : changedKeys) {
-				final var entityChanges = changes.get(key);
-				if (entityChanges != null) {
+				final var changeSet = changes.get(key);
+				if (changeSet != null) {
 					for (final var property : properties) {
-						entityChanges.remove(property);
+						changeSet.undo(property);
 					}
 				}
 			}
@@ -313,7 +315,7 @@ public class TransactionalLedger<K, P extends Enum<P> & BeanProperty<A>, A> impl
 		assertIsSettable(id);
 		changeManager.update(changes.computeIfAbsent(id, ignore -> {
 			changedKeys.add(id);
-			return changeFactory.apply(id);
+			return changesFactory.get();
 		}), property, value);
 	}
 
@@ -324,7 +326,7 @@ public class TransactionalLedger<K, P extends Enum<P> & BeanProperty<A>, A> impl
 	public Object get(final K id, final P property) {
 		throwIfMissing(id);
 		final var changeSet = changes.get(id);
-		if (changeSet != null && changeSet.containsKey(property)) {
+		if (changeSet != null && changeSet.includes(property)) {
 			return changeSet.get(property);
 		} else {
 			if (entitiesLedger == null) {
@@ -346,7 +348,7 @@ public class TransactionalLedger<K, P extends Enum<P> & BeanProperty<A>, A> impl
 	@Override
 	public void create(final K id) {
 		assertIsCreatable(id);
-		changes.put(id, new EnumMap<>(propertyType));
+		changes.put(id, changesFactory.get());
 		createdKeys.add(id);
 	}
 
@@ -450,6 +452,10 @@ public class TransactionalLedger<K, P extends Enum<P> & BeanProperty<A>, A> impl
 		return finalized(id, entity, changes.get(id));
 	}
 
+	ChangesFactory<P> getChangesFactory() {
+		return changesFactory;
+	}
+
 	ChangeSummaryManager<A, P> getChangeManager() {
 		return changeManager;
 	}
@@ -462,7 +468,7 @@ public class TransactionalLedger<K, P extends Enum<P> & BeanProperty<A>, A> impl
 		return propertyType;
 	}
 
-	private A finalized(final K id, final A entity, @Nullable final Map<P, Object> changes) {
+	private A finalized(final K id, final A entity, @Nullable final PropertyChanges<P> changes) {
 		if (changes != null) {
 			if (propertyChangeObserver != null) {
 				changeManager.persistWithObserver(id, changes, entity, propertyChangeObserver);
@@ -476,7 +482,7 @@ public class TransactionalLedger<K, P extends Enum<P> & BeanProperty<A>, A> impl
 	private void setPropsWithSource(final K id, final A entity, final Function<P, Object> extantProps) {
 		final var changeSet = changes.get(id);
 		for (final var prop : allProps) {
-			if (changeSet != null && changeSet.containsKey(prop)) {
+			if (changeSet != null && changeSet.includes(prop)) {
 				prop.setter().accept(entity, changeSet.get(prop));
 			} else {
 				prop.setter().accept(entity, extantProps.apply(prop));
@@ -628,7 +634,7 @@ public class TransactionalLedger<K, P extends Enum<P> & BeanProperty<A>, A> impl
 	}
 
 	@VisibleForTesting
-	Map<K, EnumMap<P, Object>> getChanges() {
+	Map<K, PropertyChanges<P>> getChanges() {
 		return changes;
 	}
 }

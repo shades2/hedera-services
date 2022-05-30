@@ -22,6 +22,7 @@ package com.hedera.services.ledger;
 
 import com.hedera.services.ledger.properties.AccountProperty;
 import com.hedera.services.ledger.properties.NftProperty;
+import com.hedera.services.ledger.properties.PropertyChanges;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.state.merkle.MerkleUniqueToken;
 import com.hedera.services.state.submerkle.EntityId;
@@ -66,13 +67,13 @@ public class MerkleAccountScopedCheck implements LedgerCheck<MerkleAccount, Acco
 	@Override
 	public ResponseCodeEnum checkUsing(
 			final Function<AccountProperty, Object> extantProps,
-			final Map<AccountProperty, Object> changeSet
+			final PropertyChanges<AccountProperty> changeSet
 	) {
 		return internalCheck(null, extantProps, changeSet);
 	}
 
 	@Override
-	public ResponseCodeEnum checkUsing(final MerkleAccount account, final Map<AccountProperty, Object> changeSet) {
+	public ResponseCodeEnum checkUsing(final MerkleAccount account, final PropertyChanges<AccountProperty> changeSet) {
 		return internalCheck(account, null, changeSet);
 	}
 
@@ -84,7 +85,7 @@ public class MerkleAccountScopedCheck implements LedgerCheck<MerkleAccount, Acco
 	private ResponseCodeEnum internalCheck(
 			@Nullable final MerkleAccount account,
 			@Nullable final Function<AccountProperty, Object> extantProps,
-			final Map<AccountProperty, Object> changeSet
+			final PropertyChanges<AccountProperty> changeSet
 	) {
 		if (balanceChange.isForHbar()) {
 			return hbarCheck(account, extantProps, changeSet);
@@ -99,9 +100,9 @@ public class MerkleAccountScopedCheck implements LedgerCheck<MerkleAccount, Acco
 			final AccountProperty prop,
 			@Nullable final MerkleAccount account,
 			@Nullable final Function<AccountProperty, Object> extantProps,
-			final Map<AccountProperty, Object> changeSet
+			final PropertyChanges<AccountProperty> changeSet
 	) {
-		if (changeSet != null && changeSet.containsKey(prop)) {
+		if (changeSet != null && changeSet.includes(prop)) {
 			return changeSet.get(prop);
 		}
 		final var useExtantProps = extantProps != null;
@@ -131,7 +132,7 @@ public class MerkleAccountScopedCheck implements LedgerCheck<MerkleAccount, Acco
 	private ResponseCodeEnum hbarCheck(
 			@Nullable final MerkleAccount account,
 			@Nullable final Function<AccountProperty, Object> extantProps,
-			final Map<AccountProperty, Object> changeSet
+			final PropertyChanges<AccountProperty> changeSet
 	) {
 		if ((boolean) getEffective(IS_DELETED, account, extantProps, changeSet)) {
 			return ResponseCodeEnum.ACCOUNT_DELETED;
@@ -159,10 +160,11 @@ public class MerkleAccountScopedCheck implements LedgerCheck<MerkleAccount, Acco
 		return OK;
 	}
 
+	@SuppressWarnings("unchecked")
 	public ResponseCodeEnum validateNftAllowance(
 			@Nullable final MerkleAccount account,
 			@Nullable final Function<AccountProperty, Object> extantProps,
-			final Map<AccountProperty, Object> changeSet) {
+			final PropertyChanges<AccountProperty> changeSet) {
 		if (balanceChange.isApprovedAllowance()) {
 			final var approveForAllNftsAllowances = (Set<FcTokenAllowanceId>) getEffective(
 					APPROVE_FOR_ALL_NFTS_ALLOWANCES, account, extantProps, changeSet);
@@ -180,10 +182,11 @@ public class MerkleAccountScopedCheck implements LedgerCheck<MerkleAccount, Acco
 		return OK;
 	}
 
+	@SuppressWarnings("unchecked")
 	private ResponseCodeEnum validateHbarAllowance(
 			@Nullable final MerkleAccount account,
 			@Nullable final Function<AccountProperty, Object> extantProps,
-			final Map<AccountProperty, Object> changeSet) {
+			final PropertyChanges<AccountProperty> changeSet) {
 		if (balanceChange.isApprovedAllowance()) {
 			final var cryptoAllowances = (Map<EntityNum, Long>) getEffective(
 					CRYPTO_ALLOWANCES, account, extantProps, changeSet);
@@ -200,10 +203,11 @@ public class MerkleAccountScopedCheck implements LedgerCheck<MerkleAccount, Acco
 		return OK;
 	}
 
+	@SuppressWarnings("unchecked")
 	public ResponseCodeEnum validateFungibleTokenAllowance(
 			@Nullable final MerkleAccount account,
 			@Nullable final Function<AccountProperty, Object> extantProps,
-			final Map<AccountProperty, Object> changeSet) {
+			final PropertyChanges<AccountProperty> changeSet) {
 		if (balanceChange.isApprovedAllowance()) {
 			final var fungibleAllowances = (Map<FcTokenAllowanceId, Long>) getEffective(
 					FUNGIBLE_TOKEN_ALLOWANCES, account, extantProps, changeSet);

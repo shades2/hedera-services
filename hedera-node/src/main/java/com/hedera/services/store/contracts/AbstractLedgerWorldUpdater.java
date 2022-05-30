@@ -22,6 +22,7 @@ package com.hedera.services.store.contracts;
 
 import com.google.protobuf.ByteString;
 import com.hedera.services.context.SideEffectsTracker;
+import com.hedera.services.ledger.PropertyChangeObserver;
 import com.hedera.services.ledger.TransactionalLedger;
 import com.hedera.services.ledger.accounts.ContractAliases;
 import com.hedera.services.ledger.accounts.ContractCustomizer;
@@ -252,9 +253,21 @@ public abstract class AbstractLedgerWorldUpdater<W extends WorldView, A extends 
 	private WorldLedgers withChangeObserver(final WorldLedgers wrappedLedgers) {
 		final var wrappedAccounts = wrappedLedgers.accounts();
 		if (wrappedAccounts != null) {
-			wrappedAccounts.setPropertyChangeObserver(this::onAccountPropertyChange);
+			wrappedAccounts.setPropertyChangeObserver(new BalanceChangeObserver());
 		}
 		return wrappedLedgers;
+	}
+
+	private class BalanceChangeObserver implements PropertyChangeObserver<AccountID, AccountProperty> {
+		@Override
+		public void newProperty(final AccountID id, final AccountProperty property, final Object newValue) {
+
+		}
+
+		@Override
+		public void newLongProperty(final AccountID id, final AccountProperty property, final long newValue) {
+
+		}
 	}
 
 	private void onAccountPropertyChange(final AccountID id, final AccountProperty property, final Object newValue) {

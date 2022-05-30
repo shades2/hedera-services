@@ -29,7 +29,6 @@ package com.hedera.services.ledger;
  * @param <K> the key that identifies a changeable entity
  * @param <P> the enumerable family of changeable properties
  */
-@FunctionalInterface
 public interface PropertyChangeObserver<K, P extends Enum<P>> {
 	/**
 	 * Called to notify the observer that the entity with the given id has had
@@ -40,4 +39,14 @@ public interface PropertyChangeObserver<K, P extends Enum<P>> {
 	 * @param newValue the new value of that property
 	 */
 	void newProperty(K id, P property, Object newValue);
+
+	/**
+	 * Called to notify the observer of a new value for the long property of the given
+	 * type on the given entity.
+	 *
+	 * @param id the id of the entity
+	 * @param property the long property that changed
+	 * @param newValue the new value
+	 */
+	void newLongProperty(K id, P property, long newValue);
 }

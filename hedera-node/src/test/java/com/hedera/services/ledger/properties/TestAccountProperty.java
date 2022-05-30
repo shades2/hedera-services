@@ -24,6 +24,8 @@ import com.hedera.services.ledger.accounts.TestAccount;
 
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+import java.util.function.ObjLongConsumer;
+import java.util.function.ToLongFunction;
 
 public enum TestAccountProperty implements BeanProperty<TestAccount> {
 	FLAG {
@@ -38,6 +40,9 @@ public enum TestAccountProperty implements BeanProperty<TestAccount> {
 		}
 	},
 	LONG {
+		private static final ObjLongConsumer<TestAccount> SETTER = TestAccount::setValue;
+		private static final ToLongFunction<TestAccount> GETTER = TestAccount::getValue;
+
 		@Override
 		public BiConsumer<TestAccount, Object> setter() {
 			return (a, v) -> a.setValue((long) v);
@@ -46,6 +51,21 @@ public enum TestAccountProperty implements BeanProperty<TestAccount> {
 		@Override
 		public Function<TestAccount, Object> getter() {
 			return TestAccount::getValue;
+		}
+
+		@Override
+		public boolean isPrimitiveLong() {
+			return true;
+		}
+
+		@Override
+		public ObjLongConsumer<TestAccount> longSetter() {
+			return SETTER;
+		}
+
+		@Override
+		public ToLongFunction<TestAccount> longGetter() {
+			return GETTER;
 		}
 	},
 	OBJ {

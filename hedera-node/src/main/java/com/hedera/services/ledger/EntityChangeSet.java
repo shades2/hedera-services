@@ -22,10 +22,10 @@ package com.hedera.services.ledger;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.hedera.services.ledger.properties.BeanProperty;
+import com.hedera.services.ledger.properties.PropertyChanges;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import static com.hedera.services.ledger.TransactionalLedger.MAX_ENTITIES_CONCEIVABLY_TOUCHED_IN_LEDGER_TXN;
 
@@ -47,7 +47,7 @@ public class EntityChangeSet<K, A, P extends Enum<P> & BeanProperty<A>> {
 	// list has a null value at an index, it means the change at that index was a creation
 	private final List<K> ids = new ArrayList<>(MAX_ENTITIES_CONCEIVABLY_TOUCHED_IN_LEDGER_TXN);
 	private final List<A> entities = new ArrayList<>(MAX_ENTITIES_CONCEIVABLY_TOUCHED_IN_LEDGER_TXN);
-	private final List<Map<P, Object>> changes = new ArrayList<>(MAX_ENTITIES_CONCEIVABLY_TOUCHED_IN_LEDGER_TXN);
+	private final List<PropertyChanges<P>> changes = new ArrayList<>(MAX_ENTITIES_CONCEIVABLY_TOUCHED_IN_LEDGER_TXN);
 
 	private int numRetainedChanges = 0;
 
@@ -59,7 +59,7 @@ public class EntityChangeSet<K, A, P extends Enum<P> & BeanProperty<A>> {
 		return entities.get(i);
 	}
 
-	public Map<P, Object> changes(final int i) {
+	public PropertyChanges<P> changes(final int i) {
 		return changes.get(i);
 	}
 
@@ -78,7 +78,7 @@ public class EntityChangeSet<K, A, P extends Enum<P> & BeanProperty<A>> {
 		return numRetainedChanges;
 	}
 
-	public void include(final K key, final A entity, final Map<P, Object> entityChanges) {
+	public void include(final K key, final A entity, final PropertyChanges<P> entityChanges) {
 		ids.add(key);
 		entities.add(entity);
 		changes.add(entityChanges);
@@ -104,7 +104,7 @@ public class EntityChangeSet<K, A, P extends Enum<P> & BeanProperty<A>> {
 		return entities;
 	}
 
-	List<Map<P, Object>> getChanges() {
+	List<PropertyChanges<P>> getChanges() {
 		return changes;
 	}
 }

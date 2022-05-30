@@ -22,8 +22,6 @@ package com.hedera.services.ledger.properties;
 
 import com.hedera.services.ledger.PropertyChangeObserver;
 
-import java.util.Map;
-
 /**
  * Minimal implementation of a helper that manages summary changesets.
  * An extension point for possible future performance optimizations.
@@ -44,8 +42,8 @@ public final class ChangeSummaryManager<A, P extends Enum<P> & BeanProperty<A>> 
 	 * @param value
 	 * 		the new value that summarizes the changeset
 	 */
-	public void update(final Map<P, Object> changes, final P property, final Object value) {
-		changes.put(property, value);
+	public void update(final PropertyChanges<P> changes, final P property, final Object value) {
+		changes.set(property, value);
 	}
 
 	/**
@@ -56,8 +54,14 @@ public final class ChangeSummaryManager<A, P extends Enum<P> & BeanProperty<A>> 
 	 * @param account
 	 * 		the account to receive the net changes
 	 */
-	public void persist(final Map<P, Object> changes, final A account) {
-		changes.forEach((key, value) -> key.setter().accept(account, value));
+	public void persist(final PropertyChanges<P> changes, final A account) {
+		changes.changed().forEach(property -> {
+			if (property.isPrimitiveLong()) {
+				property.longSetter().accept(account, changes.getLong(property));
+			} else {
+				property.setter().accept(account, changes.get(property));
+			}
+		});
 	}
 
 	/**
@@ -76,13 +80,20 @@ public final class ChangeSummaryManager<A, P extends Enum<P> & BeanProperty<A>> 
 	 */
 	public <K> void persistWithObserver(
 			final K id,
-			final Map<P, Object> changes,
+			final PropertyChanges<P> changes,
 			final A account,
 			final PropertyChangeObserver<K, P> changeObserver
 	) {
-		changes.forEach((property, newValue) -> {
-			property.setter().accept(account, newValue);
-			changeObserver.newProperty(id, property, newValue);
+		changes.changed().forEach(property -> {
+			if (property.isPrimitiveLong()) {
+				final var newValue = changes.getLong(property);
+				property.longSetter().accept(account, newValue);
+				changeObserver.newLongProperty(id, property, newValue);
+			} else {
+				final var newValue = changes.get(property);
+				property.setter().accept(account, newValue);
+				changeObserver.newProperty(id, property, newValue);
+			}
 		});
 	}
 }

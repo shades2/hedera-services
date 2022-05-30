@@ -21,12 +21,13 @@ package com.hedera.services.ledger;
  */
 
 
+import com.hedera.services.ledger.properties.BeanProperty;
+import com.hedera.services.ledger.properties.PropertyChanges;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 
-import java.util.Map;
 import java.util.function.Function;
 
-public interface LedgerCheck<A, P>  {
-	ResponseCodeEnum checkUsing(A account, Map<P, Object> changeSet);
-	ResponseCodeEnum checkUsing(Function<P, Object> extantProps, Map<P, Object> changeSet);
+public interface LedgerCheck<A, P extends Enum<P> & BeanProperty<?>>  {
+	ResponseCodeEnum checkUsing(A account, PropertyChanges<P> changeSet);
+	ResponseCodeEnum checkUsing(Function<P, Object> extantProps, PropertyChanges<P> changeSet);
 }
